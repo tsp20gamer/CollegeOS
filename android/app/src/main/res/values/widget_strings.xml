@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CollegeOS</string>
+    <string name="college_os_widget_description">Next class and today’s attendance</string>
+    <string name="widget_next_class">NEXT CLASS</string>
+    <string name="widget_today_attendance">TODAY’S ATTENDANCE</string>
+    <string name="widget_open_to_refresh">Open CollegeOS to refresh</string>
+</resources>

@@ -1,0 +1,55 @@
+abstract final class RouteNames {
+  static const startup = 'startup';
+  static const welcome = 'welcome';
+  static const collegeSetup = 'college-setup';
+  static const gettingStarted = 'getting-started';
+  static const restoreBackup = 'restore-backup';
+  static const home = 'home';
+  static const attendance = 'attendance';
+  static const timetable = 'timetable';
+  static const timetableExceptions = 'timetable-exceptions';
+  static const tasks = 'tasks';
+  static const attendanceSubject = 'attendance-subject';
+  static const pendingAttendance = 'pending-attendance';
+  static const attendanceAnalytics = 'attendance-analytics';
+  static const attendancePlanner = 'attendance-planner';
+  static const subjects = 'subjects';
+  static const examsMarks = 'exams-marks';
+  static const subjectPerformance = 'subject-performance';
+  static const settings = 'settings';
+  static const collegeInformation = 'college-information';
+  static const semesters = 'semesters';
+  static const dataBackup = 'data-backup';
+  static const academicCalendar = 'academic-calendar';
+  static const reports = 'reports';
+  static const help = 'help';
+  static const subjectNotes = 'subject-notes';
+}
+
+abstract final class RoutePaths {
+  static const startup = '/startup';
+  static const welcome = '/onboarding';
+  static const collegeSetup = '/onboarding/setup';
+  static const gettingStarted = '/getting-started';
+  static const restoreBackup = '/restore-backup';
+  static const home = '/home';
+  static const attendance = '/attendance';
+  static const timetable = '/timetable';
+  static const timetableExceptions = '/timetable/exceptions';
+  static const tasks = '/tasks';
+  static const attendanceSubject = '/attendance/subject/:subjectId';
+  static const pendingAttendance = '/attendance/pending';
+  static const attendanceAnalytics = '/attendance/analytics';
+  static const attendancePlanner = '/attendance/planner';
+  static const settings = '/settings';
+  static const subjects = '/settings/subjects';
+  static const examsMarks = '/settings/exams-marks';
+  static const subjectPerformance = '/settings/exams-marks/subject/:subjectId';
+  static const collegeInformation = '/settings/college-information';
+  static const semesters = '/settings/semesters';
+  static const dataBackup = '/settings/data-backup';
+  static const academicCalendar = '/settings/academic-calendar';
+  static const reports = '/settings/reports';
+  static const help = '/settings/help';
+  static const subjectNotes = '/notes/subject/:subjectId';
+}
