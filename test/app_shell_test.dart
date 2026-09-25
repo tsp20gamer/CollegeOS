@@ -60,32 +60,51 @@ void main() {
     expect(find.byKey(const Key('navigation_page_slide')), findsNothing);
     expect(find.byKey(const Key('navigation_page_scale')), findsNothing);
     expect(find.byType(BackdropFilter), findsNothing);
-    final glassSurface = tester.widget<DecoratedBox>(
-      find.byKey(const Key('navigation_glass_surface')),
-    );
-    final glassDecoration = glassSurface.decoration as BoxDecoration;
-    expect(glassDecoration.gradient, isA<LinearGradient>());
+    // EtherWave-style separate expanding pills, themed to CollegeOS.
     expect(
-      (glassDecoration.gradient! as LinearGradient).colors.every(
-        (color) => color.a > .05 && color.a <= .8,
-      ),
-      isTrue,
+      find.byKey(const ValueKey('college-navigation-dock')),
+      findsOneWidget,
     );
-    // Selected destination uses a subtle highlight background
-    // (no gradient-circle selection surface in the current design).
-    expect(
-      tester.widget<AnimatedContainer>(
-        find.descendant(
-          of: find.byKey(const Key('nav_home')),
-          matching: find.byType(AnimatedContainer),
-        ),
-      ).decoration,
-      isA<BoxDecoration>().having(
-        (d) => (d.color?.a ?? 0) > 0,
-        'has selected highlight',
-        isTrue,
+    expect(find.byKey(const Key('dock_gap_shield')), findsOneWidget);
+    // Five pills, each with an AnimatedContainer width animation.
+    final pillContainers = tester.widgetList<AnimatedContainer>(
+      find.descendant(
+        of: find.byType(CollegeNavigationDock),
+        matching: find.byType(AnimatedContainer),
       ),
     );
+    expect(pillContainers, hasLength(5));
+    // Selected pill uses an expanding gradient surface with primary border.
+    final homeContainer = tester.widget<AnimatedContainer>(
+      find.descendant(
+        of: find.byKey(const Key('nav_home')),
+        matching: find.byType(AnimatedContainer),
+      ),
+    );
+    final homeDecoration = homeContainer.decoration! as BoxDecoration;
+    expect(homeDecoration.gradient, isA<LinearGradient>());
+    expect(homeDecoration.borderRadius, BorderRadius.circular(19));
+    expect(homeDecoration.boxShadow, hasLength(2));
+    // Selected Home pill is wider than collapsed unselected pills.
+    final homeWidth = (homeContainer.constraints?.maxWidth ?? 0) > 0
+        ? homeContainer.constraints!.maxWidth
+        : (homeContainer.decoration as BoxDecoration?) != null
+        ? tester
+              .getSize(
+                find.descendant(
+                  of: find.byKey(const Key('nav_home')),
+                  matching: find.byType(AnimatedContainer),
+                ),
+              )
+              .width
+        : 0;
+    expect(homeWidth, greaterThan(48));
+    // Selected label visible, unselected labels hidden (icon-only pills).
+    expect(find.byKey(const Key('dock_label_Home')), findsOneWidget);
+    expect(find.byKey(const Key('dock_label_Attendance')), findsNothing);
+    expect(find.byKey(const Key('dock_label_Timetable')), findsNothing);
+    expect(find.byKey(const Key('dock_label_Tasks')), findsNothing);
+    expect(find.byKey(const Key('dock_label_Settings')), findsNothing);
     for (final key in const [
       Key('nav_home'),
       Key('nav_attendance'),
@@ -133,11 +152,18 @@ void main() {
             .data,
         destination.$1,
       );
+      // Previous destination collapses to icon-only (label removed).
+      expect(find.byKey(Key('dock_label_$previousDestination')), findsNothing);
+      // Selected pill keeps expanded radius, unselected uses compact radius.
+      final selectedContainer = tester.widget<AnimatedContainer>(
+        find.descendant(
+          of: find.byKey(Key('nav_${destination.$1.toLowerCase()}')),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
       expect(
-        tester
-            .widget<Text>(find.byKey(Key('dock_label_$previousDestination')))
-            .data,
-        '',
+        (selectedContainer.decoration! as BoxDecoration).borderRadius,
+        BorderRadius.circular(19),
       );
       expect(
         tester

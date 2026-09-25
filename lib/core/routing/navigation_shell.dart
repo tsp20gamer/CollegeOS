@@ -1,8 +1,9 @@
 import 'package:college_os/core/theme/animation_tokens.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/core/theme/dimensions.dart';
-import 'package:college_os/core/theme/radius.dart';
+import 'package:college_os/shared/widgets/press_scale.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 class NavigationShell extends StatefulWidget {
@@ -28,13 +29,17 @@ class _NavigationShellState extends State<NavigationShell>
 
   late final _dockScale = TweenSequence<double>([
     TweenSequenceItem(
-      tween: Tween<double>(begin: 1.0, end: 0.95)
-          .chain(CurveTween(curve: Curves.easeOutCubic)),
+      tween: Tween<double>(
+        begin: 1.0,
+        end: 0.95,
+      ).chain(CurveTween(curve: Curves.easeOutCubic)),
       weight: 30,
     ),
     TweenSequenceItem(
-      tween: Tween<double>(begin: 0.95, end: 1.0)
-          .chain(CurveTween(curve: Curves.elasticOut)),
+      tween: Tween<double>(
+        begin: 0.95,
+        end: 1.0,
+      ).chain(CurveTween(curve: Curves.elasticOut)),
       weight: 70,
     ),
   ]).animate(_transition);
@@ -117,116 +122,117 @@ class CollegeNavigationDock extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
+  static const _collapsedWidth = 48.0;
+  static const _pillHeight = 52.0;
+  static const _defaultGap = 6.0;
+  static const _minGap = 4.0;
+
   static const destinations =
-      <({String label, IconData icon, IconData selectedIcon, Key key})>[
+      <
+        ({
+          String label,
+          IconData icon,
+          IconData selectedIcon,
+          double width,
+          Key key,
+        })
+      >[
         (
           label: 'Home',
           icon: Icons.space_dashboard_outlined,
           selectedIcon: Icons.space_dashboard_rounded,
+          width: 86,
           key: Key('nav_home'),
         ),
         (
           label: 'Attendance',
           icon: Icons.fact_check_outlined,
           selectedIcon: Icons.fact_check_rounded,
+          width: 116,
           key: Key('nav_attendance'),
         ),
         (
           label: 'Timetable',
           icon: Icons.calendar_view_week_outlined,
           selectedIcon: Icons.calendar_view_week_rounded,
+          width: 112,
           key: Key('nav_timetable'),
         ),
         (
           label: 'Tasks',
           icon: Icons.task_alt_outlined,
           selectedIcon: Icons.task_alt_rounded,
+          width: 86,
           key: Key('nav_tasks'),
         ),
         (
           label: 'Settings',
           icon: Icons.settings_outlined,
           selectedIcon: Icons.settings_rounded,
+          width: 104,
           key: Key('nav_settings'),
         ),
       ];
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        boxShadow: [
-          BoxShadow(
-            color: colors.shadow.withValues(alpha: isDark ? .22 : .09),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+    return RepaintBoundary(
+      child: SizedBox(
+        key: const ValueKey('college-navigation-dock'),
+        height: AppLayout.dockHeight,
+        width: double.infinity,
+        child: Align(
+          alignment: Alignment.center,
+          child: GestureDetector(
+            key: const Key('dock_gap_shield'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () {},
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                var gap = _defaultGap;
+                const widestPill = 116.0;
+                final roomyGap =
+                    (constraints.maxWidth -
+                        widestPill -
+                        _collapsedWidth * (destinations.length - 1)) /
+                    (destinations.length - 1);
+                gap = roomyGap.clamp(_minGap, _defaultGap);
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (
+                      var index = 0;
+                      index < destinations.length;
+                      index++
+                    ) ...[
+                      _DockPill(
+                        key: destinations[index].key,
+                        label: destinations[index].label,
+                        icon: destinations[index].icon,
+                        selectedIcon: destinations[index].selectedIcon,
+                        selectedWidth: destinations[index].width,
+                        selected: selectedIndex == index,
+                        onTap: () => onSelected(index),
+                      ),
+                      if (index < destinations.length - 1) SizedBox(width: gap),
+                    ],
+                  ],
+                );
+              },
+            ),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            DecoratedBox(
-              key: const Key('navigation_glass_surface'),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [
-                          colors.surfaceContainerHigh.withValues(alpha: .78),
-                          colors.surfaceContainerLowest.withValues(alpha: .70),
-                        ]
-                      : [
-                          Colors.white.withValues(alpha: .70),
-                          colors.surfaceContainerLowest.withValues(alpha: .64),
-                        ],
-                ),
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: .22)
-                      : Colors.white.withValues(alpha: .70),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.xxs,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  for (final (index, destination) in destinations.indexed)
-                    _DockDestination(
-                      key: destination.key,
-                      label: destination.label,
-                      icon: destination.icon,
-                      selectedIcon: destination.selectedIcon,
-                      selected: selectedIndex == index,
-                      onTap: () => onSelected(index),
-                    ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );
   }
 }
 
-class _DockDestination extends StatelessWidget {
-  const _DockDestination({
+class _DockPill extends StatelessWidget {
+  const _DockPill({
     required this.label,
     required this.icon,
     required this.selectedIcon,
+    required this.selectedWidth,
     required this.selected,
     required this.onTap,
     super.key,
@@ -235,6 +241,7 @@ class _DockDestination extends StatelessWidget {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+  final double selectedWidth;
   final bool selected;
   final VoidCallback onTap;
 
@@ -245,94 +252,152 @@ class _DockDestination extends StatelessWidget {
     final reduceMotion =
         MediaQuery.disableAnimationsOf(context) ||
         MediaQuery.accessibleNavigationOf(context);
-    final duration = reduceMotion ? const Duration(milliseconds: 1) : AppDurations.medium;
-
-    final primaryColor = colors.primary;
+    final duration = reduceMotion ? Duration.zero : AppDurations.fast;
+    final slug = label.toLowerCase();
 
     return Semantics(
       button: true,
       selected: selected,
-      label: label,
-      child: Tooltip(
-        message: label,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: AnimatedContainer(
-              duration: duration,
-              curve: AppCurves.standard,
-              constraints: const BoxConstraints(minHeight: 48),
-              decoration: BoxDecoration(
-                color: selected
-                    ? primaryColor.withValues(alpha: isDark ? 0.22 : 0.14)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: selected
-                    ? Border.all(
-                        color: primaryColor.withValues(
-                          alpha: isDark ? 0.30 : 0.20,
-                        ),
-                      )
-                    : Border.all(color: Colors.transparent),
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.xxs,
-              ),
-              child: ExcludeSemantics(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedSwitcher(
-                      duration: duration,
-                      switchInCurve: AppCurves.standard,
-                      switchOutCurve: Curves.easeInCubic,
-                      child: Icon(
-                        selected ? selectedIcon : icon,
-                        key: ValueKey('dock_icon_${label}_$selected'),
-                        size: 22,
-                        color: selected
-                            ? primaryColor
-                            : colors.onSurfaceVariant,
-                      ),
+      label: '$label tab',
+      child: ExcludeSemantics(
+        child: PressScale(
+          pressedScale: 0.96,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              key: ValueKey('dock_tap_$slug'),
+              onTap: () {
+                if (!selected) {
+                  HapticFeedback.selectionClick();
+                }
+                onTap();
+              },
+              borderRadius: BorderRadius.circular(selected ? 19 : 16),
+              splashColor: colors.primary.withValues(alpha: 0.10),
+              highlightColor: isDark
+                  ? Colors.white.withValues(alpha: 0.035)
+                  : Colors.black.withValues(alpha: 0.04),
+              child: AnimatedContainer(
+                duration: duration,
+                curve: AppCurves.standard,
+                width: selected
+                    ? selectedWidth
+                    : CollegeNavigationDock._collapsedWidth,
+                height: CollegeNavigationDock._pillHeight,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: selected
+                        ? [
+                            isDark
+                                ? const Color(0xF222242C)
+                                : Colors.white.withValues(alpha: 0.95),
+                            colors.primary.withValues(
+                              alpha: isDark ? 0.17 : 0.12,
+                            ),
+                          ]
+                        : isDark
+                        ? const [Color(0xE617181E), Color(0xD90B0C10)]
+                        : [
+                            Colors.white.withValues(alpha: 0.90),
+                            colors.surfaceContainerLow.withValues(alpha: 0.90),
+                          ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(selected ? 19 : 16),
+                  border: Border.all(
+                    color: selected
+                        ? colors.primary.withValues(alpha: 0.44)
+                        : isDark
+                        ? Colors.white.withValues(alpha: 0.09)
+                        : colors.outlineVariant.withValues(alpha: 0.55),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.42),
+                      blurRadius: selected ? 18 : 14,
+                      offset: const Offset(0, 7),
                     ),
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: selected ? 1.0 : 0.0),
-                      duration: duration,
-                      curve: AppCurves.standard,
-                      builder: (context, value, child) {
-                        return ClipRect(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            widthFactor: value,
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 84),
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: AppSpacing.xs),
-                          child: Text(
-                            label,
-                            key: Key('dock_label_$label'),
-                            maxLines: 1,
-                            overflow: TextOverflow.clip,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(
-                                  color: primaryColor,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                        ),
+                    if (selected)
+                      BoxShadow(
+                        color: colors.primary.withValues(alpha: 0.13),
+                        blurRadius: 14,
                       ),
-                    ),
                   ],
+                ),
+                clipBehavior: Clip.hardEdge,
+                child: OverflowBox(
+                  minWidth: selectedWidth,
+                  maxWidth: selectedWidth,
+                  minHeight: CollegeNavigationDock._pillHeight,
+                  maxHeight: CollegeNavigationDock._pillHeight,
+                  child: AnimatedSwitcher(
+                    duration: duration,
+                    switchInCurve: AppCurves.standard,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) => SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.08),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween<double>(
+                            begin: 0.96,
+                            end: 1,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      ),
+                    ),
+                    child: selected
+                        ? Padding(
+                            key: const ValueKey('selected'),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  selectedIcon,
+                                  key: ValueKey('dock_icon_${label}_true'),
+                                  color: colors.primary,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 7),
+                                Flexible(
+                                  child: Text(
+                                    label,
+                                    key: Key('dock_label_$label'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.fade,
+                                    softWrap: false,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium
+                                        ?.copyWith(
+                                          color: colors.onSurface,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.1,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Center(
+                            key: const ValueKey('inactive'),
+                            child: Tooltip(
+                              message: label,
+                              child: Icon(
+                                icon,
+                                key: ValueKey('dock_icon_${label}_false'),
+                                color: colors.onSurfaceVariant,
+                                size: 23,
+                              ),
+                            ),
+                          ),
+                  ),
                 ),
               ),
             ),
