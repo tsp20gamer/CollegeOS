@@ -429,7 +429,9 @@ class _NextClassCard extends StatelessWidget {
             ).textTheme.bodyLarge?.copyWith(color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
             children: [
               FilledButton.tonalIcon(
                 icon: const Icon(Icons.edit_note_rounded, size: 20),
@@ -441,7 +443,6 @@ class _NextClassCard extends StatelessWidget {
                   subjectName: item.subject.name,
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
               TextButton.icon(
                 icon: const Icon(Icons.notes_rounded, size: 18),
                 label: const Text('View notes'),

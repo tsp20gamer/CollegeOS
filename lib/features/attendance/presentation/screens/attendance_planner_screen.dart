@@ -1,3 +1,4 @@
+import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/attendance/application/attendance_providers.dart';
 import 'package:college_os/features/attendance/domain/attendance_calculator.dart';
@@ -30,6 +31,7 @@ class _AttendancePlannerScreenState
     return Scaffold(
       appBar: AppBar(title: const Text('Attendance Planner')),
       body: SafeArea(
+        bottom: false,
         child: subjects.when(
           loading: () => const LoadingState(label: 'Preparing planner'),
           error: (error, _) => ErrorState(
@@ -59,11 +61,11 @@ class _AttendancePlannerScreenState
               plannedAbsent: _plannedAbsent,
             );
             return ListView(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppSpacing.lg,
                 AppSpacing.sm,
                 AppSpacing.lg,
-                AppSpacing.xxl,
+                AppLayout.scaffoldBottomPadding(context),
               ),
               children: [
                 Text(

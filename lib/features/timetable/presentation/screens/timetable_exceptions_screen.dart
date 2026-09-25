@@ -1,4 +1,5 @@
 import 'package:college_os/core/database/database_enums.dart';
+import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/attendance/application/attendance_providers.dart';
 import 'package:college_os/features/attendance/domain/attendance_engine.dart';
@@ -39,6 +40,7 @@ class _TimetableExceptionsScreenState
     return Scaffold(
       appBar: AppBar(title: const Text('One-day Changes')),
       body: SafeArea(
+        bottom: false,
         child: semester.when(
           loading: () => const LoadingState(label: 'Loading timetable'),
           error: (error, _) => ErrorState(
@@ -98,11 +100,11 @@ class _TimetableExceptionsScreenState
     required List<TimetableEntry> entries,
   }) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.sm,
         AppSpacing.lg,
-        AppSpacing.xxl,
+        AppLayout.scaffoldBottomPadding(context),
       ),
       children: [
         _DateNavigator(

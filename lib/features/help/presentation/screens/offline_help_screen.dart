@@ -1,3 +1,4 @@
+import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:flutter/material.dart';
 
@@ -8,12 +9,13 @@ class OfflineHelpScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Help')),
     body: SafeArea(
+      bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
+        padding: EdgeInsets.fromLTRB(
           AppSpacing.lg,
           AppSpacing.sm,
           AppSpacing.lg,
-          AppSpacing.xxl,
+          AppLayout.scaffoldBottomPadding(context),
         ),
         children: [
           Card(

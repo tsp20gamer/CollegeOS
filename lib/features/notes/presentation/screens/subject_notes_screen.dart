@@ -12,6 +12,8 @@ import 'package:college_os/shared/widgets/app_scaffold.dart';
 import 'package:college_os/shared/widgets/empty_state.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
 import 'package:college_os/shared/widgets/loading_state.dart';
+import 'package:college_os/features/notes/presentation/screens/pdf_search_screen.dart';
+import 'package:college_os/features/subject_files/presentation/screens/pdf_viewer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -81,6 +83,20 @@ class _SubjectNotesScreenState extends ConsumerState<SubjectNotesScreen> {
             '$filesCount files',
           ].join(' • '),
           actions: [
+            if (_currentTab == _SubjectMaterialTab.files) ...[
+              IconButton.filledTonal(
+                tooltip: 'Search PDFs',
+                icon: const Icon(Icons.search_rounded),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => PdfSearchScreen(subjectId: subject.id),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: AppSpacing.sm),
+            ],
             if (_currentTab == _SubjectMaterialTab.notes)
               IconButton.filledTonal(
                 tooltip: 'Add Note',
@@ -240,9 +256,19 @@ class _SubjectNotesScreenState extends ConsumerState<SubjectNotesScreen> {
                   file: file,
                   subject: subject,
                   accent: accent,
-                  onOpen: () => ref
-                      .read(subjectFileCommandProvider.notifier)
-                      .openOrShareFile(file),
+                  onOpen: () {
+                    if (file.fileExtension.toLowerCase() == 'pdf') {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => PdfViewerScreen(file: file),
+                        ),
+                      );
+                    } else {
+                      ref
+                          .read(subjectFileCommandProvider.notifier)
+                          .openOrShareFile(file);
+                    }
+                  },
                   onDelete: () => _confirmDeleteFile(context, file),
                 ),
               ),

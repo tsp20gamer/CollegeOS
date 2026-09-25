@@ -1,8 +1,7 @@
 import 'package:college_os/core/theme/animation_tokens.dart';
-import 'package:college_os/core/theme/color_tokens.dart';
-import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/core/theme/dimensions.dart';
+import 'package:college_os/core/theme/radius.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -26,6 +25,19 @@ class _NavigationShellState extends State<NavigationShell>
     begin: const Offset(AppMotion.dockPageSlideFraction, 0),
     end: Offset.zero,
   ).chain(CurveTween(curve: AppCurves.standard)).animate(_transition);
+
+  late final _dockScale = TweenSequence<double>([
+    TweenSequenceItem(
+      tween: Tween<double>(begin: 1.0, end: 0.95)
+          .chain(CurveTween(curve: Curves.easeOutCubic)),
+      weight: 30,
+    ),
+    TweenSequenceItem(
+      tween: Tween<double>(begin: 0.95, end: 1.0)
+          .chain(CurveTween(curve: Curves.elasticOut)),
+      weight: 70,
+    ),
+  ]).animate(_transition);
 
   @override
   void didUpdateWidget(covariant NavigationShell oldWidget) {
@@ -71,9 +83,13 @@ class _NavigationShellState extends State<NavigationShell>
               minimum: EdgeInsets.zero,
               child: SizedBox(
                 height: AppLayout.dockHeight,
-                child: CollegeNavigationDock(
-                  selectedIndex: widget.navigationShell.currentIndex,
-                  onSelected: _selectDestination,
+                child: ScaleTransition(
+                  scale: _dockScale,
+                  alignment: Alignment.bottomCenter,
+                  child: CollegeNavigationDock(
+                    selectedIndex: widget.navigationShell.currentIndex,
+                    onSelected: _selectDestination,
+                  ),
                 ),
               ),
             ),
@@ -185,17 +201,16 @@ class CollegeNavigationDock extends StatelessWidget {
                 vertical: AppSpacing.xxs,
               ),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   for (final (index, destination) in destinations.indexed)
-                    Expanded(
-                      child: _DockDestination(
-                        key: destination.key,
-                        label: destination.label,
-                        icon: destination.icon,
-                        selectedIcon: destination.selectedIcon,
-                        selected: selectedIndex == index,
-                        onTap: () => onSelected(index),
-                      ),
+                    _DockDestination(
+                      key: destination.key,
+                      label: destination.label,
+                      icon: destination.icon,
+                      selectedIcon: destination.selectedIcon,
+                      selected: selectedIndex == index,
+                      onTap: () => onSelected(index),
                     ),
                 ],
               ),
@@ -226,10 +241,14 @@ class _DockDestination extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final reduceMotion =
         MediaQuery.disableAnimationsOf(context) ||
         MediaQuery.accessibleNavigationOf(context);
-    final duration = reduceMotion ? Duration.zero : AppDurations.medium;
+    final duration = reduceMotion ? const Duration(milliseconds: 1) : AppDurations.medium;
+
+    final primaryColor = colors.primary;
+
     return Semantics(
       button: true,
       selected: selected,
@@ -239,120 +258,82 @@ class _DockDestination extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
             onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
             child: AnimatedContainer(
               duration: duration,
               curve: AppCurves.standard,
-              constraints: const BoxConstraints(minHeight: 52),
+              constraints: const BoxConstraints(minHeight: 48),
               decoration: BoxDecoration(
-                color: Colors.transparent,
+                color: selected
+                    ? primaryColor.withValues(alpha: isDark ? 0.22 : 0.14)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: selected
+                    ? Border.all(
+                        color: primaryColor.withValues(
+                          alpha: isDark ? 0.30 : 0.20,
+                        ),
+                      )
+                    : Border.all(color: Colors.transparent),
               ),
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xxs,
+                horizontal: AppSpacing.xs,
                 vertical: AppSpacing.xxs,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(end: selected ? 1 : 0),
-                    duration: duration,
-                    curve: AppCurves.emphasized,
-                    builder: (context, progress, child) {
-                      final emphasizedColor = Color.lerp(
-                        colors.onSurfaceVariant,
-                        Colors.white,
-                        progress,
-                      )!;
-                      return Transform.translate(
-                        offset: Offset(0, -.75 * progress),
-                        child: Center(
-                          child: SizedBox.square(
-                            key: Key('dock_selection_surface_$label'),
-                            dimension: 46,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: progress == 0
-                                    ? null
-                                    : LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          AppColors.blue.withValues(
-                                            alpha: .92 * progress,
-                                          ),
-                                          AppColors.violet.withValues(
-                                            alpha: .88 * progress,
-                                          ),
-                                        ],
-                                      ),
-                                border: progress == 0
-                                    ? null
-                                    : Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: .30 * progress,
-                                        ),
-                                      ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Transform.scale(
-                                  key: Key('dock_icon_scale_$label'),
-                                  scale:
-                                      1 +
-                                      ((AppMotion.dockSelectedIconScale - 1) *
-                                          progress),
-                                  child: AnimatedSwitcher(
-                                    duration: duration,
-                                    switchInCurve: AppCurves.standard,
-                                    switchOutCurve: Curves.easeInCubic,
-                                    transitionBuilder: (child, animation) =>
-                                        FadeTransition(
-                                          opacity: animation,
-                                          child: child,
-                                        ),
-                                    child: Icon(
-                                      selected ? selectedIcon : icon,
-                                      key: ValueKey(
-                                        'dock_icon_${label}_$selected',
-                                      ),
-                                      size: 22,
-                                      color: emphasizedColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  SizedBox(
-                    height: AppLayout.dockLabelHeight,
-                    child: AnimatedOpacity(
-                      opacity: selected ? 1 : 0,
+              child: ExcludeSemantics(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedSwitcher(
                       duration: duration,
-                      child: ExcludeSemantics(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
+                      switchInCurve: AppCurves.standard,
+                      switchOutCurve: Curves.easeInCubic,
+                      child: Icon(
+                        selected ? selectedIcon : icon,
+                        key: ValueKey('dock_icon_${label}_$selected'),
+                        size: 22,
+                        color: selected
+                            ? primaryColor
+                            : colors.onSurfaceVariant,
+                      ),
+                    ),
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: selected ? 1.0 : 0.0),
+                      duration: duration,
+                      curve: AppCurves.standard,
+                      builder: (context, value, child) {
+                        return ClipRect(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: value,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 84),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: AppSpacing.xs),
                           child: Text(
-                            selected ? label : '',
+                            label,
                             key: Key('dock_label_$label'),
-                            style: Theme.of(context).textTheme.labelSmall
+                            maxLines: 1,
+                            overflow: TextOverflow.clip,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
                                 ?.copyWith(
-                                  color: colors.primary,
+                                  color: primaryColor,
                                   fontWeight: FontWeight.w700,
                                 ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -14,20 +14,20 @@ class CollegePageTransitionsBuilder extends PageTransitionsBuilder {
   ) {
     if (route.isFirst || MediaQuery.disableAnimationsOf(context)) return child;
 
-    return AnimatedBuilder(
-      animation: animation,
-      child: child,
-      builder: (context, child) {
-        final reversing = animation.status == AnimationStatus.reverse;
-        final opacity = reversing
-            ? Curves.easeInOutCubic.transform(animation.value)
-            : .82 + (.18 * AppCurves.standard.transform(animation.value));
-        return Opacity(
-          key: const Key('optimized_page_transition'),
-          opacity: opacity.clamp(0, 1),
-          child: child,
-        );
-      },
+    final curveTween = CurveTween(curve: AppCurves.standard);
+    final fadeAnimation = animation.drive(curveTween);
+    
+    final slideAnimation = Tween<Offset>(
+      begin: const Offset(0, AppMotion.routeSlideFraction),
+      end: Offset.zero,
+    ).animate(fadeAnimation);
+
+    return SlideTransition(
+      position: slideAnimation,
+      child: FadeTransition(
+        opacity: fadeAnimation,
+        child: child,
+      ),
     );
   }
 }

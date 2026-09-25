@@ -1,4 +1,5 @@
 import 'package:college_os/core/database/database_enums.dart';
+import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/attendance/application/attendance_providers.dart';
 import 'package:college_os/features/attendance/domain/attendance_engine.dart';
@@ -20,6 +21,7 @@ class PendingAttendanceScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Pending Attendance')),
       body: SafeArea(
+        bottom: false,
         child: groups.when(
           loading: () => const LoadingState(label: 'Finding unmarked classes'),
           error: (error, _) => ErrorState(
@@ -36,11 +38,11 @@ class PendingAttendanceScreen extends ConsumerWidget {
               );
             }
             return ListView(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppSpacing.lg,
                 AppSpacing.sm,
                 AppSpacing.lg,
-                AppSpacing.xxl,
+                AppLayout.scaffoldBottomPadding(context),
               ),
               children: [
                 _PendingSummary(

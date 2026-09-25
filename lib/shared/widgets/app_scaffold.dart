@@ -92,11 +92,11 @@ class AppScaffold extends StatelessWidget {
             ),
             SliverPadding(
               key: const Key('app_scaffold_content_padding'),
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppSpacing.md,
                 0,
                 AppSpacing.md,
-                AppLayout.floatingDockContentInset + AppSpacing.lg,
+                AppLayout.scaffoldBottomPadding(context),
               ),
               sliver: SliverToBoxAdapter(
                 child: Center(

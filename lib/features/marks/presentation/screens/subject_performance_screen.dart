@@ -1,4 +1,5 @@
 import 'package:college_os/core/theme/color_tokens.dart';
+import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/exams/application/exam_mark_providers.dart';
@@ -87,11 +88,11 @@ class _PerformanceBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final summary = MarksService.summarize(marks);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.sm,
         AppSpacing.lg,
-        112,
+        AppLayout.scaffoldBottomPadding(context),
       ),
       children: [
         _SummaryCard(

@@ -13,6 +13,7 @@ import 'package:college_os/core/database/daos/subject_notes_dao.dart';
 import 'package:college_os/core/database/daos/subject_files_dao.dart';
 import 'package:college_os/core/database/daos/tasks_dao.dart';
 import 'package:college_os/core/database/daos/timetable_dao.dart';
+import 'package:college_os/core/database/daos/pdf_search_dao.dart';
 import 'package:college_os/core/database/database_enums.dart';
 import 'package:college_os/core/database/schema_versions.dart';
 import 'package:college_os/core/database/tables/app_settings.dart';
@@ -34,6 +35,7 @@ import 'package:drift/drift.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(
+  include: {'tables/pdf_search_index.drift'},
   tables: [
     Semesters,
     Subjects,
@@ -64,6 +66,7 @@ part 'app_database.g.dart';
     SettingsDao,
     SubjectNotesDao,
     SubjectFilesDao,
+    PdfSearchDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -161,6 +164,11 @@ SET effective_from = (
           to >= CollegeOsSchemaVersions.subjectFiles) {
         await migrator.createTable(subjectFiles);
         await migrator.createIndex(subjectFilesSubjectCreated);
+      }
+      if (from < CollegeOsSchemaVersions.pdfSearch &&
+          to >= CollegeOsSchemaVersions.pdfSearch) {
+        await migrator.createTable(pdfSearchMetadata);
+        await migrator.createTable(pdfPageFts);
       }
     },
     beforeOpen: (details) async {

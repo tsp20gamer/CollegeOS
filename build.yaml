@@ -7,3 +7,6 @@ targets:
             college_os: lib/core/database/app_database.dart
           schema_dir: drift_schemas
           test_dir: test/core/database/migrations
+          sqlite:
+            modules:
+              - fts5

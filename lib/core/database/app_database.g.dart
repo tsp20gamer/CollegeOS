@@ -1216,6 +1216,1246 @@ class SubjectsCompanion extends UpdateCompanion<SubjectRow> {
   }
 }
 
+class $SubjectFilesTable extends SubjectFiles
+    with TableInfo<$SubjectFilesTable, SubjectFileRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SubjectFilesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _subjectIdMeta = const VerificationMeta(
+    'subjectId',
+  );
+  @override
+  late final GeneratedColumn<int> subjectId = GeneratedColumn<int>(
+    'subject_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES subjects (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
+    'semesterId',
+  );
+  @override
+  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
+    'semester_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES semesters (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _fileNameMeta = const VerificationMeta(
+    'fileName',
+  );
+  @override
+  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
+    'file_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileExtensionMeta = const VerificationMeta(
+    'fileExtension',
+  );
+  @override
+  late final GeneratedColumn<String> fileExtension = GeneratedColumn<String>(
+    'file_extension',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileSizeBytesMeta = const VerificationMeta(
+    'fileSizeBytes',
+  );
+  @override
+  late final GeneratedColumn<int> fileSizeBytes = GeneratedColumn<int>(
+    'file_size_bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mimeTypeMeta = const VerificationMeta(
+    'mimeType',
+  );
+  @override
+  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
+    'mime_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _relativeFilePathMeta = const VerificationMeta(
+    'relativeFilePath',
+  );
+  @override
+  late final GeneratedColumn<String> relativeFilePath = GeneratedColumn<String>(
+    'relative_file_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> createdAt =
+      GeneratedColumn<int>(
+        'created_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        clientDefault: currentUtcMilliseconds,
+      ).withConverter<DateTime>($SubjectFilesTable.$convertercreatedAt);
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> updatedAt =
+      GeneratedColumn<int>(
+        'updated_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        clientDefault: currentUtcMilliseconds,
+      ).withConverter<DateTime>($SubjectFilesTable.$converterupdatedAt);
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    subjectId,
+    semesterId,
+    title,
+    fileName,
+    fileExtension,
+    fileSizeBytes,
+    mimeType,
+    relativeFilePath,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'subject_files';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SubjectFileRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('subject_id')) {
+      context.handle(
+        _subjectIdMeta,
+        subjectId.isAcceptableOrUnknown(data['subject_id']!, _subjectIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_subjectIdMeta);
+    }
+    if (data.containsKey('semester_id')) {
+      context.handle(
+        _semesterIdMeta,
+        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_semesterIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('file_name')) {
+      context.handle(
+        _fileNameMeta,
+        fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fileNameMeta);
+    }
+    if (data.containsKey('file_extension')) {
+      context.handle(
+        _fileExtensionMeta,
+        fileExtension.isAcceptableOrUnknown(
+          data['file_extension']!,
+          _fileExtensionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_fileExtensionMeta);
+    }
+    if (data.containsKey('file_size_bytes')) {
+      context.handle(
+        _fileSizeBytesMeta,
+        fileSizeBytes.isAcceptableOrUnknown(
+          data['file_size_bytes']!,
+          _fileSizeBytesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_fileSizeBytesMeta);
+    }
+    if (data.containsKey('mime_type')) {
+      context.handle(
+        _mimeTypeMeta,
+        mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta),
+      );
+    }
+    if (data.containsKey('relative_file_path')) {
+      context.handle(
+        _relativeFilePathMeta,
+        relativeFilePath.isAcceptableOrUnknown(
+          data['relative_file_path']!,
+          _relativeFilePathMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_relativeFilePathMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SubjectFileRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SubjectFileRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      subjectId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}subject_id'],
+      )!,
+      semesterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}semester_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      fileName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_name'],
+      )!,
+      fileExtension: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_extension'],
+      )!,
+      fileSizeBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}file_size_bytes'],
+      )!,
+      mimeType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mime_type'],
+      )!,
+      relativeFilePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}relative_file_path'],
+      )!,
+      createdAt: $SubjectFilesTable.$convertercreatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}created_at'],
+        )!,
+      ),
+      updatedAt: $SubjectFilesTable.$converterupdatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}updated_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $SubjectFilesTable createAlias(String alias) {
+    return $SubjectFilesTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $convertercreatedAt =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime, int> $converterupdatedAt =
+      const UtcDateTimeConverter();
+}
+
+class SubjectFileRow extends DataClass implements Insertable<SubjectFileRow> {
+  final int id;
+  final int subjectId;
+  final int semesterId;
+  final String title;
+  final String fileName;
+  final String fileExtension;
+  final int fileSizeBytes;
+  final String mimeType;
+  final String relativeFilePath;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SubjectFileRow({
+    required this.id,
+    required this.subjectId,
+    required this.semesterId,
+    required this.title,
+    required this.fileName,
+    required this.fileExtension,
+    required this.fileSizeBytes,
+    required this.mimeType,
+    required this.relativeFilePath,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['subject_id'] = Variable<int>(subjectId);
+    map['semester_id'] = Variable<int>(semesterId);
+    map['title'] = Variable<String>(title);
+    map['file_name'] = Variable<String>(fileName);
+    map['file_extension'] = Variable<String>(fileExtension);
+    map['file_size_bytes'] = Variable<int>(fileSizeBytes);
+    map['mime_type'] = Variable<String>(mimeType);
+    map['relative_file_path'] = Variable<String>(relativeFilePath);
+    {
+      map['created_at'] = Variable<int>(
+        $SubjectFilesTable.$convertercreatedAt.toSql(createdAt),
+      );
+    }
+    {
+      map['updated_at'] = Variable<int>(
+        $SubjectFilesTable.$converterupdatedAt.toSql(updatedAt),
+      );
+    }
+    return map;
+  }
+
+  SubjectFilesCompanion toCompanion(bool nullToAbsent) {
+    return SubjectFilesCompanion(
+      id: Value(id),
+      subjectId: Value(subjectId),
+      semesterId: Value(semesterId),
+      title: Value(title),
+      fileName: Value(fileName),
+      fileExtension: Value(fileExtension),
+      fileSizeBytes: Value(fileSizeBytes),
+      mimeType: Value(mimeType),
+      relativeFilePath: Value(relativeFilePath),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SubjectFileRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SubjectFileRow(
+      id: serializer.fromJson<int>(json['id']),
+      subjectId: serializer.fromJson<int>(json['subjectId']),
+      semesterId: serializer.fromJson<int>(json['semesterId']),
+      title: serializer.fromJson<String>(json['title']),
+      fileName: serializer.fromJson<String>(json['fileName']),
+      fileExtension: serializer.fromJson<String>(json['fileExtension']),
+      fileSizeBytes: serializer.fromJson<int>(json['fileSizeBytes']),
+      mimeType: serializer.fromJson<String>(json['mimeType']),
+      relativeFilePath: serializer.fromJson<String>(json['relativeFilePath']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'subjectId': serializer.toJson<int>(subjectId),
+      'semesterId': serializer.toJson<int>(semesterId),
+      'title': serializer.toJson<String>(title),
+      'fileName': serializer.toJson<String>(fileName),
+      'fileExtension': serializer.toJson<String>(fileExtension),
+      'fileSizeBytes': serializer.toJson<int>(fileSizeBytes),
+      'mimeType': serializer.toJson<String>(mimeType),
+      'relativeFilePath': serializer.toJson<String>(relativeFilePath),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SubjectFileRow copyWith({
+    int? id,
+    int? subjectId,
+    int? semesterId,
+    String? title,
+    String? fileName,
+    String? fileExtension,
+    int? fileSizeBytes,
+    String? mimeType,
+    String? relativeFilePath,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => SubjectFileRow(
+    id: id ?? this.id,
+    subjectId: subjectId ?? this.subjectId,
+    semesterId: semesterId ?? this.semesterId,
+    title: title ?? this.title,
+    fileName: fileName ?? this.fileName,
+    fileExtension: fileExtension ?? this.fileExtension,
+    fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
+    mimeType: mimeType ?? this.mimeType,
+    relativeFilePath: relativeFilePath ?? this.relativeFilePath,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SubjectFileRow copyWithCompanion(SubjectFilesCompanion data) {
+    return SubjectFileRow(
+      id: data.id.present ? data.id.value : this.id,
+      subjectId: data.subjectId.present ? data.subjectId.value : this.subjectId,
+      semesterId: data.semesterId.present
+          ? data.semesterId.value
+          : this.semesterId,
+      title: data.title.present ? data.title.value : this.title,
+      fileName: data.fileName.present ? data.fileName.value : this.fileName,
+      fileExtension: data.fileExtension.present
+          ? data.fileExtension.value
+          : this.fileExtension,
+      fileSizeBytes: data.fileSizeBytes.present
+          ? data.fileSizeBytes.value
+          : this.fileSizeBytes,
+      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
+      relativeFilePath: data.relativeFilePath.present
+          ? data.relativeFilePath.value
+          : this.relativeFilePath,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SubjectFileRow(')
+          ..write('id: $id, ')
+          ..write('subjectId: $subjectId, ')
+          ..write('semesterId: $semesterId, ')
+          ..write('title: $title, ')
+          ..write('fileName: $fileName, ')
+          ..write('fileExtension: $fileExtension, ')
+          ..write('fileSizeBytes: $fileSizeBytes, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('relativeFilePath: $relativeFilePath, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    subjectId,
+    semesterId,
+    title,
+    fileName,
+    fileExtension,
+    fileSizeBytes,
+    mimeType,
+    relativeFilePath,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SubjectFileRow &&
+          other.id == this.id &&
+          other.subjectId == this.subjectId &&
+          other.semesterId == this.semesterId &&
+          other.title == this.title &&
+          other.fileName == this.fileName &&
+          other.fileExtension == this.fileExtension &&
+          other.fileSizeBytes == this.fileSizeBytes &&
+          other.mimeType == this.mimeType &&
+          other.relativeFilePath == this.relativeFilePath &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SubjectFilesCompanion extends UpdateCompanion<SubjectFileRow> {
+  final Value<int> id;
+  final Value<int> subjectId;
+  final Value<int> semesterId;
+  final Value<String> title;
+  final Value<String> fileName;
+  final Value<String> fileExtension;
+  final Value<int> fileSizeBytes;
+  final Value<String> mimeType;
+  final Value<String> relativeFilePath;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const SubjectFilesCompanion({
+    this.id = const Value.absent(),
+    this.subjectId = const Value.absent(),
+    this.semesterId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.fileExtension = const Value.absent(),
+    this.fileSizeBytes = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.relativeFilePath = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  SubjectFilesCompanion.insert({
+    this.id = const Value.absent(),
+    required int subjectId,
+    required int semesterId,
+    this.title = const Value.absent(),
+    required String fileName,
+    required String fileExtension,
+    required int fileSizeBytes,
+    this.mimeType = const Value.absent(),
+    required String relativeFilePath,
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : subjectId = Value(subjectId),
+       semesterId = Value(semesterId),
+       fileName = Value(fileName),
+       fileExtension = Value(fileExtension),
+       fileSizeBytes = Value(fileSizeBytes),
+       relativeFilePath = Value(relativeFilePath);
+  static Insertable<SubjectFileRow> custom({
+    Expression<int>? id,
+    Expression<int>? subjectId,
+    Expression<int>? semesterId,
+    Expression<String>? title,
+    Expression<String>? fileName,
+    Expression<String>? fileExtension,
+    Expression<int>? fileSizeBytes,
+    Expression<String>? mimeType,
+    Expression<String>? relativeFilePath,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (subjectId != null) 'subject_id': subjectId,
+      if (semesterId != null) 'semester_id': semesterId,
+      if (title != null) 'title': title,
+      if (fileName != null) 'file_name': fileName,
+      if (fileExtension != null) 'file_extension': fileExtension,
+      if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (relativeFilePath != null) 'relative_file_path': relativeFilePath,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  SubjectFilesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? subjectId,
+    Value<int>? semesterId,
+    Value<String>? title,
+    Value<String>? fileName,
+    Value<String>? fileExtension,
+    Value<int>? fileSizeBytes,
+    Value<String>? mimeType,
+    Value<String>? relativeFilePath,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return SubjectFilesCompanion(
+      id: id ?? this.id,
+      subjectId: subjectId ?? this.subjectId,
+      semesterId: semesterId ?? this.semesterId,
+      title: title ?? this.title,
+      fileName: fileName ?? this.fileName,
+      fileExtension: fileExtension ?? this.fileExtension,
+      fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
+      mimeType: mimeType ?? this.mimeType,
+      relativeFilePath: relativeFilePath ?? this.relativeFilePath,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (subjectId.present) {
+      map['subject_id'] = Variable<int>(subjectId.value);
+    }
+    if (semesterId.present) {
+      map['semester_id'] = Variable<int>(semesterId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (fileName.present) {
+      map['file_name'] = Variable<String>(fileName.value);
+    }
+    if (fileExtension.present) {
+      map['file_extension'] = Variable<String>(fileExtension.value);
+    }
+    if (fileSizeBytes.present) {
+      map['file_size_bytes'] = Variable<int>(fileSizeBytes.value);
+    }
+    if (mimeType.present) {
+      map['mime_type'] = Variable<String>(mimeType.value);
+    }
+    if (relativeFilePath.present) {
+      map['relative_file_path'] = Variable<String>(relativeFilePath.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(
+        $SubjectFilesTable.$convertercreatedAt.toSql(createdAt.value),
+      );
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(
+        $SubjectFilesTable.$converterupdatedAt.toSql(updatedAt.value),
+      );
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SubjectFilesCompanion(')
+          ..write('id: $id, ')
+          ..write('subjectId: $subjectId, ')
+          ..write('semesterId: $semesterId, ')
+          ..write('title: $title, ')
+          ..write('fileName: $fileName, ')
+          ..write('fileExtension: $fileExtension, ')
+          ..write('fileSizeBytes: $fileSizeBytes, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('relativeFilePath: $relativeFilePath, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class PdfSearchMetadata extends Table
+    with TableInfo<PdfSearchMetadata, PdfSearchMetadataData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  PdfSearchMetadata(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _fileIdMeta = const VerificationMeta('fileId');
+  late final GeneratedColumn<int> fileId = GeneratedColumn<int>(
+    'file_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NOT NULL PRIMARY KEY REFERENCES subject_files(id)ON DELETE CASCADE',
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (status IN (\'indexed\', \'unsupported\', \'error\'))',
+  );
+  static const VerificationMeta _pageCountMeta = const VerificationMeta(
+    'pageCount',
+  );
+  late final GeneratedColumn<int> pageCount = GeneratedColumn<int>(
+    'page_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0',
+    defaultValue: const CustomExpression('0'),
+  );
+  static const VerificationMeta _indexedAtMeta = const VerificationMeta(
+    'indexedAt',
+  );
+  late final GeneratedColumn<int> indexedAt = GeneratedColumn<int>(
+    'indexed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [fileId, status, pageCount, indexedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pdf_search_metadata';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PdfSearchMetadataData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('file_id')) {
+      context.handle(
+        _fileIdMeta,
+        fileId.isAcceptableOrUnknown(data['file_id']!, _fileIdMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('page_count')) {
+      context.handle(
+        _pageCountMeta,
+        pageCount.isAcceptableOrUnknown(data['page_count']!, _pageCountMeta),
+      );
+    }
+    if (data.containsKey('indexed_at')) {
+      context.handle(
+        _indexedAtMeta,
+        indexedAt.isAcceptableOrUnknown(data['indexed_at']!, _indexedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_indexedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {fileId};
+  @override
+  PdfSearchMetadataData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PdfSearchMetadataData(
+      fileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}file_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      pageCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page_count'],
+      )!,
+      indexedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}indexed_at'],
+      )!,
+    );
+  }
+
+  @override
+  PdfSearchMetadata createAlias(String alias) {
+    return PdfSearchMetadata(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class PdfSearchMetadataData extends DataClass
+    implements Insertable<PdfSearchMetadataData> {
+  final int fileId;
+  final String status;
+  final int pageCount;
+  final int indexedAt;
+  const PdfSearchMetadataData({
+    required this.fileId,
+    required this.status,
+    required this.pageCount,
+    required this.indexedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['file_id'] = Variable<int>(fileId);
+    map['status'] = Variable<String>(status);
+    map['page_count'] = Variable<int>(pageCount);
+    map['indexed_at'] = Variable<int>(indexedAt);
+    return map;
+  }
+
+  PdfSearchMetadataCompanion toCompanion(bool nullToAbsent) {
+    return PdfSearchMetadataCompanion(
+      fileId: Value(fileId),
+      status: Value(status),
+      pageCount: Value(pageCount),
+      indexedAt: Value(indexedAt),
+    );
+  }
+
+  factory PdfSearchMetadataData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PdfSearchMetadataData(
+      fileId: serializer.fromJson<int>(json['file_id']),
+      status: serializer.fromJson<String>(json['status']),
+      pageCount: serializer.fromJson<int>(json['page_count']),
+      indexedAt: serializer.fromJson<int>(json['indexed_at']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'file_id': serializer.toJson<int>(fileId),
+      'status': serializer.toJson<String>(status),
+      'page_count': serializer.toJson<int>(pageCount),
+      'indexed_at': serializer.toJson<int>(indexedAt),
+    };
+  }
+
+  PdfSearchMetadataData copyWith({
+    int? fileId,
+    String? status,
+    int? pageCount,
+    int? indexedAt,
+  }) => PdfSearchMetadataData(
+    fileId: fileId ?? this.fileId,
+    status: status ?? this.status,
+    pageCount: pageCount ?? this.pageCount,
+    indexedAt: indexedAt ?? this.indexedAt,
+  );
+  PdfSearchMetadataData copyWithCompanion(PdfSearchMetadataCompanion data) {
+    return PdfSearchMetadataData(
+      fileId: data.fileId.present ? data.fileId.value : this.fileId,
+      status: data.status.present ? data.status.value : this.status,
+      pageCount: data.pageCount.present ? data.pageCount.value : this.pageCount,
+      indexedAt: data.indexedAt.present ? data.indexedAt.value : this.indexedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PdfSearchMetadataData(')
+          ..write('fileId: $fileId, ')
+          ..write('status: $status, ')
+          ..write('pageCount: $pageCount, ')
+          ..write('indexedAt: $indexedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(fileId, status, pageCount, indexedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PdfSearchMetadataData &&
+          other.fileId == this.fileId &&
+          other.status == this.status &&
+          other.pageCount == this.pageCount &&
+          other.indexedAt == this.indexedAt);
+}
+
+class PdfSearchMetadataCompanion
+    extends UpdateCompanion<PdfSearchMetadataData> {
+  final Value<int> fileId;
+  final Value<String> status;
+  final Value<int> pageCount;
+  final Value<int> indexedAt;
+  const PdfSearchMetadataCompanion({
+    this.fileId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.pageCount = const Value.absent(),
+    this.indexedAt = const Value.absent(),
+  });
+  PdfSearchMetadataCompanion.insert({
+    this.fileId = const Value.absent(),
+    required String status,
+    this.pageCount = const Value.absent(),
+    required int indexedAt,
+  }) : status = Value(status),
+       indexedAt = Value(indexedAt);
+  static Insertable<PdfSearchMetadataData> custom({
+    Expression<int>? fileId,
+    Expression<String>? status,
+    Expression<int>? pageCount,
+    Expression<int>? indexedAt,
+  }) {
+    return RawValuesInsertable({
+      if (fileId != null) 'file_id': fileId,
+      if (status != null) 'status': status,
+      if (pageCount != null) 'page_count': pageCount,
+      if (indexedAt != null) 'indexed_at': indexedAt,
+    });
+  }
+
+  PdfSearchMetadataCompanion copyWith({
+    Value<int>? fileId,
+    Value<String>? status,
+    Value<int>? pageCount,
+    Value<int>? indexedAt,
+  }) {
+    return PdfSearchMetadataCompanion(
+      fileId: fileId ?? this.fileId,
+      status: status ?? this.status,
+      pageCount: pageCount ?? this.pageCount,
+      indexedAt: indexedAt ?? this.indexedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (fileId.present) {
+      map['file_id'] = Variable<int>(fileId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (pageCount.present) {
+      map['page_count'] = Variable<int>(pageCount.value);
+    }
+    if (indexedAt.present) {
+      map['indexed_at'] = Variable<int>(indexedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PdfSearchMetadataCompanion(')
+          ..write('fileId: $fileId, ')
+          ..write('status: $status, ')
+          ..write('pageCount: $pageCount, ')
+          ..write('indexedAt: $indexedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class PdfPageFts extends Table
+    with
+        TableInfo<PdfPageFts, PdfPageFt>,
+        VirtualTableInfo<PdfPageFts, PdfPageFt> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  PdfPageFts(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _fileIdMeta = const VerificationMeta('fileId');
+  late final GeneratedColumn<String> fileId = GeneratedColumn<String>(
+    'file_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _pageNumberMeta = const VerificationMeta(
+    'pageNumber',
+  );
+  late final GeneratedColumn<String> pageNumber = GeneratedColumn<String>(
+    'page_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _pageTextMeta = const VerificationMeta(
+    'pageText',
+  );
+  late final GeneratedColumn<String> pageText = GeneratedColumn<String>(
+    'page_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: '',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [fileId, pageNumber, pageText];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pdf_page_fts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PdfPageFt> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('file_id')) {
+      context.handle(
+        _fileIdMeta,
+        fileId.isAcceptableOrUnknown(data['file_id']!, _fileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fileIdMeta);
+    }
+    if (data.containsKey('page_number')) {
+      context.handle(
+        _pageNumberMeta,
+        pageNumber.isAcceptableOrUnknown(data['page_number']!, _pageNumberMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pageNumberMeta);
+    }
+    if (data.containsKey('page_text')) {
+      context.handle(
+        _pageTextMeta,
+        pageText.isAcceptableOrUnknown(data['page_text']!, _pageTextMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pageTextMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => const {};
+  @override
+  PdfPageFt map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PdfPageFt(
+      fileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_id'],
+      )!,
+      pageNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}page_number'],
+      )!,
+      pageText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}page_text'],
+      )!,
+    );
+  }
+
+  @override
+  PdfPageFts createAlias(String alias) {
+    return PdfPageFts(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+  @override
+  String get moduleAndArgs =>
+      'fts5(file_id UNINDEXED, page_number UNINDEXED, page_text, tokenize=\'porter unicode61\')';
+}
+
+class PdfPageFt extends DataClass implements Insertable<PdfPageFt> {
+  final String fileId;
+  final String pageNumber;
+  final String pageText;
+  const PdfPageFt({
+    required this.fileId,
+    required this.pageNumber,
+    required this.pageText,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['file_id'] = Variable<String>(fileId);
+    map['page_number'] = Variable<String>(pageNumber);
+    map['page_text'] = Variable<String>(pageText);
+    return map;
+  }
+
+  PdfPageFtsCompanion toCompanion(bool nullToAbsent) {
+    return PdfPageFtsCompanion(
+      fileId: Value(fileId),
+      pageNumber: Value(pageNumber),
+      pageText: Value(pageText),
+    );
+  }
+
+  factory PdfPageFt.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PdfPageFt(
+      fileId: serializer.fromJson<String>(json['file_id']),
+      pageNumber: serializer.fromJson<String>(json['page_number']),
+      pageText: serializer.fromJson<String>(json['page_text']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'file_id': serializer.toJson<String>(fileId),
+      'page_number': serializer.toJson<String>(pageNumber),
+      'page_text': serializer.toJson<String>(pageText),
+    };
+  }
+
+  PdfPageFt copyWith({String? fileId, String? pageNumber, String? pageText}) =>
+      PdfPageFt(
+        fileId: fileId ?? this.fileId,
+        pageNumber: pageNumber ?? this.pageNumber,
+        pageText: pageText ?? this.pageText,
+      );
+  PdfPageFt copyWithCompanion(PdfPageFtsCompanion data) {
+    return PdfPageFt(
+      fileId: data.fileId.present ? data.fileId.value : this.fileId,
+      pageNumber: data.pageNumber.present
+          ? data.pageNumber.value
+          : this.pageNumber,
+      pageText: data.pageText.present ? data.pageText.value : this.pageText,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PdfPageFt(')
+          ..write('fileId: $fileId, ')
+          ..write('pageNumber: $pageNumber, ')
+          ..write('pageText: $pageText')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(fileId, pageNumber, pageText);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PdfPageFt &&
+          other.fileId == this.fileId &&
+          other.pageNumber == this.pageNumber &&
+          other.pageText == this.pageText);
+}
+
+class PdfPageFtsCompanion extends UpdateCompanion<PdfPageFt> {
+  final Value<String> fileId;
+  final Value<String> pageNumber;
+  final Value<String> pageText;
+  final Value<int> rowid;
+  const PdfPageFtsCompanion({
+    this.fileId = const Value.absent(),
+    this.pageNumber = const Value.absent(),
+    this.pageText = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PdfPageFtsCompanion.insert({
+    required String fileId,
+    required String pageNumber,
+    required String pageText,
+    this.rowid = const Value.absent(),
+  }) : fileId = Value(fileId),
+       pageNumber = Value(pageNumber),
+       pageText = Value(pageText);
+  static Insertable<PdfPageFt> custom({
+    Expression<String>? fileId,
+    Expression<String>? pageNumber,
+    Expression<String>? pageText,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (fileId != null) 'file_id': fileId,
+      if (pageNumber != null) 'page_number': pageNumber,
+      if (pageText != null) 'page_text': pageText,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PdfPageFtsCompanion copyWith({
+    Value<String>? fileId,
+    Value<String>? pageNumber,
+    Value<String>? pageText,
+    Value<int>? rowid,
+  }) {
+    return PdfPageFtsCompanion(
+      fileId: fileId ?? this.fileId,
+      pageNumber: pageNumber ?? this.pageNumber,
+      pageText: pageText ?? this.pageText,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (fileId.present) {
+      map['file_id'] = Variable<String>(fileId.value);
+    }
+    if (pageNumber.present) {
+      map['page_number'] = Variable<String>(pageNumber.value);
+    }
+    if (pageText.present) {
+      map['page_text'] = Variable<String>(pageText.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PdfPageFtsCompanion(')
+          ..write('fileId: $fileId, ')
+          ..write('pageNumber: $pageNumber, ')
+          ..write('pageText: $pageText, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $TimetableEntriesTable extends TimetableEntries
     with TableInfo<$TimetableEntriesTable, TimetableEntryRow> {
   @override
@@ -7944,675 +9184,30 @@ class SubjectNotesCompanion extends UpdateCompanion<SubjectNoteRow> {
   }
 }
 
-class $SubjectFilesTable extends SubjectFiles
-    with TableInfo<$SubjectFilesTable, SubjectFileRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SubjectFilesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
-  );
-  static const VerificationMeta _subjectIdMeta = const VerificationMeta(
-    'subjectId',
-  );
-  @override
-  late final GeneratedColumn<int> subjectId = GeneratedColumn<int>(
-    'subject_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES subjects (id) ON DELETE CASCADE',
-    ),
-  );
-  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
-    'semesterId',
-  );
-  @override
-  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
-    'semester_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES semesters (id) ON DELETE CASCADE',
-    ),
-  );
-  static const VerificationMeta _titleMeta = const VerificationMeta('title');
-  @override
-  late final GeneratedColumn<String> title = GeneratedColumn<String>(
-    'title',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(''),
-  );
-  static const VerificationMeta _fileNameMeta = const VerificationMeta(
-    'fileName',
-  );
-  @override
-  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
-    'file_name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _fileExtensionMeta = const VerificationMeta(
-    'fileExtension',
-  );
-  @override
-  late final GeneratedColumn<String> fileExtension = GeneratedColumn<String>(
-    'file_extension',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _fileSizeBytesMeta = const VerificationMeta(
-    'fileSizeBytes',
-  );
-  @override
-  late final GeneratedColumn<int> fileSizeBytes = GeneratedColumn<int>(
-    'file_size_bytes',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _mimeTypeMeta = const VerificationMeta(
-    'mimeType',
-  );
-  @override
-  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
-    'mime_type',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(''),
-  );
-  static const VerificationMeta _relativeFilePathMeta = const VerificationMeta(
-    'relativeFilePath',
-  );
-  @override
-  late final GeneratedColumn<String> relativeFilePath = GeneratedColumn<String>(
-    'relative_file_path',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<DateTime, int> createdAt =
-      GeneratedColumn<int>(
-        'created_at',
-        aliasedName,
-        false,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-        clientDefault: currentUtcMilliseconds,
-      ).withConverter<DateTime>($SubjectFilesTable.$convertercreatedAt);
-  @override
-  late final GeneratedColumnWithTypeConverter<DateTime, int> updatedAt =
-      GeneratedColumn<int>(
-        'updated_at',
-        aliasedName,
-        false,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-        clientDefault: currentUtcMilliseconds,
-      ).withConverter<DateTime>($SubjectFilesTable.$converterupdatedAt);
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    subjectId,
-    semesterId,
-    title,
-    fileName,
-    fileExtension,
-    fileSizeBytes,
-    mimeType,
-    relativeFilePath,
-    createdAt,
-    updatedAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'subject_files';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<SubjectFileRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('subject_id')) {
-      context.handle(
-        _subjectIdMeta,
-        subjectId.isAcceptableOrUnknown(data['subject_id']!, _subjectIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_subjectIdMeta);
-    }
-    if (data.containsKey('semester_id')) {
-      context.handle(
-        _semesterIdMeta,
-        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_semesterIdMeta);
-    }
-    if (data.containsKey('title')) {
-      context.handle(
-        _titleMeta,
-        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
-      );
-    }
-    if (data.containsKey('file_name')) {
-      context.handle(
-        _fileNameMeta,
-        fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_fileNameMeta);
-    }
-    if (data.containsKey('file_extension')) {
-      context.handle(
-        _fileExtensionMeta,
-        fileExtension.isAcceptableOrUnknown(
-          data['file_extension']!,
-          _fileExtensionMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_fileExtensionMeta);
-    }
-    if (data.containsKey('file_size_bytes')) {
-      context.handle(
-        _fileSizeBytesMeta,
-        fileSizeBytes.isAcceptableOrUnknown(
-          data['file_size_bytes']!,
-          _fileSizeBytesMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_fileSizeBytesMeta);
-    }
-    if (data.containsKey('mime_type')) {
-      context.handle(
-        _mimeTypeMeta,
-        mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta),
-      );
-    }
-    if (data.containsKey('relative_file_path')) {
-      context.handle(
-        _relativeFilePathMeta,
-        relativeFilePath.isAcceptableOrUnknown(
-          data['relative_file_path']!,
-          _relativeFilePathMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_relativeFilePathMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  SubjectFileRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SubjectFileRow(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
-      subjectId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}subject_id'],
-      )!,
-      semesterId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}semester_id'],
-      )!,
-      title: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}title'],
-      )!,
-      fileName: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}file_name'],
-      )!,
-      fileExtension: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}file_extension'],
-      )!,
-      fileSizeBytes: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}file_size_bytes'],
-      )!,
-      mimeType: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}mime_type'],
-      )!,
-      relativeFilePath: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}relative_file_path'],
-      )!,
-      createdAt: $SubjectFilesTable.$convertercreatedAt.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.int,
-          data['${effectivePrefix}created_at'],
-        )!,
-      ),
-      updatedAt: $SubjectFilesTable.$converterupdatedAt.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.int,
-          data['${effectivePrefix}updated_at'],
-        )!,
-      ),
-    );
-  }
-
-  @override
-  $SubjectFilesTable createAlias(String alias) {
-    return $SubjectFilesTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<DateTime, int> $convertercreatedAt =
-      const UtcDateTimeConverter();
-  static TypeConverter<DateTime, int> $converterupdatedAt =
-      const UtcDateTimeConverter();
-}
-
-class SubjectFileRow extends DataClass implements Insertable<SubjectFileRow> {
-  final int id;
-  final int subjectId;
-  final int semesterId;
-  final String title;
-  final String fileName;
-  final String fileExtension;
-  final int fileSizeBytes;
-  final String mimeType;
-  final String relativeFilePath;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  const SubjectFileRow({
-    required this.id,
-    required this.subjectId,
-    required this.semesterId,
-    required this.title,
-    required this.fileName,
-    required this.fileExtension,
-    required this.fileSizeBytes,
-    required this.mimeType,
-    required this.relativeFilePath,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['subject_id'] = Variable<int>(subjectId);
-    map['semester_id'] = Variable<int>(semesterId);
-    map['title'] = Variable<String>(title);
-    map['file_name'] = Variable<String>(fileName);
-    map['file_extension'] = Variable<String>(fileExtension);
-    map['file_size_bytes'] = Variable<int>(fileSizeBytes);
-    map['mime_type'] = Variable<String>(mimeType);
-    map['relative_file_path'] = Variable<String>(relativeFilePath);
-    {
-      map['created_at'] = Variable<int>(
-        $SubjectFilesTable.$convertercreatedAt.toSql(createdAt),
-      );
-    }
-    {
-      map['updated_at'] = Variable<int>(
-        $SubjectFilesTable.$converterupdatedAt.toSql(updatedAt),
-      );
-    }
-    return map;
-  }
-
-  SubjectFilesCompanion toCompanion(bool nullToAbsent) {
-    return SubjectFilesCompanion(
-      id: Value(id),
-      subjectId: Value(subjectId),
-      semesterId: Value(semesterId),
-      title: Value(title),
-      fileName: Value(fileName),
-      fileExtension: Value(fileExtension),
-      fileSizeBytes: Value(fileSizeBytes),
-      mimeType: Value(mimeType),
-      relativeFilePath: Value(relativeFilePath),
-      createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
-    );
-  }
-
-  factory SubjectFileRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SubjectFileRow(
-      id: serializer.fromJson<int>(json['id']),
-      subjectId: serializer.fromJson<int>(json['subjectId']),
-      semesterId: serializer.fromJson<int>(json['semesterId']),
-      title: serializer.fromJson<String>(json['title']),
-      fileName: serializer.fromJson<String>(json['fileName']),
-      fileExtension: serializer.fromJson<String>(json['fileExtension']),
-      fileSizeBytes: serializer.fromJson<int>(json['fileSizeBytes']),
-      mimeType: serializer.fromJson<String>(json['mimeType']),
-      relativeFilePath: serializer.fromJson<String>(json['relativeFilePath']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
-      'subjectId': serializer.toJson<int>(subjectId),
-      'semesterId': serializer.toJson<int>(semesterId),
-      'title': serializer.toJson<String>(title),
-      'fileName': serializer.toJson<String>(fileName),
-      'fileExtension': serializer.toJson<String>(fileExtension),
-      'fileSizeBytes': serializer.toJson<int>(fileSizeBytes),
-      'mimeType': serializer.toJson<String>(mimeType),
-      'relativeFilePath': serializer.toJson<String>(relativeFilePath),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
-    };
-  }
-
-  SubjectFileRow copyWith({
-    int? id,
-    int? subjectId,
-    int? semesterId,
-    String? title,
-    String? fileName,
-    String? fileExtension,
-    int? fileSizeBytes,
-    String? mimeType,
-    String? relativeFilePath,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) => SubjectFileRow(
-    id: id ?? this.id,
-    subjectId: subjectId ?? this.subjectId,
-    semesterId: semesterId ?? this.semesterId,
-    title: title ?? this.title,
-    fileName: fileName ?? this.fileName,
-    fileExtension: fileExtension ?? this.fileExtension,
-    fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
-    mimeType: mimeType ?? this.mimeType,
-    relativeFilePath: relativeFilePath ?? this.relativeFilePath,
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
-  );
-  SubjectFileRow copyWithCompanion(SubjectFilesCompanion data) {
-    return SubjectFileRow(
-      id: data.id.present ? data.id.value : this.id,
-      subjectId: data.subjectId.present ? data.subjectId.value : this.subjectId,
-      semesterId: data.semesterId.present
-          ? data.semesterId.value
-          : this.semesterId,
-      title: data.title.present ? data.title.value : this.title,
-      fileName: data.fileName.present ? data.fileName.value : this.fileName,
-      fileExtension: data.fileExtension.present
-          ? data.fileExtension.value
-          : this.fileExtension,
-      fileSizeBytes: data.fileSizeBytes.present
-          ? data.fileSizeBytes.value
-          : this.fileSizeBytes,
-      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
-      relativeFilePath: data.relativeFilePath.present
-          ? data.relativeFilePath.value
-          : this.relativeFilePath,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SubjectFileRow(')
-          ..write('id: $id, ')
-          ..write('subjectId: $subjectId, ')
-          ..write('semesterId: $semesterId, ')
-          ..write('title: $title, ')
-          ..write('fileName: $fileName, ')
-          ..write('fileExtension: $fileExtension, ')
-          ..write('fileSizeBytes: $fileSizeBytes, ')
-          ..write('mimeType: $mimeType, ')
-          ..write('relativeFilePath: $relativeFilePath, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    subjectId,
-    semesterId,
-    title,
-    fileName,
-    fileExtension,
-    fileSizeBytes,
-    mimeType,
-    relativeFilePath,
-    createdAt,
-    updatedAt,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is SubjectFileRow &&
-          other.id == this.id &&
-          other.subjectId == this.subjectId &&
-          other.semesterId == this.semesterId &&
-          other.title == this.title &&
-          other.fileName == this.fileName &&
-          other.fileExtension == this.fileExtension &&
-          other.fileSizeBytes == this.fileSizeBytes &&
-          other.mimeType == this.mimeType &&
-          other.relativeFilePath == this.relativeFilePath &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
-}
-
-class SubjectFilesCompanion extends UpdateCompanion<SubjectFileRow> {
-  final Value<int> id;
-  final Value<int> subjectId;
-  final Value<int> semesterId;
-  final Value<String> title;
-  final Value<String> fileName;
-  final Value<String> fileExtension;
-  final Value<int> fileSizeBytes;
-  final Value<String> mimeType;
-  final Value<String> relativeFilePath;
-  final Value<DateTime> createdAt;
-  final Value<DateTime> updatedAt;
-  const SubjectFilesCompanion({
-    this.id = const Value.absent(),
-    this.subjectId = const Value.absent(),
-    this.semesterId = const Value.absent(),
-    this.title = const Value.absent(),
-    this.fileName = const Value.absent(),
-    this.fileExtension = const Value.absent(),
-    this.fileSizeBytes = const Value.absent(),
-    this.mimeType = const Value.absent(),
-    this.relativeFilePath = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-  });
-  SubjectFilesCompanion.insert({
-    this.id = const Value.absent(),
-    required int subjectId,
-    required int semesterId,
-    this.title = const Value.absent(),
-    required String fileName,
-    required String fileExtension,
-    required int fileSizeBytes,
-    this.mimeType = const Value.absent(),
-    required String relativeFilePath,
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-  }) : subjectId = Value(subjectId),
-       semesterId = Value(semesterId),
-       fileName = Value(fileName),
-       fileExtension = Value(fileExtension),
-       fileSizeBytes = Value(fileSizeBytes),
-       relativeFilePath = Value(relativeFilePath);
-  static Insertable<SubjectFileRow> custom({
-    Expression<int>? id,
-    Expression<int>? subjectId,
-    Expression<int>? semesterId,
-    Expression<String>? title,
-    Expression<String>? fileName,
-    Expression<String>? fileExtension,
-    Expression<int>? fileSizeBytes,
-    Expression<String>? mimeType,
-    Expression<String>? relativeFilePath,
-    Expression<int>? createdAt,
-    Expression<int>? updatedAt,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (subjectId != null) 'subject_id': subjectId,
-      if (semesterId != null) 'semester_id': semesterId,
-      if (title != null) 'title': title,
-      if (fileName != null) 'file_name': fileName,
-      if (fileExtension != null) 'file_extension': fileExtension,
-      if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
-      if (mimeType != null) 'mime_type': mimeType,
-      if (relativeFilePath != null) 'relative_file_path': relativeFilePath,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
-    });
-  }
-
-  SubjectFilesCompanion copyWith({
-    Value<int>? id,
-    Value<int>? subjectId,
-    Value<int>? semesterId,
-    Value<String>? title,
-    Value<String>? fileName,
-    Value<String>? fileExtension,
-    Value<int>? fileSizeBytes,
-    Value<String>? mimeType,
-    Value<String>? relativeFilePath,
-    Value<DateTime>? createdAt,
-    Value<DateTime>? updatedAt,
-  }) {
-    return SubjectFilesCompanion(
-      id: id ?? this.id,
-      subjectId: subjectId ?? this.subjectId,
-      semesterId: semesterId ?? this.semesterId,
-      title: title ?? this.title,
-      fileName: fileName ?? this.fileName,
-      fileExtension: fileExtension ?? this.fileExtension,
-      fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
-      mimeType: mimeType ?? this.mimeType,
-      relativeFilePath: relativeFilePath ?? this.relativeFilePath,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
-    if (subjectId.present) {
-      map['subject_id'] = Variable<int>(subjectId.value);
-    }
-    if (semesterId.present) {
-      map['semester_id'] = Variable<int>(semesterId.value);
-    }
-    if (title.present) {
-      map['title'] = Variable<String>(title.value);
-    }
-    if (fileName.present) {
-      map['file_name'] = Variable<String>(fileName.value);
-    }
-    if (fileExtension.present) {
-      map['file_extension'] = Variable<String>(fileExtension.value);
-    }
-    if (fileSizeBytes.present) {
-      map['file_size_bytes'] = Variable<int>(fileSizeBytes.value);
-    }
-    if (mimeType.present) {
-      map['mime_type'] = Variable<String>(mimeType.value);
-    }
-    if (relativeFilePath.present) {
-      map['relative_file_path'] = Variable<String>(relativeFilePath.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<int>(
-        $SubjectFilesTable.$convertercreatedAt.toSql(createdAt.value),
-      );
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<int>(
-        $SubjectFilesTable.$converterupdatedAt.toSql(updatedAt.value),
-      );
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SubjectFilesCompanion(')
-          ..write('id: $id, ')
-          ..write('subjectId: $subjectId, ')
-          ..write('semesterId: $semesterId, ')
-          ..write('title: $title, ')
-          ..write('fileName: $fileName, ')
-          ..write('fileExtension: $fileExtension, ')
-          ..write('fileSizeBytes: $fileSizeBytes, ')
-          ..write('mimeType: $mimeType, ')
-          ..write('relativeFilePath: $relativeFilePath, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
-          ..write(')'))
-        .toString();
-  }
-}
-
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $SemestersTable semesters = $SemestersTable(this);
   late final $SubjectsTable subjects = $SubjectsTable(this);
+  late final $SubjectFilesTable subjectFiles = $SubjectFilesTable(this);
+  late final PdfSearchMetadata pdfSearchMetadata = PdfSearchMetadata(this);
+  late final PdfPageFts pdfPageFts = PdfPageFts(this);
+  late final Index subjectFilesSubjectCreated = Index(
+    'subject_files_subject_created',
+    'CREATE INDEX subject_files_subject_created ON subject_files (subject_id, created_at)',
+  );
+  late final Index subjectsSemesterArchivedName = Index(
+    'subjects_semester_archived_name',
+    'CREATE INDEX subjects_semester_archived_name ON subjects (semester_id, is_archived, name)',
+  );
+  late final Index semestersOneActive = Index(
+    'semesters_one_active',
+    'CREATE UNIQUE INDEX semesters_one_active ON semesters (is_active) WHERE is_active = 1',
+  );
+  late final Index semestersAcademicYearNumber = Index(
+    'semesters_academic_year_number',
+    'CREATE INDEX semesters_academic_year_number ON semesters (academic_year, semester_number)',
+  );
   late final $TimetableEntriesTable timetableEntries = $TimetableEntriesTable(
     this,
   );
@@ -8631,19 +9226,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MarksTable marks = $MarksTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $SubjectNotesTable subjectNotes = $SubjectNotesTable(this);
-  late final $SubjectFilesTable subjectFiles = $SubjectFilesTable(this);
-  late final Index semestersOneActive = Index(
-    'semesters_one_active',
-    'CREATE UNIQUE INDEX semesters_one_active ON semesters (is_active) WHERE is_active = 1',
-  );
-  late final Index semestersAcademicYearNumber = Index(
-    'semesters_academic_year_number',
-    'CREATE INDEX semesters_academic_year_number ON semesters (academic_year, semester_number)',
-  );
-  late final Index subjectsSemesterArchivedName = Index(
-    'subjects_semester_archived_name',
-    'CREATE INDEX subjects_semester_archived_name ON subjects (semester_id, is_archived, name)',
-  );
   late final Index timetableSemesterWeekdayStart = Index(
     'timetable_semester_weekday_start',
     'CREATE INDEX timetable_semester_weekday_start ON timetable_entries (semester_id, weekday, start_time)',
@@ -8712,10 +9294,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'subject_notes_subject_created',
     'CREATE INDEX subject_notes_subject_created ON subject_notes (subject_id, created_at)',
   );
-  late final Index subjectFilesSubjectCreated = Index(
-    'subject_files_subject_created',
-    'CREATE INDEX subject_files_subject_created ON subject_files (subject_id, created_at)',
-  );
   late final SemestersDao semestersDao = SemestersDao(this as AppDatabase);
   late final SubjectsDao subjectsDao = SubjectsDao(this as AppDatabase);
   late final TimetableDao timetableDao = TimetableDao(this as AppDatabase);
@@ -8739,6 +9317,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final SubjectFilesDao subjectFilesDao = SubjectFilesDao(
     this as AppDatabase,
   );
+  late final PdfSearchDao pdfSearchDao = PdfSearchDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -8746,6 +9325,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     semesters,
     subjects,
+    subjectFiles,
+    pdfSearchMetadata,
+    pdfPageFts,
+    subjectFilesSubjectCreated,
+    subjectsSemesterArchivedName,
+    semestersOneActive,
+    semestersAcademicYearNumber,
     timetableEntries,
     attendanceSessions,
     dailyAttendanceRecords,
@@ -8757,10 +9343,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     marks,
     appSettings,
     subjectNotes,
-    subjectFiles,
-    semestersOneActive,
-    semestersAcademicYearNumber,
-    subjectsSemesterArchivedName,
     timetableSemesterWeekdayStart,
     timetableSubject,
     attendanceSubjectDatePeriod,
@@ -8778,7 +9360,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     marksSubjectDate,
     marksExam,
     subjectNotesSubjectCreated,
-    subjectFilesSubjectCreated,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -8788,6 +9369,27 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('subjects', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'subjects',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('subject_files', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'semesters',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('subject_files', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'subject_files',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('pdf_search_metadata', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -8881,20 +9483,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [TableUpdate('subject_notes', kind: UpdateKind.delete)],
     ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'subjects',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('subject_files', kind: UpdateKind.delete)],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'semesters',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('subject_files', kind: UpdateKind.delete)],
-    ),
   ]);
 }
 
@@ -8940,6 +9528,24 @@ final class $$SemestersTableReferences
     ).filter((f) => f.semesterId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_subjectsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SubjectFilesTable, List<SubjectFileRow>>
+  _subjectFilesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.subjectFiles,
+    aliasName: 'semesters__id__subject_files__semester_id',
+  );
+
+  $$SubjectFilesTableProcessedTableManager get subjectFilesRefs {
+    final manager = $$SubjectFilesTableTableManager(
+      $_db,
+      $_db.subjectFiles,
+    ).filter((f) => f.semesterId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_subjectFilesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -9094,24 +9700,6 @@ final class $$SemestersTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
-
-  static MultiTypedResultKey<$SubjectFilesTable, List<SubjectFileRow>>
-  _subjectFilesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.subjectFiles,
-    aliasName: 'semesters__id__subject_files__semester_id',
-  );
-
-  $$SubjectFilesTableProcessedTableManager get subjectFilesRefs {
-    final manager = $$SubjectFilesTableTableManager(
-      $_db,
-      $_db.subjectFiles,
-    ).filter((f) => f.semesterId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_subjectFilesRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
 }
 
 class $$SemestersTableFilterComposer
@@ -9188,6 +9776,31 @@ class $$SemestersTableFilterComposer
           }) => $$SubjectsTableFilterComposer(
             $db: $db,
             $table: $db.subjects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> subjectFilesRefs(
+    Expression<bool> Function($$SubjectFilesTableFilterComposer f) f,
+  ) {
+    final $$SubjectFilesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.subjectFiles,
+      getReferencedColumn: (t) => t.semesterId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubjectFilesTableFilterComposer(
+            $db: $db,
+            $table: $db.subjectFiles,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -9374,31 +9987,6 @@ class $$SemestersTableFilterComposer
     );
     return f(composer);
   }
-
-  Expression<bool> subjectFilesRefs(
-    Expression<bool> Function($$SubjectFilesTableFilterComposer f) f,
-  ) {
-    final $$SubjectFilesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.subjectFiles,
-      getReferencedColumn: (t) => t.semesterId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SubjectFilesTableFilterComposer(
-            $db: $db,
-            $table: $db.subjectFiles,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$SemestersTableOrderingComposer
@@ -9512,6 +10100,31 @@ class $$SemestersTableAnnotationComposer
           }) => $$SubjectsTableAnnotationComposer(
             $db: $db,
             $table: $db.subjects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> subjectFilesRefs<T extends Object>(
+    Expression<T> Function($$SubjectFilesTableAnnotationComposer a) f,
+  ) {
+    final $$SubjectFilesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.subjectFiles,
+      getReferencedColumn: (t) => t.semesterId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubjectFilesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.subjectFiles,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -9699,31 +10312,6 @@ class $$SemestersTableAnnotationComposer
     );
     return f(composer);
   }
-
-  Expression<T> subjectFilesRefs<T extends Object>(
-    Expression<T> Function($$SubjectFilesTableAnnotationComposer a) f,
-  ) {
-    final $$SubjectFilesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.subjectFiles,
-      getReferencedColumn: (t) => t.semesterId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SubjectFilesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.subjectFiles,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$SemestersTableTableManager
@@ -9741,6 +10329,7 @@ class $$SemestersTableTableManager
           SemesterRow,
           PrefetchHooks Function({
             bool subjectsRefs,
+            bool subjectFilesRefs,
             bool timetableEntriesRefs,
             bool scheduledClassAttendanceRefs,
             bool calendarDayOverridesRefs,
@@ -9748,7 +10337,6 @@ class $$SemestersTableTableManager
             bool collegeTasksRefs,
             bool examsRefs,
             bool subjectNotesRefs,
-            bool subjectFilesRefs,
           })
         > {
   $$SemestersTableTableManager(_$AppDatabase db, $SemestersTable table)
@@ -9817,6 +10405,7 @@ class $$SemestersTableTableManager
           prefetchHooksCallback:
               ({
                 subjectsRefs = false,
+                subjectFilesRefs = false,
                 timetableEntriesRefs = false,
                 scheduledClassAttendanceRefs = false,
                 calendarDayOverridesRefs = false,
@@ -9824,12 +10413,12 @@ class $$SemestersTableTableManager
                 collegeTasksRefs = false,
                 examsRefs = false,
                 subjectNotesRefs = false,
-                subjectFilesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (subjectsRefs) db.subjects,
+                    if (subjectFilesRefs) db.subjectFiles,
                     if (timetableEntriesRefs) db.timetableEntries,
                     if (scheduledClassAttendanceRefs)
                       db.scheduledClassAttendance,
@@ -9838,7 +10427,6 @@ class $$SemestersTableTableManager
                     if (collegeTasksRefs) db.collegeTasks,
                     if (examsRefs) db.exams,
                     if (subjectNotesRefs) db.subjectNotes,
-                    if (subjectFilesRefs) db.subjectFiles,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -9858,6 +10446,27 @@ class $$SemestersTableTableManager
                                 table,
                                 p0,
                               ).subjectsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.semesterId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (subjectFilesRefs)
+                        await $_getPrefetchedData<
+                          SemesterRow,
+                          $SemestersTable,
+                          SubjectFileRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SemestersTableReferences
+                              ._subjectFilesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SemestersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).subjectFilesRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.semesterId == item.id,
@@ -10011,27 +10620,6 @@ class $$SemestersTableTableManager
                               ),
                           typedResults: items,
                         ),
-                      if (subjectFilesRefs)
-                        await $_getPrefetchedData<
-                          SemesterRow,
-                          $SemestersTable,
-                          SubjectFileRow
-                        >(
-                          currentTable: table,
-                          referencedTable: $$SemestersTableReferences
-                              ._subjectFilesRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$SemestersTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).subjectFilesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.semesterId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
                     ];
                   },
                 );
@@ -10054,6 +10642,7 @@ typedef $$SemestersTableProcessedTableManager =
       SemesterRow,
       PrefetchHooks Function({
         bool subjectsRefs,
+        bool subjectFilesRefs,
         bool timetableEntriesRefs,
         bool scheduledClassAttendanceRefs,
         bool calendarDayOverridesRefs,
@@ -10061,7 +10650,6 @@ typedef $$SemestersTableProcessedTableManager =
         bool collegeTasksRefs,
         bool examsRefs,
         bool subjectNotesRefs,
-        bool subjectFilesRefs,
       })
     >;
 typedef $$SubjectsTableCreateCompanionBuilder =
@@ -10111,6 +10699,24 @@ final class $$SubjectsTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$SubjectFilesTable, List<SubjectFileRow>>
+  _subjectFilesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.subjectFiles,
+    aliasName: 'subjects__id__subject_files__subject_id',
+  );
+
+  $$SubjectFilesTableProcessedTableManager get subjectFilesRefs {
+    final manager = $$SubjectFilesTableTableManager(
+      $_db,
+      $_db.subjectFiles,
+    ).filter((f) => f.subjectId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_subjectFilesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 
@@ -10199,24 +10805,6 @@ final class $$SubjectsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
-
-  static MultiTypedResultKey<$SubjectFilesTable, List<SubjectFileRow>>
-  _subjectFilesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.subjectFiles,
-    aliasName: 'subjects__id__subject_files__subject_id',
-  );
-
-  $$SubjectFilesTableProcessedTableManager get subjectFilesRefs {
-    final manager = $$SubjectFilesTableTableManager(
-      $_db,
-      $_db.subjectFiles,
-    ).filter((f) => f.subjectId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_subjectFilesRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
 }
 
 class $$SubjectsTableFilterComposer
@@ -10301,6 +10889,31 @@ class $$SubjectsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> subjectFilesRefs(
+    Expression<bool> Function($$SubjectFilesTableFilterComposer f) f,
+  ) {
+    final $$SubjectFilesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.subjectFiles,
+      getReferencedColumn: (t) => t.subjectId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubjectFilesTableFilterComposer(
+            $db: $db,
+            $table: $db.subjectFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 
   Expression<bool> attendanceSessionsRefs(
@@ -10396,31 +11009,6 @@ class $$SubjectsTableFilterComposer
           }) => $$SubjectNotesTableFilterComposer(
             $db: $db,
             $table: $db.subjectNotes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> subjectFilesRefs(
-    Expression<bool> Function($$SubjectFilesTableFilterComposer f) f,
-  ) {
-    final $$SubjectFilesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.subjectFiles,
-      getReferencedColumn: (t) => t.subjectId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SubjectFilesTableFilterComposer(
-            $db: $db,
-            $table: $db.subjectFiles,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -10582,6 +11170,31 @@ class $$SubjectsTableAnnotationComposer
     return composer;
   }
 
+  Expression<T> subjectFilesRefs<T extends Object>(
+    Expression<T> Function($$SubjectFilesTableAnnotationComposer a) f,
+  ) {
+    final $$SubjectFilesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.subjectFiles,
+      getReferencedColumn: (t) => t.subjectId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubjectFilesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.subjectFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> attendanceSessionsRefs<T extends Object>(
     Expression<T> Function($$AttendanceSessionsTableAnnotationComposer a) f,
   ) {
@@ -10684,31 +11297,6 @@ class $$SubjectsTableAnnotationComposer
     );
     return f(composer);
   }
-
-  Expression<T> subjectFilesRefs<T extends Object>(
-    Expression<T> Function($$SubjectFilesTableAnnotationComposer a) f,
-  ) {
-    final $$SubjectFilesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.subjectFiles,
-      getReferencedColumn: (t) => t.subjectId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SubjectFilesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.subjectFiles,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$SubjectsTableTableManager
@@ -10726,11 +11314,11 @@ class $$SubjectsTableTableManager
           SubjectRow,
           PrefetchHooks Function({
             bool semesterId,
+            bool subjectFilesRefs,
             bool attendanceSessionsRefs,
             bool scheduledClassAttendanceRefs,
             bool marksRefs,
             bool subjectNotesRefs,
-            bool subjectFilesRefs,
           })
         > {
   $$SubjectsTableTableManager(_$AppDatabase db, $SubjectsTable table)
@@ -10807,21 +11395,21 @@ class $$SubjectsTableTableManager
           prefetchHooksCallback:
               ({
                 semesterId = false,
+                subjectFilesRefs = false,
                 attendanceSessionsRefs = false,
                 scheduledClassAttendanceRefs = false,
                 marksRefs = false,
                 subjectNotesRefs = false,
-                subjectFilesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
+                    if (subjectFilesRefs) db.subjectFiles,
                     if (attendanceSessionsRefs) db.attendanceSessions,
                     if (scheduledClassAttendanceRefs)
                       db.scheduledClassAttendance,
                     if (marksRefs) db.marks,
                     if (subjectNotesRefs) db.subjectNotes,
-                    if (subjectFilesRefs) db.subjectFiles,
                   ],
                   addJoins:
                       <
@@ -10857,6 +11445,27 @@ class $$SubjectsTableTableManager
                       },
                   getPrefetchedDataCallback: (items) async {
                     return [
+                      if (subjectFilesRefs)
+                        await $_getPrefetchedData<
+                          SubjectRow,
+                          $SubjectsTable,
+                          SubjectFileRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SubjectsTableReferences
+                              ._subjectFilesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SubjectsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).subjectFilesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.subjectId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (attendanceSessionsRefs)
                         await $_getPrefetchedData<
                           SubjectRow,
@@ -10941,27 +11550,6 @@ class $$SubjectsTableTableManager
                               ),
                           typedResults: items,
                         ),
-                      if (subjectFilesRefs)
-                        await $_getPrefetchedData<
-                          SubjectRow,
-                          $SubjectsTable,
-                          SubjectFileRow
-                        >(
-                          currentTable: table,
-                          referencedTable: $$SubjectsTableReferences
-                              ._subjectFilesRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$SubjectsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).subjectFilesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.subjectId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
                     ];
                   },
                 );
@@ -10984,12 +11572,1096 @@ typedef $$SubjectsTableProcessedTableManager =
       SubjectRow,
       PrefetchHooks Function({
         bool semesterId,
+        bool subjectFilesRefs,
         bool attendanceSessionsRefs,
         bool scheduledClassAttendanceRefs,
         bool marksRefs,
         bool subjectNotesRefs,
-        bool subjectFilesRefs,
       })
+    >;
+typedef $$SubjectFilesTableCreateCompanionBuilder =
+    SubjectFilesCompanion Function({
+      Value<int> id,
+      required int subjectId,
+      required int semesterId,
+      Value<String> title,
+      required String fileName,
+      required String fileExtension,
+      required int fileSizeBytes,
+      Value<String> mimeType,
+      required String relativeFilePath,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$SubjectFilesTableUpdateCompanionBuilder =
+    SubjectFilesCompanion Function({
+      Value<int> id,
+      Value<int> subjectId,
+      Value<int> semesterId,
+      Value<String> title,
+      Value<String> fileName,
+      Value<String> fileExtension,
+      Value<int> fileSizeBytes,
+      Value<String> mimeType,
+      Value<String> relativeFilePath,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$SubjectFilesTableReferences
+    extends BaseReferences<_$AppDatabase, $SubjectFilesTable, SubjectFileRow> {
+  $$SubjectFilesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SubjectsTable _subjectIdTable(_$AppDatabase db) =>
+      db.subjects.createAlias('subject_files__subject_id__subjects__id');
+
+  $$SubjectsTableProcessedTableManager get subjectId {
+    final $_column = $_itemColumn<int>('subject_id')!;
+
+    final manager = $$SubjectsTableTableManager(
+      $_db,
+      $_db.subjects,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_subjectIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SemestersTable _semesterIdTable(_$AppDatabase db) =>
+      db.semesters.createAlias('subject_files__semester_id__semesters__id');
+
+  $$SemestersTableProcessedTableManager get semesterId {
+    final $_column = $_itemColumn<int>('semester_id')!;
+
+    final manager = $$SemestersTableTableManager(
+      $_db,
+      $_db.semesters,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_semesterIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<PdfSearchMetadata, List<PdfSearchMetadataData>>
+  _pdfSearchMetadataRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.pdfSearchMetadata,
+        aliasName: 'subject_files__id__pdf_search_metadata__file_id',
+      );
+
+  $PdfSearchMetadataProcessedTableManager get pdfSearchMetadataRefs {
+    final manager = $PdfSearchMetadataTableManager(
+      $_db,
+      $_db.pdfSearchMetadata,
+    ).filter((f) => f.fileId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _pdfSearchMetadataRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$SubjectFilesTableFilterComposer
+    extends Composer<_$AppDatabase, $SubjectFilesTable> {
+  $$SubjectFilesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileExtension => $composableBuilder(
+    column: $table.fileExtension,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fileSizeBytes => $composableBuilder(
+    column: $table.fileSizeBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mimeType => $composableBuilder(
+    column: $table.mimeType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get relativeFilePath => $composableBuilder(
+    column: $table.relativeFilePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get createdAt =>
+      $composableBuilder(
+        column: $table.createdAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get updatedAt =>
+      $composableBuilder(
+        column: $table.updatedAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$SubjectsTableFilterComposer get subjectId {
+    final $$SubjectsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.subjectId,
+      referencedTable: $db.subjects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubjectsTableFilterComposer(
+            $db: $db,
+            $table: $db.subjects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SemestersTableFilterComposer get semesterId {
+    final $$SemestersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.semesterId,
+      referencedTable: $db.semesters,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SemestersTableFilterComposer(
+            $db: $db,
+            $table: $db.semesters,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> pdfSearchMetadataRefs(
+    Expression<bool> Function($PdfSearchMetadataFilterComposer f) f,
+  ) {
+    final $PdfSearchMetadataFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pdfSearchMetadata,
+      getReferencedColumn: (t) => t.fileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PdfSearchMetadataFilterComposer(
+            $db: $db,
+            $table: $db.pdfSearchMetadata,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$SubjectFilesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SubjectFilesTable> {
+  $$SubjectFilesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileExtension => $composableBuilder(
+    column: $table.fileExtension,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fileSizeBytes => $composableBuilder(
+    column: $table.fileSizeBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mimeType => $composableBuilder(
+    column: $table.mimeType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get relativeFilePath => $composableBuilder(
+    column: $table.relativeFilePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SubjectsTableOrderingComposer get subjectId {
+    final $$SubjectsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.subjectId,
+      referencedTable: $db.subjects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubjectsTableOrderingComposer(
+            $db: $db,
+            $table: $db.subjects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SemestersTableOrderingComposer get semesterId {
+    final $$SemestersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.semesterId,
+      referencedTable: $db.semesters,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SemestersTableOrderingComposer(
+            $db: $db,
+            $table: $db.semesters,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SubjectFilesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SubjectFilesTable> {
+  $$SubjectFilesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get fileName =>
+      $composableBuilder(column: $table.fileName, builder: (column) => column);
+
+  GeneratedColumn<String> get fileExtension => $composableBuilder(
+    column: $table.fileExtension,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fileSizeBytes => $composableBuilder(
+    column: $table.fileSizeBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get mimeType =>
+      $composableBuilder(column: $table.mimeType, builder: (column) => column);
+
+  GeneratedColumn<String> get relativeFilePath => $composableBuilder(
+    column: $table.relativeFilePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$SubjectsTableAnnotationComposer get subjectId {
+    final $$SubjectsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.subjectId,
+      referencedTable: $db.subjects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubjectsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.subjects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SemestersTableAnnotationComposer get semesterId {
+    final $$SemestersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.semesterId,
+      referencedTable: $db.semesters,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SemestersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.semesters,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> pdfSearchMetadataRefs<T extends Object>(
+    Expression<T> Function($PdfSearchMetadataAnnotationComposer a) f,
+  ) {
+    final $PdfSearchMetadataAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pdfSearchMetadata,
+      getReferencedColumn: (t) => t.fileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PdfSearchMetadataAnnotationComposer(
+            $db: $db,
+            $table: $db.pdfSearchMetadata,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$SubjectFilesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SubjectFilesTable,
+          SubjectFileRow,
+          $$SubjectFilesTableFilterComposer,
+          $$SubjectFilesTableOrderingComposer,
+          $$SubjectFilesTableAnnotationComposer,
+          $$SubjectFilesTableCreateCompanionBuilder,
+          $$SubjectFilesTableUpdateCompanionBuilder,
+          (SubjectFileRow, $$SubjectFilesTableReferences),
+          SubjectFileRow,
+          PrefetchHooks Function({
+            bool subjectId,
+            bool semesterId,
+            bool pdfSearchMetadataRefs,
+          })
+        > {
+  $$SubjectFilesTableTableManager(_$AppDatabase db, $SubjectFilesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SubjectFilesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SubjectFilesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SubjectFilesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> subjectId = const Value.absent(),
+                Value<int> semesterId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> fileName = const Value.absent(),
+                Value<String> fileExtension = const Value.absent(),
+                Value<int> fileSizeBytes = const Value.absent(),
+                Value<String> mimeType = const Value.absent(),
+                Value<String> relativeFilePath = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => SubjectFilesCompanion(
+                id: id,
+                subjectId: subjectId,
+                semesterId: semesterId,
+                title: title,
+                fileName: fileName,
+                fileExtension: fileExtension,
+                fileSizeBytes: fileSizeBytes,
+                mimeType: mimeType,
+                relativeFilePath: relativeFilePath,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int subjectId,
+                required int semesterId,
+                Value<String> title = const Value.absent(),
+                required String fileName,
+                required String fileExtension,
+                required int fileSizeBytes,
+                Value<String> mimeType = const Value.absent(),
+                required String relativeFilePath,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => SubjectFilesCompanion.insert(
+                id: id,
+                subjectId: subjectId,
+                semesterId: semesterId,
+                title: title,
+                fileName: fileName,
+                fileExtension: fileExtension,
+                fileSizeBytes: fileSizeBytes,
+                mimeType: mimeType,
+                relativeFilePath: relativeFilePath,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SubjectFilesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                subjectId = false,
+                semesterId = false,
+                pdfSearchMetadataRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (pdfSearchMetadataRefs) db.pdfSearchMetadata,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (subjectId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.subjectId,
+                                    referencedTable:
+                                        $$SubjectFilesTableReferences
+                                            ._subjectIdTable(db),
+                                    referencedColumn:
+                                        $$SubjectFilesTableReferences
+                                            ._subjectIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (semesterId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.semesterId,
+                                    referencedTable:
+                                        $$SubjectFilesTableReferences
+                                            ._semesterIdTable(db),
+                                    referencedColumn:
+                                        $$SubjectFilesTableReferences
+                                            ._semesterIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (pdfSearchMetadataRefs)
+                        await $_getPrefetchedData<
+                          SubjectFileRow,
+                          $SubjectFilesTable,
+                          PdfSearchMetadataData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SubjectFilesTableReferences
+                              ._pdfSearchMetadataRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SubjectFilesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pdfSearchMetadataRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.fileId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$SubjectFilesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SubjectFilesTable,
+      SubjectFileRow,
+      $$SubjectFilesTableFilterComposer,
+      $$SubjectFilesTableOrderingComposer,
+      $$SubjectFilesTableAnnotationComposer,
+      $$SubjectFilesTableCreateCompanionBuilder,
+      $$SubjectFilesTableUpdateCompanionBuilder,
+      (SubjectFileRow, $$SubjectFilesTableReferences),
+      SubjectFileRow,
+      PrefetchHooks Function({
+        bool subjectId,
+        bool semesterId,
+        bool pdfSearchMetadataRefs,
+      })
+    >;
+typedef $PdfSearchMetadataCreateCompanionBuilder =
+    PdfSearchMetadataCompanion Function({
+      Value<int> fileId,
+      required String status,
+      Value<int> pageCount,
+      required int indexedAt,
+    });
+typedef $PdfSearchMetadataUpdateCompanionBuilder =
+    PdfSearchMetadataCompanion Function({
+      Value<int> fileId,
+      Value<String> status,
+      Value<int> pageCount,
+      Value<int> indexedAt,
+    });
+
+final class $PdfSearchMetadataReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          PdfSearchMetadata,
+          PdfSearchMetadataData
+        > {
+  $PdfSearchMetadataReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SubjectFilesTable _fileIdTable(_$AppDatabase db) => db.subjectFiles
+      .createAlias('pdf_search_metadata__file_id__subject_files__id');
+
+  $$SubjectFilesTableProcessedTableManager get fileId {
+    final $_column = $_itemColumn<int>('file_id')!;
+
+    final manager = $$SubjectFilesTableTableManager(
+      $_db,
+      $_db.subjectFiles,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_fileIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $PdfSearchMetadataFilterComposer
+    extends Composer<_$AppDatabase, PdfSearchMetadata> {
+  $PdfSearchMetadataFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pageCount => $composableBuilder(
+    column: $table.pageCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get indexedAt => $composableBuilder(
+    column: $table.indexedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SubjectFilesTableFilterComposer get fileId {
+    final $$SubjectFilesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.fileId,
+      referencedTable: $db.subjectFiles,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubjectFilesTableFilterComposer(
+            $db: $db,
+            $table: $db.subjectFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $PdfSearchMetadataOrderingComposer
+    extends Composer<_$AppDatabase, PdfSearchMetadata> {
+  $PdfSearchMetadataOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pageCount => $composableBuilder(
+    column: $table.pageCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get indexedAt => $composableBuilder(
+    column: $table.indexedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SubjectFilesTableOrderingComposer get fileId {
+    final $$SubjectFilesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.fileId,
+      referencedTable: $db.subjectFiles,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubjectFilesTableOrderingComposer(
+            $db: $db,
+            $table: $db.subjectFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $PdfSearchMetadataAnnotationComposer
+    extends Composer<_$AppDatabase, PdfSearchMetadata> {
+  $PdfSearchMetadataAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get pageCount =>
+      $composableBuilder(column: $table.pageCount, builder: (column) => column);
+
+  GeneratedColumn<int> get indexedAt =>
+      $composableBuilder(column: $table.indexedAt, builder: (column) => column);
+
+  $$SubjectFilesTableAnnotationComposer get fileId {
+    final $$SubjectFilesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.fileId,
+      referencedTable: $db.subjectFiles,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubjectFilesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.subjectFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $PdfSearchMetadataTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          PdfSearchMetadata,
+          PdfSearchMetadataData,
+          $PdfSearchMetadataFilterComposer,
+          $PdfSearchMetadataOrderingComposer,
+          $PdfSearchMetadataAnnotationComposer,
+          $PdfSearchMetadataCreateCompanionBuilder,
+          $PdfSearchMetadataUpdateCompanionBuilder,
+          (PdfSearchMetadataData, $PdfSearchMetadataReferences),
+          PdfSearchMetadataData,
+          PrefetchHooks Function({bool fileId})
+        > {
+  $PdfSearchMetadataTableManager(_$AppDatabase db, PdfSearchMetadata table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $PdfSearchMetadataFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $PdfSearchMetadataOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $PdfSearchMetadataAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> fileId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> pageCount = const Value.absent(),
+                Value<int> indexedAt = const Value.absent(),
+              }) => PdfSearchMetadataCompanion(
+                fileId: fileId,
+                status: status,
+                pageCount: pageCount,
+                indexedAt: indexedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> fileId = const Value.absent(),
+                required String status,
+                Value<int> pageCount = const Value.absent(),
+                required int indexedAt,
+              }) => PdfSearchMetadataCompanion.insert(
+                fileId: fileId,
+                status: status,
+                pageCount: pageCount,
+                indexedAt: indexedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $PdfSearchMetadataReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({fileId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (fileId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.fileId,
+                                referencedTable: $PdfSearchMetadataReferences
+                                    ._fileIdTable(db),
+                                referencedColumn: $PdfSearchMetadataReferences
+                                    ._fileIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $PdfSearchMetadataProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      PdfSearchMetadata,
+      PdfSearchMetadataData,
+      $PdfSearchMetadataFilterComposer,
+      $PdfSearchMetadataOrderingComposer,
+      $PdfSearchMetadataAnnotationComposer,
+      $PdfSearchMetadataCreateCompanionBuilder,
+      $PdfSearchMetadataUpdateCompanionBuilder,
+      (PdfSearchMetadataData, $PdfSearchMetadataReferences),
+      PdfSearchMetadataData,
+      PrefetchHooks Function({bool fileId})
+    >;
+typedef $PdfPageFtsCreateCompanionBuilder =
+    PdfPageFtsCompanion Function({
+      required String fileId,
+      required String pageNumber,
+      required String pageText,
+      Value<int> rowid,
+    });
+typedef $PdfPageFtsUpdateCompanionBuilder =
+    PdfPageFtsCompanion Function({
+      Value<String> fileId,
+      Value<String> pageNumber,
+      Value<String> pageText,
+      Value<int> rowid,
+    });
+
+class $PdfPageFtsFilterComposer extends Composer<_$AppDatabase, PdfPageFts> {
+  $PdfPageFtsFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get fileId => $composableBuilder(
+    column: $table.fileId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pageNumber => $composableBuilder(
+    column: $table.pageNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pageText => $composableBuilder(
+    column: $table.pageText,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $PdfPageFtsOrderingComposer extends Composer<_$AppDatabase, PdfPageFts> {
+  $PdfPageFtsOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get fileId => $composableBuilder(
+    column: $table.fileId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pageNumber => $composableBuilder(
+    column: $table.pageNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pageText => $composableBuilder(
+    column: $table.pageText,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $PdfPageFtsAnnotationComposer
+    extends Composer<_$AppDatabase, PdfPageFts> {
+  $PdfPageFtsAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get fileId =>
+      $composableBuilder(column: $table.fileId, builder: (column) => column);
+
+  GeneratedColumn<String> get pageNumber => $composableBuilder(
+    column: $table.pageNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get pageText =>
+      $composableBuilder(column: $table.pageText, builder: (column) => column);
+}
+
+class $PdfPageFtsTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          PdfPageFts,
+          PdfPageFt,
+          $PdfPageFtsFilterComposer,
+          $PdfPageFtsOrderingComposer,
+          $PdfPageFtsAnnotationComposer,
+          $PdfPageFtsCreateCompanionBuilder,
+          $PdfPageFtsUpdateCompanionBuilder,
+          (PdfPageFt, BaseReferences<_$AppDatabase, PdfPageFts, PdfPageFt>),
+          PdfPageFt,
+          PrefetchHooks Function()
+        > {
+  $PdfPageFtsTableManager(_$AppDatabase db, PdfPageFts table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $PdfPageFtsFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $PdfPageFtsOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $PdfPageFtsAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> fileId = const Value.absent(),
+                Value<String> pageNumber = const Value.absent(),
+                Value<String> pageText = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PdfPageFtsCompanion(
+                fileId: fileId,
+                pageNumber: pageNumber,
+                pageText: pageText,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String fileId,
+                required String pageNumber,
+                required String pageText,
+                Value<int> rowid = const Value.absent(),
+              }) => PdfPageFtsCompanion.insert(
+                fileId: fileId,
+                pageNumber: pageNumber,
+                pageText: pageText,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $PdfPageFtsProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      PdfPageFts,
+      PdfPageFt,
+      $PdfPageFtsFilterComposer,
+      $PdfPageFtsOrderingComposer,
+      $PdfPageFtsAnnotationComposer,
+      $PdfPageFtsCreateCompanionBuilder,
+      $PdfPageFtsUpdateCompanionBuilder,
+      (PdfPageFt, BaseReferences<_$AppDatabase, PdfPageFts, PdfPageFt>),
+      PdfPageFt,
+      PrefetchHooks Function()
     >;
 typedef $$TimetableEntriesTableCreateCompanionBuilder =
     TimetableEntriesCompanion Function({
@@ -15787,525 +17459,6 @@ typedef $$SubjectNotesTableProcessedTableManager =
       SubjectNoteRow,
       PrefetchHooks Function({bool subjectId, bool semesterId})
     >;
-typedef $$SubjectFilesTableCreateCompanionBuilder =
-    SubjectFilesCompanion Function({
-      Value<int> id,
-      required int subjectId,
-      required int semesterId,
-      Value<String> title,
-      required String fileName,
-      required String fileExtension,
-      required int fileSizeBytes,
-      Value<String> mimeType,
-      required String relativeFilePath,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
-    });
-typedef $$SubjectFilesTableUpdateCompanionBuilder =
-    SubjectFilesCompanion Function({
-      Value<int> id,
-      Value<int> subjectId,
-      Value<int> semesterId,
-      Value<String> title,
-      Value<String> fileName,
-      Value<String> fileExtension,
-      Value<int> fileSizeBytes,
-      Value<String> mimeType,
-      Value<String> relativeFilePath,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
-    });
-
-final class $$SubjectFilesTableReferences
-    extends BaseReferences<_$AppDatabase, $SubjectFilesTable, SubjectFileRow> {
-  $$SubjectFilesTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $SubjectsTable _subjectIdTable(_$AppDatabase db) =>
-      db.subjects.createAlias('subject_files__subject_id__subjects__id');
-
-  $$SubjectsTableProcessedTableManager get subjectId {
-    final $_column = $_itemColumn<int>('subject_id')!;
-
-    final manager = $$SubjectsTableTableManager(
-      $_db,
-      $_db.subjects,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_subjectIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static $SemestersTable _semesterIdTable(_$AppDatabase db) =>
-      db.semesters.createAlias('subject_files__semester_id__semesters__id');
-
-  $$SemestersTableProcessedTableManager get semesterId {
-    final $_column = $_itemColumn<int>('semester_id')!;
-
-    final manager = $$SemestersTableTableManager(
-      $_db,
-      $_db.semesters,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_semesterIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
-class $$SubjectFilesTableFilterComposer
-    extends Composer<_$AppDatabase, $SubjectFilesTable> {
-  $$SubjectFilesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get title => $composableBuilder(
-    column: $table.title,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get fileName => $composableBuilder(
-    column: $table.fileName,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get fileExtension => $composableBuilder(
-    column: $table.fileExtension,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get fileSizeBytes => $composableBuilder(
-    column: $table.fileSizeBytes,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get mimeType => $composableBuilder(
-    column: $table.mimeType,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get relativeFilePath => $composableBuilder(
-    column: $table.relativeFilePath,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get createdAt =>
-      $composableBuilder(
-        column: $table.createdAt,
-        builder: (column) => ColumnWithTypeConverterFilters(column),
-      );
-
-  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get updatedAt =>
-      $composableBuilder(
-        column: $table.updatedAt,
-        builder: (column) => ColumnWithTypeConverterFilters(column),
-      );
-
-  $$SubjectsTableFilterComposer get subjectId {
-    final $$SubjectsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.subjectId,
-      referencedTable: $db.subjects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SubjectsTableFilterComposer(
-            $db: $db,
-            $table: $db.subjects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$SemestersTableFilterComposer get semesterId {
-    final $$SemestersTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.semesterId,
-      referencedTable: $db.semesters,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SemestersTableFilterComposer(
-            $db: $db,
-            $table: $db.semesters,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$SubjectFilesTableOrderingComposer
-    extends Composer<_$AppDatabase, $SubjectFilesTable> {
-  $$SubjectFilesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get title => $composableBuilder(
-    column: $table.title,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get fileName => $composableBuilder(
-    column: $table.fileName,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get fileExtension => $composableBuilder(
-    column: $table.fileExtension,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get fileSizeBytes => $composableBuilder(
-    column: $table.fileSizeBytes,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get mimeType => $composableBuilder(
-    column: $table.mimeType,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get relativeFilePath => $composableBuilder(
-    column: $table.relativeFilePath,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$SubjectsTableOrderingComposer get subjectId {
-    final $$SubjectsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.subjectId,
-      referencedTable: $db.subjects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SubjectsTableOrderingComposer(
-            $db: $db,
-            $table: $db.subjects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$SemestersTableOrderingComposer get semesterId {
-    final $$SemestersTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.semesterId,
-      referencedTable: $db.semesters,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SemestersTableOrderingComposer(
-            $db: $db,
-            $table: $db.semesters,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$SubjectFilesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SubjectFilesTable> {
-  $$SubjectFilesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => column);
-
-  GeneratedColumn<String> get fileName =>
-      $composableBuilder(column: $table.fileName, builder: (column) => column);
-
-  GeneratedColumn<String> get fileExtension => $composableBuilder(
-    column: $table.fileExtension,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get fileSizeBytes => $composableBuilder(
-    column: $table.fileSizeBytes,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get mimeType =>
-      $composableBuilder(column: $table.mimeType, builder: (column) => column);
-
-  GeneratedColumn<String> get relativeFilePath => $composableBuilder(
-    column: $table.relativeFilePath,
-    builder: (column) => column,
-  );
-
-  GeneratedColumnWithTypeConverter<DateTime, int> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumnWithTypeConverter<DateTime, int> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  $$SubjectsTableAnnotationComposer get subjectId {
-    final $$SubjectsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.subjectId,
-      referencedTable: $db.subjects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SubjectsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.subjects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$SemestersTableAnnotationComposer get semesterId {
-    final $$SemestersTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.semesterId,
-      referencedTable: $db.semesters,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SemestersTableAnnotationComposer(
-            $db: $db,
-            $table: $db.semesters,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$SubjectFilesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $SubjectFilesTable,
-          SubjectFileRow,
-          $$SubjectFilesTableFilterComposer,
-          $$SubjectFilesTableOrderingComposer,
-          $$SubjectFilesTableAnnotationComposer,
-          $$SubjectFilesTableCreateCompanionBuilder,
-          $$SubjectFilesTableUpdateCompanionBuilder,
-          (SubjectFileRow, $$SubjectFilesTableReferences),
-          SubjectFileRow,
-          PrefetchHooks Function({bool subjectId, bool semesterId})
-        > {
-  $$SubjectFilesTableTableManager(_$AppDatabase db, $SubjectFilesTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SubjectFilesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$SubjectFilesTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$SubjectFilesTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<int> subjectId = const Value.absent(),
-                Value<int> semesterId = const Value.absent(),
-                Value<String> title = const Value.absent(),
-                Value<String> fileName = const Value.absent(),
-                Value<String> fileExtension = const Value.absent(),
-                Value<int> fileSizeBytes = const Value.absent(),
-                Value<String> mimeType = const Value.absent(),
-                Value<String> relativeFilePath = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-              }) => SubjectFilesCompanion(
-                id: id,
-                subjectId: subjectId,
-                semesterId: semesterId,
-                title: title,
-                fileName: fileName,
-                fileExtension: fileExtension,
-                fileSizeBytes: fileSizeBytes,
-                mimeType: mimeType,
-                relativeFilePath: relativeFilePath,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required int subjectId,
-                required int semesterId,
-                Value<String> title = const Value.absent(),
-                required String fileName,
-                required String fileExtension,
-                required int fileSizeBytes,
-                Value<String> mimeType = const Value.absent(),
-                required String relativeFilePath,
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-              }) => SubjectFilesCompanion.insert(
-                id: id,
-                subjectId: subjectId,
-                semesterId: semesterId,
-                title: title,
-                fileName: fileName,
-                fileExtension: fileExtension,
-                fileSizeBytes: fileSizeBytes,
-                mimeType: mimeType,
-                relativeFilePath: relativeFilePath,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$SubjectFilesTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({subjectId = false, semesterId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (subjectId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.subjectId,
-                                referencedTable: $$SubjectFilesTableReferences
-                                    ._subjectIdTable(db),
-                                referencedColumn: $$SubjectFilesTableReferences
-                                    ._subjectIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-                    if (semesterId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.semesterId,
-                                referencedTable: $$SubjectFilesTableReferences
-                                    ._semesterIdTable(db),
-                                referencedColumn: $$SubjectFilesTableReferences
-                                    ._semesterIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$SubjectFilesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $SubjectFilesTable,
-      SubjectFileRow,
-      $$SubjectFilesTableFilterComposer,
-      $$SubjectFilesTableOrderingComposer,
-      $$SubjectFilesTableAnnotationComposer,
-      $$SubjectFilesTableCreateCompanionBuilder,
-      $$SubjectFilesTableUpdateCompanionBuilder,
-      (SubjectFileRow, $$SubjectFilesTableReferences),
-      SubjectFileRow,
-      PrefetchHooks Function({bool subjectId, bool semesterId})
-    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -16314,6 +17467,12 @@ class $AppDatabaseManager {
       $$SemestersTableTableManager(_db, _db.semesters);
   $$SubjectsTableTableManager get subjects =>
       $$SubjectsTableTableManager(_db, _db.subjects);
+  $$SubjectFilesTableTableManager get subjectFiles =>
+      $$SubjectFilesTableTableManager(_db, _db.subjectFiles);
+  $PdfSearchMetadataTableManager get pdfSearchMetadata =>
+      $PdfSearchMetadataTableManager(_db, _db.pdfSearchMetadata);
+  $PdfPageFtsTableManager get pdfPageFts =>
+      $PdfPageFtsTableManager(_db, _db.pdfPageFts);
   $$TimetableEntriesTableTableManager get timetableEntries =>
       $$TimetableEntriesTableTableManager(_db, _db.timetableEntries);
   $$AttendanceSessionsTableTableManager get attendanceSessions =>
@@ -16345,6 +17504,4 @@ class $AppDatabaseManager {
       $$AppSettingsTableTableManager(_db, _db.appSettings);
   $$SubjectNotesTableTableManager get subjectNotes =>
       $$SubjectNotesTableTableManager(_db, _db.subjectNotes);
-  $$SubjectFilesTableTableManager get subjectFiles =>
-      $$SubjectFilesTableTableManager(_db, _db.subjectFiles);
 }

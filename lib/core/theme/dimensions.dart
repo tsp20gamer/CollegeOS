@@ -1,3 +1,5 @@
+import 'package:flutter/widgets.dart';
+
 abstract final class AppIconSize {
   static const double xs = 16;
   static const double sm = 20;
@@ -16,8 +18,11 @@ abstract final class AppLayout {
   static const double compactPhone = 380;
   static const double contentMaxWidth = 720;
   static const double minimumTouchTarget = 48;
-  static const double floatingDockContentInset = 96;
-  static const double dockHeight = 78;
-  static const double dockLabelHeight = 14;
+  static const double floatingDockContentInset = 84;
+  static const double dockHeight = 66;
   static const double compactCalendarDayExtent = 40;
+
+  static double scaffoldBottomPadding(BuildContext context) {
+    return floatingDockContentInset + 24.0 + MediaQuery.paddingOf(context).bottom;
+  }
 }

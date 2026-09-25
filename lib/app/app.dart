@@ -180,11 +180,11 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
       _messengerKey.currentState?.showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(
+          margin: EdgeInsets.fromLTRB(
             16,
             0,
             16,
-            AppLayout.floatingDockContentInset,
+            AppLayout.scaffoldBottomPadding(context) - 24.0, // Because it previously used floatingDockContentInset (which is scaffoldBottomPadding - 24)
           ),
           duration: const Duration(seconds: 6),
           content: const Text('Attendance updated'),

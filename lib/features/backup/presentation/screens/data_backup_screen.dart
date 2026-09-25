@@ -1,4 +1,5 @@
 import 'package:college_os/core/routing/route_names.dart';
+import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/backup/application/backup_providers.dart';
@@ -46,14 +47,15 @@ class _DataBackupScreenState extends ConsumerState<DataBackupScreen> {
         title: Text(widget.restoreOnly ? 'Restore Backup' : 'Data & Backup'),
       ),
       body: SafeArea(
+        bottom: false,
         child: Stack(
           children: [
             ListView(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppSpacing.lg,
                 AppSpacing.sm,
                 AppSpacing.lg,
-                AppSpacing.xxl,
+                AppLayout.scaffoldBottomPadding(context),
               ),
               children: [
                 _HeroCard(restoreOnly: widget.restoreOnly),

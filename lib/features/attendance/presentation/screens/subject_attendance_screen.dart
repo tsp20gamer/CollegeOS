@@ -1,5 +1,6 @@
 import 'package:college_os/core/database/database_enums.dart';
 import 'package:college_os/core/theme/color_tokens.dart';
+import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/attendance/application/attendance_providers.dart';
@@ -63,11 +64,11 @@ class _Body extends ConsumerWidget {
           return b.startTime.compareTo(a.startTime);
         });
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.sm,
         AppSpacing.lg,
-        AppSpacing.xxl,
+        AppLayout.scaffoldBottomPadding(context),
       ),
       children: [
         _Header(result: result),

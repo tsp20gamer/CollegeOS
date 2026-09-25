@@ -71,20 +71,21 @@ void main() {
       ),
       isTrue,
     );
+    // Selected destination uses a subtle highlight background
+    // (no gradient-circle selection surface in the current design).
     expect(
-      tester.getSize(find.byKey(const Key('dock_selection_surface_Home'))),
-      const Size.square(46),
-    );
-    final selectedSurface = tester.widget<DecoratedBox>(
-      find.descendant(
-        of: find.byKey(const Key('dock_selection_surface_Home')),
-        matching: find.byType(DecoratedBox),
+      tester.widget<AnimatedContainer>(
+        find.descendant(
+          of: find.byKey(const Key('nav_home')),
+          matching: find.byType(AnimatedContainer),
+        ),
+      ).decoration,
+      isA<BoxDecoration>().having(
+        (d) => (d.color?.a ?? 0) > 0,
+        'has selected highlight',
+        isTrue,
       ),
     );
-    final selectedDecoration = selectedSurface.decoration as BoxDecoration;
-    expect(selectedDecoration.shape, BoxShape.circle);
-    expect(selectedDecoration.gradient, isA<LinearGradient>());
-    expect(selectedDecoration.boxShadow, isNull);
     for (final key in const [
       Key('nav_home'),
       Key('nav_attendance'),
@@ -116,13 +117,7 @@ void main() {
       expect(find.byKey(const Key('navigation_page_transition')), findsNothing);
       expect(find.byKey(const Key('navigation_page_slide')), findsNothing);
       expect(find.byKey(const Key('navigation_page_scale')), findsNothing);
-      final selectedScale = _dockScale(tester, destination.$1);
-      final deselectedScale = _dockScale(tester, previousDestination);
-      expect(selectedScale, greaterThan(1));
-      expect(selectedScale, lessThan(1.08));
-      expect(deselectedScale, greaterThan(1));
-      expect(deselectedScale, lessThan(1.08));
-
+      // Verify selected icon uses primary color (not onSurfaceVariant).
       final colors = Theme.of(
         tester.element(find.byType(CollegeNavigationDock)),
       ).colorScheme;
@@ -130,7 +125,6 @@ void main() {
         find.byKey(ValueKey('dock_icon_${destination.$1}_true')),
       );
       expect(selectedIcon.color, isNot(colors.onSurfaceVariant));
-      expect(selectedIcon.color, isNot(colors.onPrimaryContainer));
 
       await tester.pump(const Duration(milliseconds: 300));
       expect(
@@ -160,8 +154,6 @@ void main() {
           findsOneWidget,
         );
       }
-      expect(_dockScale(tester, destination.$1), closeTo(1.08, 0.001));
-      expect(_dockScale(tester, previousDestination), closeTo(1, 0.001));
       previousDestination = destination.$1;
     }
     await _disposeApp(tester);
@@ -195,11 +187,6 @@ void main() {
     expect(find.byKey(const Key('navigation_moving_shade')), findsNothing);
   });
 }
-
-double _dockScale(WidgetTester tester, String label) => tester
-    .widget<Transform>(find.byKey(Key('dock_icon_scale_$label')))
-    .transform
-    .getMaxScaleOnAxis();
 
 Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
   for (var attempt = 0; attempt < 50 && finder.evaluate().isEmpty; attempt++) {

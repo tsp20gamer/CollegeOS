@@ -40,11 +40,11 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             ListView(
               key: const Key('settings_list'),
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppSpacing.lg,
                 AppSpacing.sm,
                 AppSpacing.lg,
-                AppLayout.floatingDockContentInset + AppSpacing.lg,
+                AppLayout.scaffoldBottomPadding(context),
               ),
               children: [
                 _CollegeProfileCard(

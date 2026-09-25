@@ -90,8 +90,7 @@ class _CollegeInformationScreenState
                 AppSpacing.lg,
                 AppSpacing.sm,
                 AppSpacing.lg,
-                AppLayout.floatingDockContentInset +
-                    AppSpacing.lg +
+                AppLayout.scaffoldBottomPadding(context) +
                     MediaQuery.viewInsetsOf(context).bottom,
               ),
               child: Center(

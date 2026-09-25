@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/features/subject_files/domain/subject_file.dart';
+import 'package:college_os/features/notes/application/pdf_search_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final subjectFilesProvider =
@@ -47,15 +48,21 @@ final class SubjectFileCommandController extends AsyncNotifier<void> {
       );
 
       createdId = await ref.read(subjectFileRepositoryProvider).create(newFile);
+      
+      if (createdId != null && saved.fileExtension.toLowerCase() == 'pdf') {
+        // Trigger indexing in background without awaiting
+        ref.read(pdfIndexCommandProvider.notifier).indexFile(createdId!, saved.relativeFilePath);
+      }
     });
     return state.hasError ? null : createdId;
   }
 
   Future<bool> deleteFile(int id) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref.read(subjectFileRepositoryProvider).delete(id),
-    );
+    state = await AsyncValue.guard(() async {
+      await ref.read(pdfSearchDaoProvider).deleteFileIndex(id);
+      await ref.read(subjectFileRepositoryProvider).delete(id);
+    });
     return !state.hasError;
   }
 

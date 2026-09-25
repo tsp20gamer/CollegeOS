@@ -1,3 +1,4 @@
+import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/semesters/application/semester_providers.dart';
@@ -22,12 +23,13 @@ class SemesterManagementScreen extends ConsumerWidget {
         label: const Text('Add semester'),
       ),
       body: SafeArea(
+        bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             AppSpacing.lg,
             AppSpacing.sm,
             AppSpacing.lg,
-            AppSpacing.xxl * 2,
+            AppLayout.scaffoldBottomPadding(context),
           ),
           children: [
             Text(

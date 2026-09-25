@@ -91,11 +91,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.sm,
         AppSpacing.lg,
-        AppLayout.floatingDockContentInset + AppSpacing.lg,
+        AppLayout.scaffoldBottomPadding(context),
       ),
       children: [
         SegmentedButton<_AnalyticsScope>(

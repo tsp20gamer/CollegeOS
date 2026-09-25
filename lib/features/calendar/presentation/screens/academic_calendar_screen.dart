@@ -1,5 +1,6 @@
 import 'package:college_os/core/database/database_enums.dart';
 import 'package:college_os/core/theme/color_tokens.dart';
+import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/calendar/application/academic_calendar_providers.dart';
 import 'package:college_os/features/attendance/application/attendance_providers.dart';
@@ -32,6 +33,7 @@ class AcademicCalendarScreen extends ConsumerWidget {
               label: const Text('Add date'),
             ),
       body: SafeArea(
+        bottom: false,
         child: events.when(
           loading: () => const LoadingState(label: 'Loading calendar'),
           error: (error, _) => ErrorState(
@@ -48,11 +50,11 @@ class AcademicCalendarScreen extends ConsumerWidget {
               );
             }
             return ListView(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppSpacing.lg,
                 AppSpacing.sm,
                 AppSpacing.lg,
-                AppSpacing.xxl * 2,
+                AppLayout.scaffoldBottomPadding(context),
               ),
               children: [
                 Text(
