@@ -32,35 +32,68 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<void> beginIndexing(int fileId) async {
+    await (delete(pdfPageFts)..where((row) => row.fileId.equals(fileId.toString()))).go();
+    await into(pdfSearchMetadata).insert(
+      PdfSearchMetadataCompanion.insert(
+        fileId: Value(fileId),
+        status: 'indexing',
+        pageCount: const Value(0),
+        indexedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+      mode: InsertMode.insertOrReplace,
+    );
+  }
+
+  Future<void> updateProgress(int fileId, int currentPage, int totalPages) async {
+    await into(pdfSearchMetadata).insert(
+      PdfSearchMetadataCompanion.insert(
+        fileId: Value(fileId),
+        status: 'indexing ($currentPage/$totalPages)',
+        pageCount: Value(totalPages),
+        indexedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+      mode: InsertMode.insertOrReplace,
+    );
+  }
+
+  Future<void> saveExtractedPage(int fileId, int pageNumber, String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isNotEmpty) {
+      await into(pdfPageFts).insert(
+        PdfPageFtsCompanion.insert(
+          fileId: fileId.toString(),
+          pageNumber: pageNumber.toString(),
+          pageText: trimmed,
+        ),
+      );
+    }
+  }
+
+  Future<void> completeIndexing(int fileId, int totalPages) async {
+    await into(pdfSearchMetadata).insert(
+      PdfSearchMetadataCompanion.insert(
+        fileId: Value(fileId),
+        status: 'indexed',
+        pageCount: Value(totalPages),
+        indexedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+      mode: InsertMode.insertOrReplace,
+    );
+  }
+
   Future<void> saveExtractedPages(
     int fileId,
     List<String> pageTexts,
   ) async {
     return transaction(() async {
-      await (delete(pdfPageFts)..where((row) => row.fileId.equals(fileId.toString()))).go();
+      await beginIndexing(fileId);
 
       for (int i = 0; i < pageTexts.length; i++) {
-        final text = pageTexts[i].trim();
-        if (text.isNotEmpty) {
-          await into(pdfPageFts).insert(
-            PdfPageFtsCompanion.insert(
-              fileId: fileId.toString(),
-              pageNumber: (i + 1).toString(),
-              pageText: text,
-            ),
-          );
-        }
+        await saveExtractedPage(fileId, i + 1, pageTexts[i]);
       }
 
-      await into(pdfSearchMetadata).insert(
-        PdfSearchMetadataCompanion.insert(
-          fileId: Value(fileId),
-          status: 'indexed',
-          pageCount: Value(pageTexts.length),
-          indexedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-        mode: InsertMode.insertOrReplace,
-      );
+      await completeIndexing(fileId, pageTexts.length);
     });
   }
 
@@ -109,7 +142,52 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
         );
       }).toList();
     } catch (e) {
-      // Return empty results if there's a malformed query error
+      return [];
+    }
+  }
+
+  Future<List<PdfAiContextRow>> searchForAiContext(
+    String query, {
+    int limit = 8,
+  }) async {
+    if (query.trim().isEmpty) return [];
+
+    final sanitized =
+        query.replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ').trim();
+    if (sanitized.isEmpty) return [];
+
+    final ftsQuery =
+        sanitized.split(RegExp(r'\s+')).map((w) => '$w*').join(' ');
+
+    try {
+      final rows = await customSelect(
+        '''
+        SELECT
+          pdf_page_fts.file_id,
+          pdf_page_fts.page_number,
+          pdf_page_fts.page_text,
+          rank
+        FROM pdf_page_fts
+        WHERE pdf_page_fts MATCH ?
+        ORDER BY rank
+        LIMIT ?
+        ''',
+        variables: [
+          Variable.withString(ftsQuery),
+          Variable.withInt(limit),
+        ],
+        readsFrom: {pdfPageFts},
+      ).get();
+
+      return rows.map((row) {
+        return PdfAiContextRow(
+          fileId: int.parse(row.read<String>('file_id')),
+          pageNumber: int.parse(row.read<String>('page_number')),
+          pageText: row.read<String>('page_text'),
+          rank: row.read<double>('rank'),
+        );
+      }).toList();
+    } catch (e) {
       return [];
     }
   }
@@ -125,5 +203,19 @@ class PdfSearchResultRow {
     required this.fileId,
     required this.pageNumber,
     required this.snippet,
+  });
+}
+
+class PdfAiContextRow {
+  final int fileId;
+  final int pageNumber;
+  final String pageText;
+  final double rank;
+
+  const PdfAiContextRow({
+    required this.fileId,
+    required this.pageNumber,
+    required this.pageText,
+    required this.rank,
   });
 }

@@ -26,10 +26,15 @@ final pdfIndexCommandProvider = AsyncNotifierProvider<PdfIndexCommandController,
 );
 
 class PdfIndexCommandController extends AsyncNotifier<void> {
+  static final Set<int> _activeJobs = {};
+
   @override
   Future<void> build() async {}
 
   Future<void> indexFile(int fileId, String relativeFilePath) async {
+    if (_activeJobs.contains(fileId)) return;
+    
+    _activeJobs.add(fileId);
     final service = ref.read(pdfExtractionServiceProvider);
     
     // Fire and forget, don't wait for completion here
@@ -38,6 +43,8 @@ class PdfIndexCommandController extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       await service.indexPdf(fileId, relativeFilePath);
     });
+    
+    _activeJobs.remove(fileId);
   }
 
   Future<void> retryIndexing(int fileId, String relativeFilePath) async {
@@ -49,10 +56,15 @@ class PdfIndexCommandController extends AsyncNotifier<void> {
     if (pdfs.isEmpty) return;
 
     final metadata = await ref.read(pdfSearchDaoProvider).getAllMetadata();
-    final indexedFileIds = metadata.map((m) => m.fileId).toSet();
+    final metaMap = {for (final m in metadata) m.fileId: m};
 
     for (final pdf in pdfs) {
-      if (!indexedFileIds.contains(pdf.id)) {
+      final meta = metaMap[pdf.id];
+      if (meta == null) {
+        // Never indexed
+        await indexFile(pdf.id, pdf.relativeFilePath);
+      } else if (meta.status.startsWith('indexing') && !_activeJobs.contains(pdf.id)) {
+        // Stuck in indexing from a previous app session (isolate died)
         await indexFile(pdf.id, pdf.relativeFilePath);
       }
     }

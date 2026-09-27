@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'dart:typed_data';
+
 
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
@@ -15,7 +15,7 @@ class UploadFileSheet extends ConsumerStatefulWidget {
     required this.semesterId,
     this.subjectName,
     this.initialFileName,
-    this.initialBytes,
+    this.initialFilePath,
     super.key,
   });
 
@@ -23,7 +23,7 @@ class UploadFileSheet extends ConsumerStatefulWidget {
   final int semesterId;
   final String? subjectName;
   final String? initialFileName;
-  final Uint8List? initialBytes;
+  final String? initialFilePath;
 
   static Future<bool?> pickAndShow(
     BuildContext context, {
@@ -47,17 +47,15 @@ class UploadFileSheet extends ConsumerStatefulWidget {
         'csv',
       ],
       allowMultiple: false,
-      withData: true,
+      withData: false,
     );
 
     if (result == null || result.files.isEmpty) return null;
 
     final picked = result.files.single;
-    final bytes =
-        picked.bytes ??
-        (picked.path != null ? await File(picked.path!).readAsBytes() : null);
+    final path = picked.path;
 
-    if (bytes == null || !context.mounted) return null;
+    if (path == null || !context.mounted) return null;
 
     return showModalBottomSheet<bool>(
       context: context,
@@ -70,7 +68,7 @@ class UploadFileSheet extends ConsumerStatefulWidget {
         semesterId: semesterId,
         subjectName: subjectName,
         initialFileName: picked.name,
-        initialBytes: bytes,
+        initialFilePath: path,
       ),
     );
   }
@@ -83,13 +81,13 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   String? _fileName;
-  Uint8List? _bytes;
+  String? _filePath;
 
   @override
   void initState() {
     super.initState();
     _fileName = widget.initialFileName;
-    _bytes = widget.initialBytes;
+    _filePath = widget.initialFilePath;
     final defaultTitle = _fileName != null ? p.basenameWithoutExtension(_fileName!) : '';
     _titleController = TextEditingController(text: defaultTitle);
   }
@@ -157,7 +155,7 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  if (_fileName != null && _bytes != null) ...[
+                  if (_fileName != null && _filePath != null) ...[
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
@@ -184,7 +182,7 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
                                 ),
                                 const SizedBox(height: AppSpacing.xxs),
                                 Text(
-                                  _formatFileSize(_bytes!.length),
+                                  _formatFileSize(File(_filePath!).lengthSync()),
                                   style: Theme.of(context).textTheme.labelSmall
                                       ?.copyWith(color: colors.onSurfaceVariant),
                                 ),
@@ -264,7 +262,7 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Save to Subject'),
-                    onPressed: command.isLoading || _bytes == null ? null : _save,
+                    onPressed: command.isLoading || _filePath == null ? null : _save,
                   ),
                 ],
               ),
@@ -292,19 +290,17 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
         'csv',
       ],
       allowMultiple: false,
-      withData: true,
+      withData: false,
     );
 
     if (result != null && result.files.isNotEmpty) {
       final picked = result.files.single;
-      final bytes =
-          picked.bytes ??
-          (picked.path != null ? await File(picked.path!).readAsBytes() : null);
+      final path = picked.path;
 
-      if (bytes != null && mounted) {
+      if (path != null && mounted) {
         setState(() {
           _fileName = picked.name;
-          _bytes = bytes;
+          _filePath = path;
           if (_titleController.text.trim().isEmpty) {
             _titleController.text = p.basenameWithoutExtension(picked.name);
           }
@@ -314,7 +310,7 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate() || _bytes == null || _fileName == null) {
+    if (!_formKey.currentState!.validate() || _filePath == null || _fileName == null) {
       return;
     }
 
@@ -325,7 +321,7 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
           semesterId: widget.semesterId,
           title: _titleController.text.trim(),
           fileName: _fileName!,
-          bytes: _bytes!,
+          sourceFilePath: _filePath!,
         );
 
     if (mounted && id != null) {

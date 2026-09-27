@@ -170,6 +170,10 @@ SET effective_from = (
         await migrator.createTable(pdfSearchMetadata);
         await migrator.createTable(pdfPageFts);
       }
+      if (from < CollegeOsSchemaVersions.pdfSearchV2 &&
+          to >= CollegeOsSchemaVersions.pdfSearchV2) {
+        await migrator.alterTable(TableMigration(pdfSearchMetadata));
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

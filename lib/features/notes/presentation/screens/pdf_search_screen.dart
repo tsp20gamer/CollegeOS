@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:college_os/core/theme/effects.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
-import 'package:college_os/core/theme/dimensions.dart';
+
 import 'package:college_os/features/notes/application/pdf_search_providers.dart';
 import 'package:college_os/features/subject_files/application/subject_files_providers.dart';
 import 'package:college_os/features/subject_files/domain/subject_file.dart';
@@ -131,6 +131,8 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
+            _buildIndexingStatus(colors),
+            const SizedBox(height: AppSpacing.md),
             // Results area — Expanded so it fills the remaining screen
             Expanded(
               child: _query.isEmpty
@@ -144,6 +146,55 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildIndexingStatus(ColorScheme colors) {
+    final metadataAsync = ref.watch(pdfSearchMetadataProvider);
+    final filesAsync = ref.watch(subjectFilesProvider(widget.subjectId));
+    if (metadataAsync.isLoading || filesAsync.isLoading || metadataAsync.hasError || filesAsync.hasError) return const SizedBox.shrink();
+    final metadata = metadataAsync.value ?? [];
+    final files = filesAsync.value ?? [];
+    final indexingFiles = <String>[];
+    for (final file in files) {
+      final meta = metadata.where((m) => m.fileId == file.id).firstOrNull;
+      if (meta != null && meta.status.startsWith('indexing')) {
+        String statusText = 'Indexing PDF...';
+        if (meta.status.contains('(')) {
+           statusText = 'Indexing PDF... ${meta.status.split(' ').last} pages';
+        }
+        indexingFiles.add('${file.title}: $statusText');
+      }
+    }
+    if (indexingFiles.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: colors.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              indexingFiles.join('\n'),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

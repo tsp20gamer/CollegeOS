@@ -28,6 +28,22 @@ final class FakeSubjectFileStorageService implements SubjectFileStorageService {
   }
 
   @override
+  Future<({String relativeFilePath, int fileSizeBytes, String fileExtension})>
+  saveFileFromPath({
+    required int subjectId,
+    required String originalFileName,
+    required String sourceFilePath,
+  }) async {
+    final path = 'subject_files/$subjectId/test_$originalFileName';
+    savedPaths.add(path);
+    return (
+      relativeFilePath: path,
+      fileSizeBytes: 1024,
+      fileExtension: originalFileName.split('.').last.toLowerCase(),
+    );
+  }
+
+  @override
   Future<File> resolveFile(String relativeFilePath) async {
     return File(relativeFilePath);
   }

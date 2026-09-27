@@ -24,17 +24,26 @@ final class SubjectFileCommandController extends AsyncNotifier<void> {
     required int semesterId,
     required String title,
     required String fileName,
-    required Uint8List bytes,
+    Uint8List? bytes,
+    String? sourceFilePath,
   }) async {
+    assert(bytes != null || sourceFilePath != null, 'Must provide bytes or sourceFilePath');
     state = const AsyncLoading();
     int? createdId;
     state = await AsyncValue.guard(() async {
       final storage = ref.read(subjectFileStorageServiceProvider);
-      final saved = await storage.saveFile(
-        subjectId: subjectId,
-        originalFileName: fileName,
-        bytes: bytes,
-      );
+      
+      final saved = sourceFilePath != null 
+          ? await storage.saveFileFromPath(
+              subjectId: subjectId,
+              originalFileName: fileName,
+              sourceFilePath: sourceFilePath,
+            )
+          : await storage.saveFile(
+              subjectId: subjectId,
+              originalFileName: fileName,
+              bytes: bytes!,
+            );
 
       final newFile = (
         subjectId: subjectId,

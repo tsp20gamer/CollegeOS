@@ -1903,8 +1903,7 @@ class PdfSearchMetadata extends Table
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    $customConstraints:
-        'NOT NULL CHECK (status IN (\'indexed\', \'unsupported\', \'error\'))',
+    $customConstraints: 'NOT NULL',
   );
   static const VerificationMeta _pageCountMeta = const VerificationMeta(
     'pageCount',

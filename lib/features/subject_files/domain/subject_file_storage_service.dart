@@ -13,6 +13,13 @@ abstract interface class SubjectFileStorageService {
     required Uint8List bytes,
   });
 
+  Future<({String relativeFilePath, int fileSizeBytes, String fileExtension})>
+  saveFileFromPath({
+    required int subjectId,
+    required String originalFileName,
+    required String sourceFilePath,
+  });
+
   Future<File> resolveFile(String relativeFilePath);
 
   Future<void> deleteFile(String relativeFilePath);
@@ -50,6 +57,37 @@ final class LocalSubjectFileStorageService implements SubjectFileStorageService 
     return (
       relativeFilePath: relative,
       fileSizeBytes: bytes.length,
+      fileExtension: extension,
+    );
+  }
+
+  @override
+  Future<({String relativeFilePath, int fileSizeBytes, String fileExtension})>
+  saveFileFromPath({
+    required int subjectId,
+    required String originalFileName,
+    required String sourceFilePath,
+  }) async {
+    final supportDir = await getApplicationSupportDirectory();
+    final subjectDir = Directory(
+      p.join(supportDir.path, _baseFolderName, '$subjectId'),
+    );
+    await subjectDir.create(recursive: true);
+
+    final cleanName = p.basename(originalFileName).replaceAll(RegExp(r'[^\w\.\-]'), '_');
+    final extension = p.extension(cleanName).replaceFirst('.', '').toLowerCase();
+    final uniqueName = '${DateTime.now().millisecondsSinceEpoch}_$cleanName';
+    final targetFile = File(p.join(subjectDir.path, uniqueName));
+
+    final sourceFile = File(sourceFilePath);
+    await sourceFile.copy(targetFile.path);
+    final fileSizeBytes = await sourceFile.length();
+
+    final relative = p.join(_baseFolderName, '$subjectId', uniqueName).replaceAll('\\', '/');
+
+    return (
+      relativeFilePath: relative,
+      fileSizeBytes: fileSizeBytes,
       fileExtension: extension,
     );
   }
