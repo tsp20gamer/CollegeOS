@@ -82,21 +82,6 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  Future<void> saveExtractedPages(
-    int fileId,
-    List<String> pageTexts,
-  ) async {
-    return transaction(() async {
-      await beginIndexing(fileId);
-
-      for (int i = 0; i < pageTexts.length; i++) {
-        await saveExtractedPage(fileId, i + 1, pageTexts[i]);
-      }
-
-      await completeIndexing(fileId, pageTexts.length);
-    });
-  }
-
   Future<void> deleteFileIndex(int fileId) async {
     return transaction(() async {
       await (delete(pdfPageFts)..where((row) => row.fileId.equals(fileId.toString()))).go();
