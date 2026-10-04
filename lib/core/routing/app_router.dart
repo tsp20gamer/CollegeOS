@@ -10,6 +10,8 @@ import 'package:college_os/features/exams/presentation/screens/exams_marks_scree
 import 'package:college_os/features/home/presentation/screens/home_screen.dart';
 import 'package:college_os/features/help/presentation/screens/offline_help_screen.dart';
 import 'package:college_os/features/marks/presentation/screens/subject_performance_screen.dart';
+import 'package:college_os/features/notes/presentation/screens/notes_home_screen.dart';
+import 'package:college_os/features/notes/presentation/screens/pdf_search_screen.dart';
 import 'package:college_os/features/notes/presentation/screens/subject_notes_screen.dart';
 import 'package:college_os/features/onboarding/application/onboarding_providers.dart';
 import 'package:college_os/features/onboarding/presentation/screens/college_setup_screen.dart';
@@ -191,72 +193,83 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: RoutePaths.settings,
-                name: RouteNames.settings,
-                builder: (context, state) => const SettingsScreen(),
+                path: RoutePaths.notes,
+                name: RouteNames.notes,
+                builder: (context, state) => const NotesHomeScreen(),
                 routes: [
                   GoRoute(
-                    path: 'subjects',
-                    name: RouteNames.subjects,
-                    builder: (context, state) => const SubjectsScreen(),
-                  ),
-                  GoRoute(
-                    path: 'exams-marks',
-                    name: RouteNames.examsMarks,
-                    builder: (context, state) => ExamsMarksScreen(
-                      focusExamId: int.tryParse(
-                        state.uri.queryParameters['examId'] ?? '',
-                      ),
-                    ),
-                    routes: [
-                      GoRoute(
-                        path: 'subject/:subjectId',
-                        name: RouteNames.subjectPerformance,
-                        builder: (context, state) => SubjectPerformanceScreen(
-                          subjectId:
-                              int.tryParse(
-                                state.pathParameters['subjectId'] ?? '',
-                              ) ??
-                              -1,
-                        ),
-                      ),
-                    ],
-                  ),
-                  GoRoute(
-                    path: 'college-information',
-                    name: RouteNames.collegeInformation,
-                    builder: (context, state) =>
-                        const CollegeInformationScreen(),
-                  ),
-                  GoRoute(
-                    path: 'semesters',
-                    name: RouteNames.semesters,
-                    builder: (context, state) =>
-                        const SemesterManagementScreen(),
-                  ),
-                  GoRoute(
-                    path: 'data-backup',
-                    name: RouteNames.dataBackup,
-                    builder: (context, state) => const DataBackupScreen(),
-                  ),
-                  GoRoute(
-                    path: 'academic-calendar',
-                    name: RouteNames.academicCalendar,
-                    builder: (context, state) => const AcademicCalendarScreen(),
-                  ),
-                  GoRoute(
-                    path: 'reports',
-                    name: RouteNames.reports,
-                    builder: (context, state) => const ReportsScreen(),
-                  ),
-                  GoRoute(
-                    path: 'help',
-                    name: RouteNames.help,
-                    builder: (context, state) => const OfflineHelpScreen(),
+                    path: 'search',
+                    name: RouteNames.notesSearch,
+                    builder: (context, state) => const PdfSearchScreen(),
                   ),
                 ],
               ),
             ],
+          ),
+        ],
+      ),
+      // Settings is deliberately not a destination. Every tab header exposes it
+      // as an action, and it pushes over the shell so it keeps a back button
+      // while remaining reachable from anywhere in one tap.
+      GoRoute(
+        path: RoutePaths.settings,
+        name: RouteNames.settings,
+        builder: (context, state) => const SettingsScreen(),
+        routes: [
+          GoRoute(
+            path: 'subjects',
+            name: RouteNames.subjects,
+            builder: (context, state) => const SubjectsScreen(),
+          ),
+          GoRoute(
+            path: 'exams-marks',
+            name: RouteNames.examsMarks,
+            builder: (context, state) => ExamsMarksScreen(
+              focusExamId: int.tryParse(
+                state.uri.queryParameters['examId'] ?? '',
+              ),
+            ),
+            routes: [
+              GoRoute(
+                path: 'subject/:subjectId',
+                name: RouteNames.subjectPerformance,
+                builder: (context, state) => SubjectPerformanceScreen(
+                  subjectId:
+                      int.tryParse(state.pathParameters['subjectId'] ?? '') ??
+                      -1,
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'college-information',
+            name: RouteNames.collegeInformation,
+            builder: (context, state) => const CollegeInformationScreen(),
+          ),
+          GoRoute(
+            path: 'semesters',
+            name: RouteNames.semesters,
+            builder: (context, state) => const SemesterManagementScreen(),
+          ),
+          GoRoute(
+            path: 'data-backup',
+            name: RouteNames.dataBackup,
+            builder: (context, state) => const DataBackupScreen(),
+          ),
+          GoRoute(
+            path: 'academic-calendar',
+            name: RouteNames.academicCalendar,
+            builder: (context, state) => const AcademicCalendarScreen(),
+          ),
+          GoRoute(
+            path: 'reports',
+            name: RouteNames.reports,
+            builder: (context, state) => const ReportsScreen(),
+          ),
+          GoRoute(
+            path: 'help',
+            name: RouteNames.help,
+            builder: (context, state) => const OfflineHelpScreen(),
           ),
         ],
       ),

@@ -8,85 +8,126 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
     with _$PdfSearchDaoMixin {
   PdfSearchDao(super.attachedDatabase);
 
-  Future<void> markAsUnsupported(int fileId) async {
-    await into(pdfSearchMetadata).insert(
-      PdfSearchMetadataCompanion.insert(
-        fileId: Value(fileId),
-        status: 'unsupported',
-        pageCount: const Value(0),
-        indexedAt: DateTime.now().millisecondsSinceEpoch,
-      ),
-      mode: InsertMode.insertOrReplace,
-    );
+  /// Deletes every page of [fileId] from the FTS index, keeping its metadata.
+  ///
+  /// Used when a previous run has to be thrown away completely, for example
+  /// when the document's page count no longer matches what was indexed.
+  Future<void> deleteFilePages(int fileId) async {
+    await (delete(pdfPageFts)
+          ..where((row) => row.fileId.equals(fileId.toString())))
+        .go();
   }
 
-  Future<void> markAsError(int fileId) async {
-    await into(pdfSearchMetadata).insert(
-      PdfSearchMetadataCompanion.insert(
-        fileId: Value(fileId),
+  Future<void> markAsUnsupported(int fileId) =>
+      _writeMetadata(fileId, status: 'unsupported');
+
+  /// Marks [fileId] as failed, keeping how far the run got.
+  ///
+  /// Keeping [pageCount] and [lastIndexedPage] means a retry after a transient
+  /// failure (out of memory, process kill, unreadable page) can continue where
+  /// it stopped instead of extracting the whole document again.
+  Future<void> markAsError(
+    int fileId, {
+    int pageCount = 0,
+    int lastIndexedPage = 0,
+  }) =>
+      _writeMetadata(
+        fileId,
         status: 'error',
-        pageCount: const Value(0),
-        indexedAt: DateTime.now().millisecondsSinceEpoch,
-      ),
-      mode: InsertMode.insertOrReplace,
-    );
-  }
+        pageCount: pageCount,
+        lastIndexedPage: lastIndexedPage,
+      );
 
-  Future<void> beginIndexing(int fileId) async {
-    await (delete(pdfPageFts)..where((row) => row.fileId.equals(fileId.toString()))).go();
-    await into(pdfSearchMetadata).insert(
-      PdfSearchMetadataCompanion.insert(
-        fileId: Value(fileId),
+  /// Prepares [fileId] for indexing and reports where to resume.
+  ///
+  /// Unlike the previous implementation this does **not** delete the whole FTS
+  /// index up front: pages stored by an interrupted run are kept and indexing
+  /// restarts after the last page that was stored. Rows are only cleared when
+  /// the earlier run never stored a single page.
+  Future<PdfIndexStart> beginIndexing(int fileId) async {
+    final meta = await getMetadata(fileId);
+    final resumablePage = meta?.lastIndexedPage ?? 0;
+    if (resumablePage > 0) {
+      await _writeMetadata(
+        fileId,
         status: 'indexing',
-        pageCount: const Value(0),
-        indexedAt: DateTime.now().millisecondsSinceEpoch,
-      ),
-      mode: InsertMode.insertOrReplace,
-    );
-  }
-
-  Future<void> updateProgress(int fileId, int currentPage, int totalPages) async {
-    await into(pdfSearchMetadata).insert(
-      PdfSearchMetadataCompanion.insert(
-        fileId: Value(fileId),
-        status: 'indexing ($currentPage/$totalPages)',
-        pageCount: Value(totalPages),
-        indexedAt: DateTime.now().millisecondsSinceEpoch,
-      ),
-      mode: InsertMode.insertOrReplace,
-    );
-  }
-
-  Future<void> saveExtractedPage(int fileId, int pageNumber, String text) async {
-    final trimmed = text.trim();
-    if (trimmed.isNotEmpty) {
-      await into(pdfPageFts).insert(
-        PdfPageFtsCompanion.insert(
-          fileId: fileId.toString(),
-          pageNumber: pageNumber.toString(),
-          pageText: trimmed,
-        ),
+        pageCount: meta!.pageCount,
+        lastIndexedPage: resumablePage,
+      );
+      return PdfIndexStart(
+        resumeFromPage: resumablePage,
+        previousPageCount: meta.pageCount,
       );
     }
+
+    await transaction(() async {
+      await deleteFilePages(fileId);
+      await _writeMetadata(fileId, status: 'indexing');
+    });
+    return const PdfIndexStart(resumeFromPage: 0, previousPageCount: 0);
   }
 
-  Future<void> completeIndexing(int fileId, int totalPages) async {
-    await into(pdfSearchMetadata).insert(
-      PdfSearchMetadataCompanion.insert(
-        fileId: Value(fileId),
-        status: 'indexed',
-        pageCount: Value(totalPages),
-        indexedAt: DateTime.now().millisecondsSinceEpoch,
-      ),
-      mode: InsertMode.insertOrReplace,
-    );
+  /// Stores one extracted [pages] batch and advances the progress metadata in a
+  /// single transaction, so progress can never claim pages that were not
+  /// actually written and an interruption leaves a consistent resume point.
+  Future<void> saveExtractedBatch(
+    int fileId,
+    List<PdfExtractedPage> pages, {
+    required int lastPageIndexed,
+    required int totalPages,
+  }) async {
+    await transaction(() async {
+      for (final page in pages) {
+        final trimmed = page.text.trim();
+        if (trimmed.isEmpty) continue;
+        await into(pdfPageFts).insert(
+          PdfPageFtsCompanion.insert(
+            fileId: fileId.toString(),
+            pageNumber: page.pageNumber.toString(),
+            pageText: trimmed,
+          ),
+        );
+      }
+      await _writeMetadata(
+        fileId,
+        status: 'indexing ($lastPageIndexed/$totalPages)',
+        pageCount: totalPages,
+        lastIndexedPage: lastPageIndexed,
+      );
+    });
   }
+
+  Future<void> completeIndexing(int fileId, int totalPages) => _writeMetadata(
+        fileId,
+        status: 'indexed',
+        pageCount: totalPages,
+        lastIndexedPage: totalPages,
+      );
 
   Future<void> deleteFileIndex(int fileId) async {
     return transaction(() async {
-      await (delete(pdfPageFts)..where((row) => row.fileId.equals(fileId.toString()))).go();
+      await deleteFilePages(fileId);
       await (delete(pdfSearchMetadata)..where((row) => row.fileId.equals(fileId))).go();
     });
+  }
+
+  /// Single write path for the metadata row so every column stays in sync.
+  Future<void> _writeMetadata(
+    int fileId, {
+    required String status,
+    int pageCount = 0,
+    int lastIndexedPage = 0,
+  }) async {
+    await into(pdfSearchMetadata).insert(
+      PdfSearchMetadataCompanion.insert(
+        fileId: Value(fileId),
+        status: status,
+        pageCount: Value(pageCount),
+        lastIndexedPage: Value(lastIndexedPage),
+        indexedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+      mode: InsertMode.insertOrReplace,
+    );
   }
 
   Future<List<PdfSearchMetadataData>> getAllMetadata() => select(pdfSearchMetadata).get();
@@ -131,6 +172,12 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
     }
   }
 
+  /// Retrieves full page text for AI context using a **keyword** query built
+  /// as `word1* word2*` (FTS5 `AND`).
+  ///
+  /// For natural-language questions use [searchAiContextByExpression] with an
+  /// expression from `AiQueryBuilder` instead: requiring every word of a
+  /// sentence to appear on one page matches nothing.
   Future<List<PdfAiContextRow>> searchForAiContext(
     String query, {
     int limit = 8,
@@ -144,6 +191,33 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
     final ftsQuery =
         sanitized.split(RegExp(r'\s+')).map((w) => '$w*').join(' ');
 
+    return _selectAiContextRows(ftsQuery, limit);
+  }
+
+  /// Runs an already-built FTS5 `MATCH` [expression] and returns the matching
+  /// pages ordered by relevance.
+  ///
+  /// [expression] is expected to come from `AiQueryBuilder.buildFtsExpression`,
+  /// which only emits sanitised `[a-z0-9]`-only terms joined by `OR`, so it can
+  /// never carry FTS5 syntax. Anything malformed still fails closed: the query
+  /// is wrapped in a `try` and returns an empty list rather than throwing into
+  /// the UI.
+  ///
+  /// This is a pure read path — it never writes to or deletes from the index.
+  Future<List<PdfAiContextRow>> searchAiContextByExpression(
+    String expression, {
+    int limit = 8,
+  }) async {
+    final trimmed = expression.trim();
+    if (trimmed.isEmpty || limit <= 0) return [];
+    return _selectAiContextRows(trimmed, limit);
+  }
+
+  /// Single read path shared by both AI context queries.
+  Future<List<PdfAiContextRow>> _selectAiContextRows(
+    String ftsQuery,
+    int limit,
+  ) async {
     try {
       final rows = await customSelect(
         '''
@@ -177,6 +251,31 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
     }
   }
 
+}
+
+/// Where an interrupted indexing run has to continue.
+class PdfIndexStart {
+  const PdfIndexStart({
+    required this.resumeFromPage,
+    required this.previousPageCount,
+  });
+
+  /// Highest page number already stored in `pdf_page_fts`. Indexing continues
+  /// at `resumeFromPage + 1`; `0` means the file starts at page 1.
+  final int resumeFromPage;
+
+  /// Page count recorded when the previous run stopped, or `0` when unknown.
+  /// The extraction service compares it with the page count it reads from the
+  /// document and starts over when the file no longer matches its index.
+  final int previousPageCount;
+}
+
+/// One page of extracted text on its way into `pdf_page_fts`.
+class PdfExtractedPage {
+  const PdfExtractedPage({required this.pageNumber, required this.text});
+
+  final int pageNumber;
+  final String text;
 }
 
 class PdfSearchResultRow {

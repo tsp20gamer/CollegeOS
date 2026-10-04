@@ -17,6 +17,10 @@ final class DriftSubjectFileRepository implements SubjectFileRepository {
       .map((rows) => rows.map(_map).toList(growable: false));
 
   @override
+  Stream<List<SubjectFile>> watchAll() =>
+      _dao.watchAll().map((rows) => rows.map(_map).toList(growable: false));
+
+  @override
   Future<int> create(NewSubjectFile file) => _dao.insertFile(
     SubjectFilesCompanion.insert(
       subjectId: file.subjectId,

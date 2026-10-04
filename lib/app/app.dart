@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:college_os/features/attendance/application/attendance_providers.dart';
 import 'package:college_os/features/attendance/domain/attendance_engine_repository.dart';
-import 'package:college_os/core/theme/dimensions.dart';
+import 'package:college_os/core/theme/spacing.dart';
 
 import 'package:college_os/core/routing/app_router.dart';
 import 'package:college_os/core/routing/route_names.dart';
@@ -104,7 +104,10 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
       case NotificationEntityType.task:
         router.go('/tasks?taskId=${target.entityId}');
       case NotificationEntityType.exam:
-        router.go('/settings/exams-marks?examId=${target.entityId}');
+        // Settings is a pushed destination rather than a tab, so this pushes
+        // instead of replacing the stack and leaves the shell underneath for
+        // the user to come back to.
+        router.push('/settings/exams-marks?examId=${target.entityId}');
       case NotificationEntityType.attendance:
         router.go('/attendance/pending');
     }
@@ -180,12 +183,9 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
       _messengerKey.currentState?.showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            AppLayout.scaffoldBottomPadding(context) - 24.0, // Because it previously used floatingDockContentInset (which is scaffoldBottomPadding - 24)
-          ),
+          // Scaffold already lifts a floating SnackBar above the bottom
+          // navigation bar, so this only supplies the standard gap.
+          margin: const EdgeInsets.all(AppSpacing.md),
           duration: const Duration(seconds: 6),
           content: const Text('Attendance updated'),
           action: SnackBarAction(

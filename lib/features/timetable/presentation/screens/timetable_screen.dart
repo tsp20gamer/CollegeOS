@@ -62,6 +62,7 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
     return AppScaffold(
       title: 'Timetable',
       subtitle: semester.value?.name ?? 'A practical view of your week.',
+      showSettingsAction: true,
       actions: [
         IconButton(
           key: const Key('import_timetable_button'),

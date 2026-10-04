@@ -159,34 +159,59 @@ Riverpod code generation is intentionally omitted at first to reduce generators 
 
 ## 5. Navigation design
 
-The floating dock reserves a short label row below its circular icons and shows
-only the selected destination's name. Selection color/scale and label opacity
-animate locally. The retained tab subtree makes a 150 ms translation of 1.2% of
-its width with no full-page opacity or blur layer. Android reduced-motion and
-accessible-navigation settings disable this decorative movement. Page scroll
-padding retains clearance above the taller dock.
+The bottom navigation bar spans the full width, sits flush with the bottom edge,
+and paints behind the system inset itself. All five destinations keep their icon
+and label at every width: labels are clamped to a 1.3 text scale factor, matching
+Material's own `NavigationBar`, and scaled down to fit their slot instead of
+being truncated or hidden. Selection slides one rounded indicator between
+equal-width slots while the icon cross-fades to its filled variant. The retained
+tab subtree makes a 150 ms translation of 1.2% of its width with no full-page
+opacity or blur layer. Android reduced-motion and accessible-navigation settings
+disable this decorative movement.
+
+Because the shell uses `Scaffold.extendBody`, the bar's total height is folded
+into `MediaQuery.padding.bottom` for the body, so `AppLayout.scaffoldBottomPadding`
+derives content clearance from the resolved padding. A route pushed above the
+shell sees only the system inset, which is what makes the same helper correct
+both inside and outside the shell.
+
+Settings is deliberately not a destination. Each tab header exposes it through
+`AppScaffold.showSettingsAction`, and `/settings` is a top-level route that pushes
+over the shell so it keeps a back button. `AppScaffold` also supplies a back
+affordance to every pushed screen, and wraps its header actions so a compact
+phone with several actions at a large text scale wraps instead of overflowing.
 
 Use `GoRouter` with an onboarding redirect and a `StatefulShellRoute.indexedStack` for persistent tab state.
 
 ```text
+/startup
 /onboarding
-/
+/onboarding/setup
+/restore-backup
+/getting-started
+/notes/subject/:subjectId
+/ (StatefulShellRoute.indexedStack, five destinations)
   /home
   /attendance
+    /attendance/pending
+    /attendance/analytics
+    /attendance/planner
     /attendance/subject/:subjectId
   /timetable
-    /timetable/entry/new
-    /timetable/entry/:entryId/edit
+    /timetable/exceptions
   /tasks
-    /tasks/new
-    /tasks/:taskId
-    /tasks/:taskId/edit
-  /settings
-    /settings/semesters
-    /settings/subjects
-    /settings/exams-marks
-      /subject/:subjectId
-    /settings/data-backup
+  /notes
+    /notes/search
+/settings
+  /settings/semesters
+  /settings/subjects
+  /settings/exams-marks
+    /settings/exams-marks/subject/:subjectId
+  /settings/college-information
+  /settings/data-backup
+  /settings/academic-calendar
+  /settings/reports
+  /settings/help
 ```
 
 Settings management routes can nest their own create/edit/detail screens. Stable route names and typed ID parsing are required. Missing or deleted IDs show a recoverable not-found state. Notification payloads contain only a route kind and local entity ID, never serialized user content. Router redirects depend only on the local onboarding-complete provider; there is no authentication redirect.

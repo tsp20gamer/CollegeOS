@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 void main() {
-  for (final width in [360.0, 390.0, 412.0, 430.0]) {
+  for (final width in [320.0, 360.0, 390.0, 412.0, 430.0]) {
     testWidgets(
       'major screens fit a ${width.toInt()}dp phone',
       (tester) async {
@@ -46,7 +46,7 @@ void main() {
             'Attendance',
             'Timetable',
             'Tasks',
-            'Settings',
+            'Notes',
           ]) {
             await tester.tap(
               find.byKey(Key('nav_${destination.toLowerCase()}')),
@@ -67,23 +67,32 @@ void main() {
               );
             }
           }
-          expect(
+          // Settings left the bar, so it is reached from the tab headers and
+          // arrives as a pushed route rather than a branch switch.
+          await tester.tap(find.byKey(const Key('nav_home')));
+          await _settle(tester);
+          await tester.tap(find.byKey(const Key('open_settings_button')));
+          await _pumpUntilFound(
+            tester,
             find.byKey(const Key('settings_college_profile')),
-            findsOneWidget,
           );
+          _expectNoLayoutFailure(tester, 'Settings at ${width.toInt()}dp');
           await _pumpUntilFound(tester, find.byKey(const Key('subjects_tile')));
-          await tester.drag(find.byType(ListView).last, const Offset(0, -180));
-          await tester.pump(const Duration(milliseconds: 300));
+          await tester.drag(
+            find.byKey(const Key('settings_list')),
+            const Offset(0, -180),
+          );
+          await _settle(tester);
           for (final route in [
             (const Key('subjects_tile'), 'Subjects'),
             (const Key('exams_marks_tile'), 'Exams and marks'),
           ]) {
             await tester.ensureVisible(find.byKey(route.$1));
             await tester.tap(find.byKey(route.$1));
-            await tester.pump(const Duration(milliseconds: 500));
+            await _settle(tester);
             _expectNoLayoutFailure(tester, '${route.$2} at ${width.toInt()}dp');
             await tester.binding.handlePopRoute();
-            await tester.pump(const Duration(milliseconds: 400));
+            await _settle(tester);
           }
         } finally {
           await tester.pumpWidget(const SizedBox.shrink());
@@ -165,6 +174,14 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 40)),
   );
+}
+
+/// Advances past a route transition without waiting on an indeterminate
+/// animation, which [WidgetTester.pumpAndSettle] would never settle.
+Future<void> _settle(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 400));
 }
 
 void _expectNoLayoutFailure(WidgetTester tester, String screen) {

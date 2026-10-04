@@ -50,6 +50,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     return AppScaffold(
       title: 'Attendance',
       subtitle: 'One timetable, two synchronized views.',
+      showSettingsAction: true,
       actions: [
         IconButton(
           key: const Key('open_attendance_planner'),

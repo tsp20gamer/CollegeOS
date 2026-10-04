@@ -35,8 +35,11 @@ void main() {
         child: const CollegeOsApp(enableStartupAnimation: false),
       ),
     );
-    await _pumpUntilFound(tester, find.byKey(const Key('nav_settings')));
-    await tester.tap(find.byKey(const Key('nav_settings')));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('open_settings_button')),
+    );
+    await tester.tap(find.byKey(const Key('open_settings_button')));
     await tester.pumpAndSettle();
     await tester.drag(
       find.byKey(const Key('settings_list')),

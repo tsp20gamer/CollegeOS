@@ -1928,8 +1928,26 @@ class PdfSearchMetadata extends Table
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL',
   );
+  static const VerificationMeta _lastIndexedPageMeta = const VerificationMeta(
+    'lastIndexedPage',
+  );
+  late final GeneratedColumn<int> lastIndexedPage = GeneratedColumn<int>(
+    'last_indexed_page',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0',
+    defaultValue: const CustomExpression('0'),
+  );
   @override
-  List<GeneratedColumn> get $columns => [fileId, status, pageCount, indexedAt];
+  List<GeneratedColumn> get $columns => [
+    fileId,
+    status,
+    pageCount,
+    indexedAt,
+    lastIndexedPage,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1970,6 +1988,15 @@ class PdfSearchMetadata extends Table
     } else if (isInserting) {
       context.missing(_indexedAtMeta);
     }
+    if (data.containsKey('last_indexed_page')) {
+      context.handle(
+        _lastIndexedPageMeta,
+        lastIndexedPage.isAcceptableOrUnknown(
+          data['last_indexed_page']!,
+          _lastIndexedPageMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1995,6 +2022,10 @@ class PdfSearchMetadata extends Table
         DriftSqlType.int,
         data['${effectivePrefix}indexed_at'],
       )!,
+      lastIndexedPage: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_indexed_page'],
+      )!,
     );
   }
 
@@ -2013,11 +2044,17 @@ class PdfSearchMetadataData extends DataClass
   final String status;
   final int pageCount;
   final int indexedAt;
+
+  /// Highest page number already extracted into pdf_page_fts for this file.
+  /// An interrupted run resumes from last_indexed_page + 1 instead of wiping
+  /// the pages it already stored.  0 means "nothing extracted yet".
+  final int lastIndexedPage;
   const PdfSearchMetadataData({
     required this.fileId,
     required this.status,
     required this.pageCount,
     required this.indexedAt,
+    required this.lastIndexedPage,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2026,6 +2063,7 @@ class PdfSearchMetadataData extends DataClass
     map['status'] = Variable<String>(status);
     map['page_count'] = Variable<int>(pageCount);
     map['indexed_at'] = Variable<int>(indexedAt);
+    map['last_indexed_page'] = Variable<int>(lastIndexedPage);
     return map;
   }
 
@@ -2035,6 +2073,7 @@ class PdfSearchMetadataData extends DataClass
       status: Value(status),
       pageCount: Value(pageCount),
       indexedAt: Value(indexedAt),
+      lastIndexedPage: Value(lastIndexedPage),
     );
   }
 
@@ -2048,6 +2087,7 @@ class PdfSearchMetadataData extends DataClass
       status: serializer.fromJson<String>(json['status']),
       pageCount: serializer.fromJson<int>(json['page_count']),
       indexedAt: serializer.fromJson<int>(json['indexed_at']),
+      lastIndexedPage: serializer.fromJson<int>(json['last_indexed_page']),
     );
   }
   @override
@@ -2058,6 +2098,7 @@ class PdfSearchMetadataData extends DataClass
       'status': serializer.toJson<String>(status),
       'page_count': serializer.toJson<int>(pageCount),
       'indexed_at': serializer.toJson<int>(indexedAt),
+      'last_indexed_page': serializer.toJson<int>(lastIndexedPage),
     };
   }
 
@@ -2066,11 +2107,13 @@ class PdfSearchMetadataData extends DataClass
     String? status,
     int? pageCount,
     int? indexedAt,
+    int? lastIndexedPage,
   }) => PdfSearchMetadataData(
     fileId: fileId ?? this.fileId,
     status: status ?? this.status,
     pageCount: pageCount ?? this.pageCount,
     indexedAt: indexedAt ?? this.indexedAt,
+    lastIndexedPage: lastIndexedPage ?? this.lastIndexedPage,
   );
   PdfSearchMetadataData copyWithCompanion(PdfSearchMetadataCompanion data) {
     return PdfSearchMetadataData(
@@ -2078,6 +2121,9 @@ class PdfSearchMetadataData extends DataClass
       status: data.status.present ? data.status.value : this.status,
       pageCount: data.pageCount.present ? data.pageCount.value : this.pageCount,
       indexedAt: data.indexedAt.present ? data.indexedAt.value : this.indexedAt,
+      lastIndexedPage: data.lastIndexedPage.present
+          ? data.lastIndexedPage.value
+          : this.lastIndexedPage,
     );
   }
 
@@ -2087,13 +2133,15 @@ class PdfSearchMetadataData extends DataClass
           ..write('fileId: $fileId, ')
           ..write('status: $status, ')
           ..write('pageCount: $pageCount, ')
-          ..write('indexedAt: $indexedAt')
+          ..write('indexedAt: $indexedAt, ')
+          ..write('lastIndexedPage: $lastIndexedPage')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(fileId, status, pageCount, indexedAt);
+  int get hashCode =>
+      Object.hash(fileId, status, pageCount, indexedAt, lastIndexedPage);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2101,7 +2149,8 @@ class PdfSearchMetadataData extends DataClass
           other.fileId == this.fileId &&
           other.status == this.status &&
           other.pageCount == this.pageCount &&
-          other.indexedAt == this.indexedAt);
+          other.indexedAt == this.indexedAt &&
+          other.lastIndexedPage == this.lastIndexedPage);
 }
 
 class PdfSearchMetadataCompanion
@@ -2110,17 +2159,20 @@ class PdfSearchMetadataCompanion
   final Value<String> status;
   final Value<int> pageCount;
   final Value<int> indexedAt;
+  final Value<int> lastIndexedPage;
   const PdfSearchMetadataCompanion({
     this.fileId = const Value.absent(),
     this.status = const Value.absent(),
     this.pageCount = const Value.absent(),
     this.indexedAt = const Value.absent(),
+    this.lastIndexedPage = const Value.absent(),
   });
   PdfSearchMetadataCompanion.insert({
     this.fileId = const Value.absent(),
     required String status,
     this.pageCount = const Value.absent(),
     required int indexedAt,
+    this.lastIndexedPage = const Value.absent(),
   }) : status = Value(status),
        indexedAt = Value(indexedAt);
   static Insertable<PdfSearchMetadataData> custom({
@@ -2128,12 +2180,14 @@ class PdfSearchMetadataCompanion
     Expression<String>? status,
     Expression<int>? pageCount,
     Expression<int>? indexedAt,
+    Expression<int>? lastIndexedPage,
   }) {
     return RawValuesInsertable({
       if (fileId != null) 'file_id': fileId,
       if (status != null) 'status': status,
       if (pageCount != null) 'page_count': pageCount,
       if (indexedAt != null) 'indexed_at': indexedAt,
+      if (lastIndexedPage != null) 'last_indexed_page': lastIndexedPage,
     });
   }
 
@@ -2142,12 +2196,14 @@ class PdfSearchMetadataCompanion
     Value<String>? status,
     Value<int>? pageCount,
     Value<int>? indexedAt,
+    Value<int>? lastIndexedPage,
   }) {
     return PdfSearchMetadataCompanion(
       fileId: fileId ?? this.fileId,
       status: status ?? this.status,
       pageCount: pageCount ?? this.pageCount,
       indexedAt: indexedAt ?? this.indexedAt,
+      lastIndexedPage: lastIndexedPage ?? this.lastIndexedPage,
     );
   }
 
@@ -2166,6 +2222,9 @@ class PdfSearchMetadataCompanion
     if (indexedAt.present) {
       map['indexed_at'] = Variable<int>(indexedAt.value);
     }
+    if (lastIndexedPage.present) {
+      map['last_indexed_page'] = Variable<int>(lastIndexedPage.value);
+    }
     return map;
   }
 
@@ -2175,7 +2234,8 @@ class PdfSearchMetadataCompanion
           ..write('fileId: $fileId, ')
           ..write('status: $status, ')
           ..write('pageCount: $pageCount, ')
-          ..write('indexedAt: $indexedAt')
+          ..write('indexedAt: $indexedAt, ')
+          ..write('lastIndexedPage: $lastIndexedPage')
           ..write(')'))
         .toString();
   }
@@ -12215,6 +12275,7 @@ typedef $PdfSearchMetadataCreateCompanionBuilder =
       required String status,
       Value<int> pageCount,
       required int indexedAt,
+      Value<int> lastIndexedPage,
     });
 typedef $PdfSearchMetadataUpdateCompanionBuilder =
     PdfSearchMetadataCompanion Function({
@@ -12222,6 +12283,7 @@ typedef $PdfSearchMetadataUpdateCompanionBuilder =
       Value<String> status,
       Value<int> pageCount,
       Value<int> indexedAt,
+      Value<int> lastIndexedPage,
     });
 
 final class $PdfSearchMetadataReferences
@@ -12275,6 +12337,11 @@ class $PdfSearchMetadataFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get lastIndexedPage => $composableBuilder(
+    column: $table.lastIndexedPage,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SubjectFilesTableFilterComposer get fileId {
     final $$SubjectFilesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -12323,6 +12390,11 @@ class $PdfSearchMetadataOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get lastIndexedPage => $composableBuilder(
+    column: $table.lastIndexedPage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SubjectFilesTableOrderingComposer get fileId {
     final $$SubjectFilesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -12364,6 +12436,11 @@ class $PdfSearchMetadataAnnotationComposer
 
   GeneratedColumn<int> get indexedAt =>
       $composableBuilder(column: $table.indexedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastIndexedPage => $composableBuilder(
+    column: $table.lastIndexedPage,
+    builder: (column) => column,
+  );
 
   $$SubjectFilesTableAnnotationComposer get fileId {
     final $$SubjectFilesTableAnnotationComposer composer = $composerBuilder(
@@ -12421,11 +12498,13 @@ class $PdfSearchMetadataTableManager
                 Value<String> status = const Value.absent(),
                 Value<int> pageCount = const Value.absent(),
                 Value<int> indexedAt = const Value.absent(),
+                Value<int> lastIndexedPage = const Value.absent(),
               }) => PdfSearchMetadataCompanion(
                 fileId: fileId,
                 status: status,
                 pageCount: pageCount,
                 indexedAt: indexedAt,
+                lastIndexedPage: lastIndexedPage,
               ),
           createCompanionCallback:
               ({
@@ -12433,11 +12512,13 @@ class $PdfSearchMetadataTableManager
                 required String status,
                 Value<int> pageCount = const Value.absent(),
                 required int indexedAt,
+                Value<int> lastIndexedPage = const Value.absent(),
               }) => PdfSearchMetadataCompanion.insert(
                 fileId: fileId,
                 status: status,
                 pageCount: pageCount,
                 indexedAt: indexedAt,
+                lastIndexedPage: lastIndexedPage,
               ),
           withReferenceMapper: (p0) => p0
               .map(

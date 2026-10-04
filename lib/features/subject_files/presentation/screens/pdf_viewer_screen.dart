@@ -28,7 +28,7 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
   final PdfViewerController _pdfViewerController = PdfViewerController();
   final TextEditingController _searchController = TextEditingController();
   PdfTextSearchResult _pdfTextSearchResult = PdfTextSearchResult();
-  
+
   File? _localFile;
   bool _isLoading = true;
   String? _error;
@@ -39,8 +39,9 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
   void initState() {
     super.initState();
     _loadFile();
-    
-    if (widget.initialSearchQuery != null && widget.initialSearchQuery!.isNotEmpty) {
+
+    if (widget.initialSearchQuery != null &&
+        widget.initialSearchQuery!.isNotEmpty) {
       _showSearchToolbar = true;
       _searchController.text = widget.initialSearchQuery!;
     }
@@ -108,7 +109,9 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: _showSearchToolbar ? _buildSearchAppBar(colors) : _buildDefaultAppBar(colors),
+      appBar: _showSearchToolbar
+          ? _buildSearchAppBar(colors)
+          : _buildDefaultAppBar(colors),
       body: _buildBody(colors),
     );
   }
@@ -161,51 +164,53 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
         onSubmitted: _executeSearch,
         onChanged: (_) => setState(() {}),
       ),
-      bottom: _isSearchInitiated ? PreferredSize(
-        preferredSize: const Size.fromHeight(48),
-        child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          color: colors.surfaceContainerLow,
-          child: Row(
-            children: [
-              if (!_pdfTextSearchResult.isSearchCompleted)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                Text(
-                  _pdfTextSearchResult.hasResult
-                      ? '${_pdfTextSearchResult.currentInstanceIndex} of ${_pdfTextSearchResult.totalInstanceCount}'
-                      : 'No matches found',
-                  style: Theme.of(context).textTheme.labelLarge,
+      bottom: _isSearchInitiated
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(48),
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                color: colors.surfaceContainerLow,
+                child: Row(
+                  children: [
+                    if (!_pdfTextSearchResult.isSearchCompleted)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Text(
+                        _pdfTextSearchResult.hasResult
+                            ? '${_pdfTextSearchResult.currentInstanceIndex} of ${_pdfTextSearchResult.totalInstanceCount}'
+                            : 'No matches found',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    const Spacer(),
+                    if (_pdfTextSearchResult.hasResult) ...[
+                      IconButton(
+                        icon: const Icon(Icons.navigate_before_rounded),
+                        onPressed: () {
+                          setState(() {
+                            _pdfTextSearchResult.previousInstance();
+                          });
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.navigate_next_rounded),
+                        onPressed: () {
+                          setState(() {
+                            _pdfViewerController.clearSelection();
+                            _pdfTextSearchResult.nextInstance();
+                          });
+                        },
+                      ),
+                    ],
+                  ],
                 ),
-              const Spacer(),
-              if (_pdfTextSearchResult.hasResult) ...[
-                IconButton(
-                  icon: const Icon(Icons.navigate_before_rounded),
-                  onPressed: () {
-                    setState(() {
-                      _pdfTextSearchResult.previousInstance();
-                    });
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.navigate_next_rounded),
-                  onPressed: () {
-                    setState(() {
-                      _pdfViewerController.clearSelection();
-                      _pdfTextSearchResult.nextInstance();
-                    });
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
-      ) : null,
+              ),
+            )
+          : null,
     );
   }
 
@@ -225,13 +230,14 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
       _localFile!,
       controller: _pdfViewerController,
       canShowScrollHead: false,
-      currentSearchTextHighlightColor: colors.primary.withOpacity(0.4),
-      otherSearchTextHighlightColor: colors.primary.withOpacity(0.15),
+      currentSearchTextHighlightColor: colors.primary.withValues(alpha: 0.4),
+      otherSearchTextHighlightColor: colors.primary.withValues(alpha: 0.15),
       onDocumentLoaded: (details) {
         if (widget.initialPageNumber != null) {
           _pdfViewerController.jumpToPage(widget.initialPageNumber!);
         }
-        if (widget.initialSearchQuery != null && widget.initialSearchQuery!.isNotEmpty) {
+        if (widget.initialSearchQuery != null &&
+            widget.initialSearchQuery!.isNotEmpty) {
           // Add a slight delay so the view renders before searching
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted) {

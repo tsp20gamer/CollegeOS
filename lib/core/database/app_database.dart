@@ -174,6 +174,13 @@ SET effective_from = (
           to >= CollegeOsSchemaVersions.pdfSearchV2) {
         await migrator.alterTable(TableMigration(pdfSearchMetadata));
       }
+      if (from < CollegeOsSchemaVersions.pdfIndexResume &&
+          to >= CollegeOsSchemaVersions.pdfIndexResume) {
+        await migrator.addColumn(
+          pdfSearchMetadata,
+          pdfSearchMetadata.lastIndexedPage,
+        );
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

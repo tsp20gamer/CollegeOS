@@ -1,5 +1,6 @@
 import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/features/notes/domain/pdf_extraction_service.dart';
+import 'package:college_os/features/notes/domain/pdf_indexing_foreground_service.dart';
 import 'package:college_os/features/subject_files/domain/subject_file.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:college_os/core/database/daos/pdf_search_dao.dart';
@@ -35,13 +36,10 @@ class PdfIndexCommandController extends AsyncNotifier<void> {
     if (_activeJobs.contains(fileId)) return;
     
     _activeJobs.add(fileId);
-    final service = ref.read(pdfExtractionServiceProvider);
     
-    // Fire and forget, don't wait for completion here
-    // But we update state if we want to track loading
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await service.indexPdf(fileId, relativeFilePath);
+      await PdfIndexingForegroundService.startIndexing(fileId, relativeFilePath);
     });
     
     _activeJobs.remove(fileId);

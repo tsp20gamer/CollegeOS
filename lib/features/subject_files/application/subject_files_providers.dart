@@ -5,10 +5,27 @@ import 'package:college_os/features/subject_files/domain/subject_file.dart';
 import 'package:college_os/features/notes/application/pdf_search_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final subjectFilesProvider =
-    StreamProvider.family<List<SubjectFile>, int>((ref, subjectId) {
-      return ref.watch(subjectFileRepositoryProvider).watchBySubject(subjectId);
-    });
+final subjectFilesProvider = StreamProvider.family<List<SubjectFile>, int>((
+  ref,
+  subjectId,
+) {
+  return ref.watch(subjectFileRepositoryProvider).watchBySubject(subjectId);
+});
+
+/// Files a search screen resolves its results and citations against.
+///
+/// Scoped to one subject when the screen was opened from that subject, and to
+/// the whole library when it was opened from the Notes destination or its
+/// search shortcut.
+final searchableFilesProvider = StreamProvider.family<List<SubjectFile>, int?>((
+  ref,
+  subjectId,
+) {
+  final repository = ref.watch(subjectFileRepositoryProvider);
+  return subjectId == null
+      ? repository.watchAll()
+      : repository.watchBySubject(subjectId);
+});
 
 final subjectFileCommandProvider =
     AsyncNotifierProvider<SubjectFileCommandController, void>(
@@ -27,13 +44,16 @@ final class SubjectFileCommandController extends AsyncNotifier<void> {
     Uint8List? bytes,
     String? sourceFilePath,
   }) async {
-    assert(bytes != null || sourceFilePath != null, 'Must provide bytes or sourceFilePath');
+    assert(
+      bytes != null || sourceFilePath != null,
+      'Must provide bytes or sourceFilePath',
+    );
     state = const AsyncLoading();
     int? createdId;
     state = await AsyncValue.guard(() async {
       final storage = ref.read(subjectFileStorageServiceProvider);
-      
-      final saved = sourceFilePath != null 
+
+      final saved = sourceFilePath != null
           ? await storage.saveFileFromPath(
               subjectId: subjectId,
               originalFileName: fileName,
@@ -57,10 +77,12 @@ final class SubjectFileCommandController extends AsyncNotifier<void> {
       );
 
       createdId = await ref.read(subjectFileRepositoryProvider).create(newFile);
-      
+
       if (createdId != null && saved.fileExtension.toLowerCase() == 'pdf') {
         // Trigger indexing in background without awaiting
-        ref.read(pdfIndexCommandProvider.notifier).indexFile(createdId!, saved.relativeFilePath);
+        ref
+            .read(pdfIndexCommandProvider.notifier)
+            .indexFile(createdId!, saved.relativeFilePath);
       }
     });
     return state.hasError ? null : createdId;

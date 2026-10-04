@@ -3,377 +3,556 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:college_os/core/ai/gemini_config.dart';
-import 'package:college_os/features/ai/domain/pdf_ai_context.dart';
+import 'package:college_os/features/ai/domain/ai_context_builder.dart';
 import 'package:college_os/features/notes/domain/ai_context.dart';
 import 'package:college_os/features/notes/domain/ai_search_service.dart';
 import 'package:flutter/foundation.dart';
 
-/// Gemini REST API implementation of [AiSearchService].
+/// One HTTP round trip's outcome, transport-independent so it can be faked.
+class GeminiHttpResponse {
+  const GeminiHttpResponse(this.statusCode, this.body);
+
+  final int statusCode;
+  final String body;
+}
+
+/// The seam between [GeminiAiService] and the network.
 ///
-/// Sends the user's question plus locally retrieved PDF page text to Gemini
-/// and returns a structured [AiSearchResult].
+/// Tests implement this to return canned responses — no automated test ever
+/// calls Gemini. A future backend/proxy replaces it ([GeminiConfig.isProxied])
+/// without touching retrieval, prompting or the UI.
+abstract interface class GeminiTransport {
+  /// POSTs [body] to [uri] and returns the raw response.
+  ///
+  /// Implementations must apply [timeout] and let [SocketException] /
+  /// [TimeoutException] propagate so the service can classify them.
+  Future<GeminiHttpResponse> postJson({
+    required Uri uri,
+    required Map<String, String> headers,
+    required String body,
+    required Duration timeout,
+  });
+}
+
+/// Default transport: `dart:io` [HttpClient], with no third-party dependency
+/// and no interceptor that could log the credential.
+class HttpClientGeminiTransport implements GeminiTransport {
+  const HttpClientGeminiTransport();
+
+  @override
+  Future<GeminiHttpResponse> postJson({
+    required Uri uri,
+    required Map<String, String> headers,
+    required String body,
+    required Duration timeout,
+  }) async {
+    final client = HttpClient()..connectionTimeout = timeout;
+    try {
+      final request = await client.postUrl(uri).timeout(timeout);
+      headers.forEach(request.headers.set);
+      request.write(body);
+
+      final response = await request.close().timeout(timeout);
+      final responseBody = await response.transform(utf8.decoder).join();
+      return GeminiHttpResponse(response.statusCode, responseBody);
+    } finally {
+      client.close();
+    }
+  }
+}
+
+/// Gemini REST implementation of [AiSearchService].
 ///
-/// **Key behaviours:**
-/// - Only the text from the supplied [PdfAiContext] pages is sent — no raw
-///   PDFs, no unrelated files, no full document uploads.
-/// - The prompt strictly instructs Gemini to use only the supplied context.
-/// - All error paths (network, timeout, rate-limit, malformed JSON) return a
-///   safe [AiSearchResult] without throwing.
-/// - The API key is never written to logs.
+/// Sends the user's question plus **only** the locally retrieved page text to
+/// Gemini's `generateContent` endpoint and returns a validated, grounded
+/// answer. No PDF is ever uploaded, and the Gemini File API is not used.
+///
+/// **Grounding guarantees:**
+/// - The model is called only when local retrieval produced context. An empty
+///   context short-circuits to [AiSearchResult.notFound] — the model is never
+///   given the chance to answer from general knowledge.
+/// - The prompt asks for JSON matching a fixed schema (`answer`, `grounded`,
+///   `sources`) and the rules forbid outside knowledge.
+/// - Every returned citation is checked against the pages actually sent. A
+///   citation for page 99 when pages 12–14 were supplied is **discarded**, and
+///   file names are taken from the local database rather than the model, so a
+///   fabricated source cannot reach the UI.
+///
+/// **Failure handling:** this never throws. Failures come back as
+/// [AiSearchResult.failed] with an [AiFailure] reason and a message that is safe
+/// to display — no credential, URI or raw payload is ever included.
 final class GeminiAiService implements AiSearchService {
-  GeminiAiService(this._config);
+  GeminiAiService(
+    this._config, {
+    GeminiTransport? transport,
+    AiContextBuilder? contextBuilder,
+    List<String>? modelChain,
+    Duration? timeout,
+  }) : _transport = transport ?? const HttpClientGeminiTransport(),
+       _contextBuilder = contextBuilder ?? const AiContextBuilder(),
+       _modelChain = modelChain ?? GeminiConfig.modelChain,
+       _timeout = timeout ?? GeminiConfig.timeout;
 
   final GeminiConfig _config;
+  final GeminiTransport _transport;
+  final AiContextBuilder _contextBuilder;
+  final List<String> _modelChain;
+  final Duration _timeout;
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
   @override
   Future<AiSearchResult> ask(AiSearchRequest request) async {
     if (!_config.isValid) {
-      debugPrint('[GeminiAiService] No API key configured — skipping request.');
-      return const AiSearchResult(
-        answer: 'AI search is not configured. Please supply a Gemini API key.',
-        sources: [],
+      // Nothing is attempted, so no request, no key and no cost.
+      return const AiSearchResult.failed(
+        AiFailure.notConfigured,
+        'AI search is not configured in this build.',
       );
     }
 
-    final trimmedQuestion = request.question.trim();
-    if (trimmedQuestion.isEmpty) return const AiSearchResult.empty();
+    final question = request.question.trim();
+    if (question.isEmpty) return const AiSearchResult.empty();
 
-    // Limit 1: Limit the maximum number of retrieved pages.
-    // The incoming contexts are assumed to be sorted by FTS5 rank (highest relevance first).
-    // Limit 4: Prefer the highest-ranked FTS results.
-    final rankedContexts = request.contexts.take(GeminiConfig.maxContextPages).toList();
-
-    final safeContexts = <PdfAiContext>[];
-    int currentTotalChars = 0;
-
-    for (final ctx in rankedContexts) {
-      // Limit 2 & 7: Limit max characters per page and truncate safely.
-      String safeText = ctx.pageText;
-      if (safeText.length > GeminiConfig.maxCharsPerPage) {
-        safeText = '${safeText.substring(0, GeminiConfig.maxCharsPerPage)}... [Truncated]';
-      }
-
-      // Limit 3: Limit the total context size.
-      // If adding this page exceeds the total budget, we discard this and all subsequent
-      // lower-ranked pages.
-      if (currentTotalChars + safeText.length > GeminiConfig.maxTotalContextChars) {
-        debugPrint('[GeminiAiService] Context limit reached. Discarding lower-ranked pages.');
-        break;
-      }
-
-      // Limit 5 & 6: Preserve page numbers and file IDs.
-      safeContexts.add(
-        PdfAiContext(
-          fileId: ctx.fileId,
-          pageNumber: ctx.pageNumber,
-          pageText: safeText,
-        ),
-      );
-
-      currentTotalChars += safeText.length;
+    // Bound the payload: page count, per-page size and total size.
+    final bundle = _contextBuilder.build(request.contexts);
+    if (bundle.isEmpty) {
+      // Local search found nothing worth grounding on. Calling the model here
+      // would guarantee a hallucinated answer, so we refuse locally.
+      return const AiSearchResult.notFound();
     }
 
-    if (safeContexts.isEmpty) {
-      return const AiSearchResult(
-        answer:
-            'No relevant pages were found in your notes for this question.',
-        sources: [],
-      );
-    }
-
-    final prompt = _buildPrompt(trimmedQuestion, safeContexts);
-
-    try {
-      final responseBody = await _postToGemini(prompt);
-      return _parseResponse(responseBody, safeContexts);
-    } on TimeoutException {
-      debugPrint('[GeminiAiService] Request timed out.');
-      return const AiSearchResult(
-        answer: 'AI request timed out. Please try again.',
-        sources: [],
-      );
-    } on SocketException {
-      debugPrint('[GeminiAiService] Network error — no internet connection.');
-      return const AiSearchResult(
-        answer: 'Unable to reach AI service. Please check your connection.',
-        sources: [],
-      );
-    } on HttpException catch (e) {
-      debugPrint('[GeminiAiService] HTTP error: ${e.message}');
-      return AiSearchResult(
-        answer: 'AI service returned an error. Please try again.',
-        sources: const [],
-      );
-    } on _GeminiApiException catch (e) {
-      // Rate-limit and other API-level errors.
-      debugPrint('[GeminiAiService] API error: ${e.status} ${e.message}');
-      if (e.status == 429) {
-        return const AiSearchResult(
-          answer: 'Too many requests. Please wait a moment and try again.',
-          sources: [],
-        );
-      }
-      return AiSearchResult(
-        answer: 'AI service error (${e.status}). Please try again later.',
-        sources: const [],
-      );
-    } catch (e) {
-      debugPrint('[GeminiAiService] Unexpected error: $e');
-      return const AiSearchResult(
-        answer: 'Something went wrong. Please try again.',
-        sources: [],
-      );
-    }
+    final payload = _encodeRequest(question, bundle);
+    return _callModels(payload, bundle);
   }
 
-  // ─── Prompt construction ───────────────────────────────────────────────────
-
-  /// Builds the strict grounded prompt sent to Gemini.
+  /// The exact user-turn text sent after the context blocks.
   ///
-  /// Each page is tagged with `[File:<fileId> Page:<pageNumber>]` so the
-  /// model can cite sources in its response.
-  String _buildPrompt(String question, List<PdfAiContext> contexts) {
+  /// Public so prompt construction can be asserted in tests without reaching
+  /// into private state.
+  String buildUserPrompt(String question, AiContextBundle bundle) {
     final buffer = StringBuffer();
-
-    buffer.writeln('You are CollegeOS Notes Assistant.');
-    buffer.writeln('Rules:');
-    buffer.writeln('1. Use the supplied note context as the primary and authoritative source.');
-    buffer.writeln('2. Do not invent facts that are not supported by the context.');
-    buffer.writeln('3. If the answer cannot be found in the supplied context, clearly say: "I couldn\'t find this information in your notes."');
-    buffer.writeln('4. You may organize information for easier understanding.');
-    buffer.writeln('5. Keep answers suitable for a first-year B.Tech student.');
-    buffer.writeln('6. For "explain" questions, use simple language.');
-    buffer.writeln('7. For "short answer" questions, give a concise answer.');
-    buffer.writeln('8. For "exam answer" questions, structure the answer clearly with headings/bullets where appropriate.');
-    buffer.writeln('9. For "summarize" questions, summarize only the supplied notes.');
-    buffer.writeln('10. Always provide source page references when possible.');
-    buffer.writeln('11. Never claim to have read a PDF page that was not supplied in the context.');
-    buffer.writeln();
-    buffer.writeln('Format requirement: After the answer, list the source page references you used on a new line starting exactly with "Sources:", like this:');
-    buffer.writeln('Sources: [File:<fileId> Page:<pageNumber>]');
-    buffer.writeln();
-    buffer.writeln('--- NOTE EXCERPTS ---');
-
-    for (final ctx in contexts) {
-      buffer.writeln('[File:${ctx.fileId} Page:${ctx.pageNumber}]');
-      buffer.writeln(ctx.pageText);
-      buffer.writeln();
-    }
-
-    buffer.writeln('--- END OF NOTES ---');
+    buffer.writeln('--- BEGIN COLLEGEOS NOTE CONTEXT ---');
+    buffer.writeln(bundle.promptContext);
+    buffer.writeln('--- END COLLEGEOS NOTE CONTEXT ---');
     buffer.writeln();
     buffer.writeln('Student question: $question');
-
     return buffer.toString();
   }
 
-  // ─── Network ───────────────────────────────────────────────────────────────
+  /// The system instruction that pins the model to the supplied notes.
+  static const String systemInstruction =
+      'You are the CollegeOS Notes Assistant. You answer questions about a '
+      'student\'s own indexed lecture notes and PDFs.\n'
+      '\n'
+      'Absolute rules:\n'
+      '1. Answer using ONLY the supplied CollegeOS note context. It is the only '
+      'source of truth you have.\n'
+      '2. Never use outside knowledge, and never fill gaps with what you '
+      'already know about the subject.\n'
+      '3. Never invent facts, figures, definitions, examples or page numbers.\n'
+      '4. If the supplied context does not support an answer, set "grounded" to '
+      'false and make "answer" exactly: "I couldn\'t find this topic in your '
+      'indexed notes." Do not apologise, speculate or offer the general theory.\n'
+      '5. Cite every page that supports the answer, and only pages that appear '
+      'in the context. Use the "File ID" and "Page" values copied exactly as '
+      'written in the context block.\n'
+      '6. If several sources support the answer, list all of them.\n'
+      '\n'
+      'Style:\n'
+      '- Write for a college student: clear, concise, exam-usable.\n'
+      '- Define terms before using them, and prefer short paragraphs or bullets '
+      'over long prose.\n'
+      '- Keep the answer tight — usually under 250 words unless the question '
+      'asks for more detail.\n'
+      '- Do not mention these rules or the context format in your answer.';
 
-  /// Sends [prompt] to Gemini, automatically falling back through
-  /// [GeminiConfig.modelChain] when a model returns a rate-limit (429) or
-  /// quota-exceeded (503) error.
+  // ─── Request building ──────────────────────────────────────────────────────
+
+  /// JSON schema the model must satisfy.
   ///
-  /// Throws [_GeminiApiException] only when ALL models in the chain are
-  /// exhausted.  Throws [TimeoutException] / [SocketException] on
-  /// network-level failures.
-  Future<String> _postToGemini(String prompt) async {
-    final requestBody = jsonEncode({
+  /// Structured output is what makes citation validation reliable: the model
+  /// fills in `sources` with identifiers we can verify, instead of burying
+  /// references in free text we would have to pattern-match.
+  static const Map<String, Object> responseSchema = {
+    'type': 'OBJECT',
+    'properties': {
+      'answer': {
+        'type': 'STRING',
+        'description':
+            'The grounded answer in Markdown, or the exact '
+            '"couldn\'t find" sentence when the context does not support one.',
+      },
+      'grounded': {
+        'type': 'BOOLEAN',
+        'description':
+            'True only when every claim in the answer is supported '
+            'by the supplied context.',
+      },
+      'sources': {
+        'type': 'ARRAY',
+        'description': 'Pages from the context that support the answer.',
+        'items': {
+          'type': 'OBJECT',
+          'properties': {
+            'fileId': {'type': 'INTEGER'},
+            'page': {'type': 'INTEGER'},
+          },
+          'required': ['fileId', 'page'],
+        },
+      },
+    },
+    'required': ['answer', 'grounded', 'sources'],
+  };
+
+  String _encodeRequest(String question, AiContextBundle bundle) {
+    return jsonEncode({
+      'systemInstruction': {
+        'parts': [
+          {'text': systemInstruction},
+        ],
+      },
       'contents': [
         {
+          'role': 'user',
           'parts': [
-            {'text': prompt},
+            {'text': buildUserPrompt(question, bundle)},
           ],
         },
       ],
       'generationConfig': {
-        'temperature': 0.2,      // low temp → more factual, less creative
-        'maxOutputTokens': 1024,
-        'topP': 0.8,
-        'topK': 40,
+        'responseMimeType': 'application/json',
+        'responseSchema': responseSchema,
+        // Temperature is deliberately left at the model default: Google's
+        // current guidance for the Gemini 3 family is that lowering it degrades
+        // reasoning instead of improving determinism. Grounding is enforced by
+        // the system instruction, the schema and local citation validation.
+        'maxOutputTokens': 2048,
       },
-      'safetySettings': [
-        {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_MEDIUM_AND_ABOVE'},
-        {'category': 'HARM_CATEGORY_HARASSMENT',        'threshold': 'BLOCK_MEDIUM_AND_ABOVE'},
-        {'category': 'HARM_CATEGORY_HATE_SPEECH',       'threshold': 'BLOCK_MEDIUM_AND_ABOVE'},
-        {'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold': 'BLOCK_MEDIUM_AND_ABOVE'},
-      ],
     });
+  }
 
-    _GeminiApiException? lastError;
+  // ─── Network ───────────────────────────────────────────────────────────────
 
-    for (final model in GeminiConfig.modelChain) {
-      final uri = _config.generateContentUriForModel(model);
-      debugPrint('[GeminiAiService] Trying model: $model');
+  /// Tries each model in [_modelChain] until one answers.
+  ///
+  /// Only rate-limit (429) and overload/quota (503) responses fall through to
+  /// the next model; everything else is classified immediately, so a bad key or
+  /// a malformed request is not retried three times.
+  Future<AiSearchResult> _callModels(
+    String payload,
+    AiContextBundle bundle,
+  ) async {
+    AiSearchResult? lastRetryableFailure;
 
-      final client = HttpClient();
-      client.connectionTimeout = GeminiConfig.timeout;
-
+    for (final model in _modelChain) {
       try {
-        final httpRequest = await client
-            .postUrl(uri)
-            .timeout(GeminiConfig.timeout);
-
-        httpRequest.headers.set('Content-Type', 'application/json; charset=utf-8');
-        httpRequest.write(requestBody);
-
-        final response = await httpRequest.close().timeout(GeminiConfig.timeout);
-        final body = await response.transform(utf8.decoder).join();
-
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          // Success — return immediately without trying the next model.
-          debugPrint('[GeminiAiService] Success with model: $model');
-          return body;
-        }
-
-        final apiError = _GeminiApiException(
-          status: response.statusCode,
-          message: _safeExtractError(body),
-          model: model,
+        final response = await _transport.postJson(
+          uri: _config.generateContentUriForModel(model),
+          headers: _config.requestHeaders(),
+          body: payload,
+          timeout: _timeout,
         );
 
-        // 429 = rate limit, 503 = quota exhausted / overloaded — fall through
-        // to next model.  For other errors (400 bad request, 401 unauthorised,
-        // etc.) there is no point retrying a different model.
-        if (response.statusCode == 429 || response.statusCode == 503) {
-          debugPrint('[GeminiAiService] Model $model hit rate/quota limit '
-              '(${response.statusCode}), trying next...');
-          lastError = apiError;
-          continue;
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return _parseResponse(response.body, bundle);
         }
 
-        // Non-retryable error — throw immediately.
-        throw apiError;
-      } finally {
-        client.close();
+        final failure = _classifyStatus(response.statusCode);
+        if (response.statusCode == 429 || response.statusCode == 503) {
+          debugPrint(
+            '[GeminiAiService] $model unavailable '
+            '(${response.statusCode}); trying next model.',
+          );
+          lastRetryableFailure = failure;
+          continue;
+        }
+        return failure;
+      } on TimeoutException {
+        return const AiSearchResult.failed(
+          AiFailure.timeout,
+          'AI search took too long to respond. Please try again.',
+        );
+      } on SocketException {
+        return const AiSearchResult.failed(
+          AiFailure.offline,
+          'AI search needs an internet connection. Local PDF search still works.',
+        );
+      } on HandshakeException {
+        return const AiSearchResult.failed(
+          AiFailure.offline,
+          'AI search needs an internet connection. Local PDF search still works.',
+        );
+      } on HttpException {
+        return const AiSearchResult.failed(
+          AiFailure.server,
+          'Could not reach the AI service. Please try again.',
+        );
+      } catch (error) {
+        // Never surface the raw error: it can contain the request URI, headers
+        // or other request detail.
+        debugPrint(
+          '[GeminiAiService] Unexpected transport error '
+          '(${error.runtimeType}).',
+        );
+        return const AiSearchResult.failed(
+          AiFailure.server,
+          'Something went wrong while contacting AI search. Please try again.',
+        );
       }
     }
 
-    // All models in the chain were exhausted.
-    throw lastError ?? _GeminiApiException(
-      status: 429,
-      message: 'All models in the fallback chain are rate-limited.',
-      model: GeminiConfig.modelChain.last,
+    return lastRetryableFailure ??
+        const AiSearchResult.failed(
+          AiFailure.rateLimited,
+          'AI search is busy right now. Please try again in a moment.',
+        );
+  }
+
+  /// Maps an HTTP status onto a user-safe failure.
+  AiSearchResult _classifyStatus(int statusCode) {
+    if (statusCode == 429) {
+      return const AiSearchResult.failed(
+        AiFailure.rateLimited,
+        'AI search hit its rate limit. Wait a moment and ask again.',
+      );
+    }
+    if (statusCode == 401 || statusCode == 403) {
+      return const AiSearchResult.failed(
+        AiFailure.unauthorized,
+        'AI search is not authorised. Check the configured Gemini API key.',
+      );
+    }
+    if (statusCode >= 500) {
+      return const AiSearchResult.failed(
+        AiFailure.server,
+        'The AI service is temporarily unavailable. Please try again.',
+      );
+    }
+    return const AiSearchResult.failed(
+      AiFailure.server,
+      'The AI service rejected the request. Please try again.',
     );
   }
 
   // ─── Response parsing ──────────────────────────────────────────────────────
 
-  /// Parses the Gemini JSON response and extracts the answer + source refs.
-  ///
-  /// If the response is malformed or empty, returns a safe fallback result.
-  AiSearchResult _parseResponse(
-    String body,
-    List<PdfAiContext> contexts,
-  ) {
-    try {
-      final json = jsonDecode(body) as Map<String, dynamic>;
-
-      // Gemini response shape:
-      // { "candidates": [ { "content": { "parts": [ { "text": "..." } ] } } ] }
-      final candidates = json['candidates'] as List<dynamic>?;
-      if (candidates == null || candidates.isEmpty) {
-        return const AiSearchResult(
-          answer: 'No answer was returned by the AI.',
-          sources: [],
-        );
-      }
-
-      final content = candidates.first['content'] as Map<String, dynamic>?;
-      final parts = content?['parts'] as List<dynamic>?;
-      final rawText = (parts?.first['text'] as String? ?? '').trim();
-
-      if (rawText.isEmpty) {
-        return const AiSearchResult(
-          answer: 'The AI returned an empty response.',
-          sources: [],
-        );
-      }
-
-      // Extract source references the model cited (format: [File:X Page:Y]).
-      final sources = _extractSources(rawText, contexts);
-
-      // Strip the trailing "Sources: …" line from the answer text so the UI
-      // can display answer and sources independently.
-      final answer = _stripSourcesLine(rawText);
-
-      return AiSearchResult(answer: answer, sources: sources);
-    } catch (e) {
-      debugPrint('[GeminiAiService] Failed to parse response: $e');
-      return const AiSearchResult(
-        answer: 'Could not read the AI response. Please try again.',
-        sources: [],
+  /// Extracts the model's text, then validates it against [bundle].
+  AiSearchResult _parseResponse(String body, AiContextBundle bundle) {
+    final rawText = _extractModelText(body);
+    if (rawText == null) {
+      return const AiSearchResult.failed(
+        AiFailure.malformedResponse,
+        'The AI returned an unreadable response. Please try again.',
       );
     }
-  }
 
-  /// Parses `[File:<fileId> Page:<pageNumber>]` tags from the model output
-  /// and maps them back to [AiSourceReference]s, including an optional excerpt
-  /// from the original context.
-  List<AiSourceReference> _extractSources(
-    String text,
-    List<PdfAiContext> contexts,
-  ) {
-    // Match all [File:N Page:M] occurrences in the response.
-    final pattern = RegExp(r'\[File:(\d+)\s+Page:(\d+)\]');
-    final matches = pattern.allMatches(text);
+    final structured = _tryDecodeStructured(rawText);
 
-    final seen = <String>{};
-    final refs = <AiSourceReference>[];
+    if (structured != null) {
+      final answer = (structured['answer'] as String? ?? '').trim();
+      final sources = _validateCitations(
+        structured['sources'],
+        bundle,
+        rawText,
+      );
+      final grounded = structured['grounded'] as bool? ?? sources.isNotEmpty;
 
-    for (final m in matches) {
-      final fileId = int.tryParse(m.group(1) ?? '');
-      final pageNumber = int.tryParse(m.group(2) ?? '');
-      if (fileId == null || pageNumber == null) continue;
-
-      final key = '$fileId:$pageNumber';
-      if (seen.contains(key)) continue;
-      seen.add(key);
-
-      refs.add(AiSourceReference(
-        fileId: fileId,
-        pageNumber: pageNumber,
-        excerpt: null,
-      ));
+      if (answer.isEmpty) {
+        return const AiSearchResult.failed(
+          AiFailure.malformedResponse,
+          'The AI returned an empty answer. Please try again.',
+        );
+      }
+      return AiSearchResult(
+        answer: answer,
+        sources: sources,
+        grounded: grounded && answer.isNotEmpty,
+      );
     }
 
-    return refs;
+    // Fallback for a response that is not the JSON we asked for (an older
+    // model, a truncated body, a schema the endpoint ignored). The prose is
+    // still useful, and citations are still verified locally, so this is a
+    // graceful degradation rather than a failure.
+    final answer = _stripSourceLines(rawText);
+    if (answer.isEmpty) {
+      return const AiSearchResult.failed(
+        AiFailure.malformedResponse,
+        'The AI returned an empty answer. Please try again.',
+      );
+    }
+    final sources = _validateCitations(null, bundle, rawText);
+    return AiSearchResult(
+      answer: answer,
+      sources: sources,
+      grounded: sources.isNotEmpty,
+    );
   }
 
-  /// Removes the "Sources: …" trailing line that Gemini was asked to append,
-  /// so the UI can display the clean answer text only.
-  String _stripSourcesLine(String text) {
-    final lines = text.split('\n');
-    final filtered = lines
-        .where((l) => !l.trimLeft().startsWith('Sources:'))
-        .toList();
-    return filtered.join('\n').trim();
-  }
-
-  /// Safely extracts an error message from a Gemini error response body
-  /// without logging the full body (which may contain metadata).
-  String _safeExtractError(String body) {
+  /// Pulls the concatenated text out of a `generateContent` response body.
+  ///
+  /// Returns `null` when the envelope itself cannot be read, which is distinct
+  /// from a readable envelope with empty text.
+  String? _extractModelText(String body) {
     try {
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      final error = json['error'] as Map<String, dynamic>?;
-      return error?['message'] as String? ?? 'Unknown API error';
+      final decoded = jsonDecode(body);
+      if (decoded is! Map<String, dynamic>) return null;
+
+      final candidates = decoded['candidates'];
+      if (candidates is! List || candidates.isEmpty) return null;
+
+      final first = candidates.first;
+      if (first is! Map) return null;
+
+      final content = first['content'];
+      if (content is! Map) return null;
+
+      final parts = content['parts'];
+      if (parts is! List) return null;
+
+      // Join every text part: thinking-enabled models can split their output.
+      final buffer = StringBuffer();
+      for (final part in parts) {
+        if (part is Map && part['text'] is String) {
+          buffer.write(part['text'] as String);
+        }
+      }
+      final text = buffer.toString().trim();
+      return text.isEmpty ? null : text;
     } catch (_) {
-      return 'Unknown API error';
+      return null;
     }
   }
-}
 
-// ─── Internal exceptions ────────────────────────────────────────────────────
+  /// Decodes the model's JSON answer body, or `null` when it is not JSON.
+  Map<String, dynamic>? _tryDecodeStructured(String rawText) {
+    final cleaned = _stripCodeFence(rawText);
+    try {
+      final decoded = jsonDecode(cleaned);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
-/// Thrown when Gemini returns a non-2xx HTTP status code.
-final class _GeminiApiException implements Exception {
-  const _GeminiApiException({
-    required this.status,
-    required this.message,
-    required this.model,
-  });
-  final int status;
-  final String message;
-  final String model;
+  /// Some models wrap JSON in a Markdown fence even in JSON mode.
+  String _stripCodeFence(String text) {
+    final trimmed = text.trim();
+    if (!trimmed.startsWith('```')) return trimmed;
+
+    final withoutOpeningFence = trimmed.replaceFirst(
+      RegExp(r'^```[a-zA-Z]*\s*'),
+      '',
+    );
+    return withoutOpeningFence.replaceFirst(RegExp(r'\s*```$'), '');
+  }
+
+  /// Keeps only citations that point at a page actually sent to the model.
+  ///
+  /// Accepts either an explicit `{fileId, page}` pair or a 1-based
+  /// `{source: N}` index (both are unambiguous locally). Anything else — an
+  /// invented page, an unrelated file, a non-numeric value — is dropped
+  /// silently, because a fabricated citation is worse than no citation.
+  ///
+  /// When [rawStructuredSources] is `null` (free-text fallback), `[Source N]`
+  /// markers are recovered from [answerText] instead.
+  List<AiSourceReference> _validateCitations(
+    Object? rawStructuredSources,
+    AiContextBundle bundle,
+    String answerText,
+  ) {
+    final byKey = {
+      for (final b in bundle.blocks)
+        AiContextBuilder.pageKey(b.fileId, b.pageNumber): b,
+    };
+    final byIndex = {for (final b in bundle.blocks) b.sourceIndex: b};
+
+    final accepted = <AiSourceReference>[];
+    final seen = <String>{};
+
+    void accept(AiContextBlock? block) {
+      if (block == null) return;
+      final key = AiContextBuilder.pageKey(block.fileId, block.pageNumber);
+      if (!seen.add(key)) return;
+      accepted.add(
+        AiSourceReference(
+          fileId: block.fileId,
+          // Name comes from the local database, never from the model.
+          fileName: block.fileName,
+          pageNumber: block.pageNumber,
+        ),
+      );
+    }
+
+    var matchedAny = false;
+
+    if (rawStructuredSources is List) {
+      for (final entry in rawStructuredSources) {
+        if (entry is! Map) continue;
+        matchedAny = true;
+
+        final fileId = _asInt(entry['fileId'] ?? entry['file_id']);
+        final page = _asInt(
+          entry['page'] ?? entry['pageNumber'] ?? entry['page_number'],
+        );
+
+        if (fileId != null && page != null) {
+          accept(byKey[AiContextBuilder.pageKey(fileId, page)]);
+          continue;
+        }
+
+        final index = _asInt(entry['source'] ?? entry['sourceIndex']);
+        if (index != null) accept(byIndex[index]);
+      }
+    }
+
+    if (!matchedAny) {
+      // Free-text path: recover `[Source N]` and `[File:X Page:Y]` markers, and
+      // still require them to exist in the supplied bundle.
+      for (final match in RegExp(
+        r'\[Source\s+(\d+)\]',
+      ).allMatches(answerText)) {
+        accept(byIndex[_asInt(match.group(1))]);
+      }
+      for (final match in RegExp(
+        r'\[File:(\d+)\s+Page:(\d+)\]',
+      ).allMatches(answerText)) {
+        final fileId = _asInt(match.group(1));
+        final page = _asInt(match.group(2));
+        if (fileId != null && page != null) {
+          accept(byKey[AiContextBuilder.pageKey(fileId, page)]);
+        }
+      }
+    }
+
+    // Present citations in the order the sources appear in the prompt, which is
+    // relevance order, rather than the order the model happened to list them.
+    accepted.sort(
+      (a, b) => (byKey[a.pageKey]?.sourceIndex ?? 0).compareTo(
+        byKey[b.pageKey]?.sourceIndex ?? 0,
+      ),
+    );
+    return accepted;
+  }
+
+  /// Coerces JSON numbers, numeric strings and `1.0` doubles to an int.
+  int? _asInt(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim());
+    return null;
+  }
+
+  /// Removes a trailing `Sources:` block from a free-text answer so the UI does
+  /// not show the same references twice.
+  String _stripSourceLines(String text) {
+    final lines = text.split('\n');
+    while (lines.isNotEmpty &&
+        (lines.last.trimLeft().startsWith('Sources:') ||
+            lines.last.trimLeft().startsWith('[Source'))) {
+      lines.removeLast();
+    }
+    return lines.join('\n').trim();
+  }
 }

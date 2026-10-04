@@ -48,6 +48,7 @@ class HomeScreen extends ConsumerWidget {
     return AppScaffold(
       title: _greeting(now, settings.value?.studentName),
       subtitle: DateFormat('EEEE, d MMMM').format(now),
+      showSettingsAction: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

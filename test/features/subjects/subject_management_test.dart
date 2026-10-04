@@ -95,9 +95,14 @@ void main() {
         ),
       );
       await _pumpUntilFound(tester, find.text('Your day, calmly organized.'));
-      await tester.tap(find.byKey(const Key('nav_settings')));
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.drag(find.byType(ListView).last, const Offset(0, -180));
+      await tester.tap(find.byKey(const Key('open_settings_button')));
+      // Settings arrives as a pushed route now, so wait for its list to exist
+      // before scrolling it.
+      await _pumpUntilFound(tester, find.byKey(const Key('settings_list')));
+      await tester.drag(
+        find.byKey(const Key('settings_list')),
+        const Offset(0, -180),
+      );
       await tester.pump(const Duration(milliseconds: 300));
       await tester.ensureVisible(find.byKey(const Key('subjects_tile')));
       await tester.pump(const Duration(milliseconds: 200));

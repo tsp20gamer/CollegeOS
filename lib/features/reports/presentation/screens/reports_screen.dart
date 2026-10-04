@@ -39,7 +39,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final bundles = ref.watch(allSemesterAttendanceProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Attendance Analytics')),
-      backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
         child: semesters.when(

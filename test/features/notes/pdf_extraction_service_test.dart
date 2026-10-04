@@ -39,7 +39,11 @@ void main() {
     final fileId = await _insertSubjectFile(database, 'notes/big.pdf');
     await _writePdf(storage, 'notes/big.pdf', pages: pages);
 
-    await service.indexPdf(fileId, 'notes/big.pdf');
+    final report = await service.indexPdf(fileId, 'notes/big.pdf');
+
+    expect(report.outcome, PdfIndexOutcome.indexed);
+    expect(report.pagesIndexed, pages);
+    expect(report.resumedFromPage, 0);
 
     final meta = await dao.getMetadata(fileId);
     expect(meta?.status, 'indexed');
@@ -86,25 +90,168 @@ void main() {
     expect(await dao.search('UNIQUEPAGE$pages'), isNotEmpty);
   });
 
-  test('re-indexing replaces the previous index instead of duplicating it',
+  test('keeps the pages of an interrupted run and resumes after them',
       () async {
-    const pages = 8;
-    final fileId = await _insertSubjectFile(database, 'notes/repeat.pdf');
-    await _writePdf(storage, 'notes/repeat.pdf', pages: pages);
+    const pages = 25;
+    final fileId = await _insertSubjectFile(database, 'notes/resume.pdf');
+    await _writePdf(storage, 'notes/resume.pdf', pages: pages);
 
-    await service.indexPdf(fileId, 'notes/repeat.pdf');
-    await service.indexPdf(fileId, 'notes/repeat.pdf');
+    // A previous run stored pages 1..6 of 25 before the app was killed.
+    final interrupted = await _storePages(
+      dao,
+      fileId,
+      lastPage: 6,
+      totalPages: pages,
+    );
+    expect(interrupted.status, 'indexing (6/$pages)');
 
+    final report = await service.indexPdf(fileId, 'notes/resume.pdf');
+
+    expect(report.outcome, PdfIndexOutcome.indexed);
+    expect(report.resumedFromPage, 6);
+    expect(
+      report.pagesIndexed,
+      pages - 6,
+      reason: 'only pages 7..25 are extracted again',
+    );
+
+    // Pages 1..6 were neither deleted nor extracted a second time.
+    final kept = await dao.search('STALEBATCH');
+    expect(kept, hasLength(6));
+    expect(kept.map((row) => row.pageNumber).toSet(), {1, 2, 3, 4, 5, 6});
+
+    // The finished index covers every page exactly once.
+    final all = await dao.search('SEARCHTERM');
+    expect(all, hasLength(pages));
+    expect(all.map((row) => row.pageNumber).toSet().length, pages);
     final meta = await dao.getMetadata(fileId);
     expect(meta?.status, 'indexed');
-    expect((await dao.search('SEARCHTERM')).length, pages);
+    expect(meta?.pageCount, pages);
+  });
+
+  test('resumes a run that stopped with an error', () async {
+    const pages = 20;
+    final fileId = await _insertSubjectFile(database, 'notes/errored.pdf');
+    await _writePdf(storage, 'notes/errored.pdf', pages: pages);
+
+    await _storePages(dao, fileId, lastPage: 7, totalPages: pages);
+    await dao.markAsError(fileId, pageCount: pages, lastIndexedPage: 7);
+
+    final report = await service.indexPdf(fileId, 'notes/errored.pdf');
+
+    expect(report.outcome, PdfIndexOutcome.indexed);
+    expect(report.resumedFromPage, 7);
+    expect(report.pagesIndexed, pages - 7);
+    expect(await dao.search('STALEBATCH'), hasLength(7));
+    expect((await dao.getMetadata(fileId))?.status, 'indexed');
+  });
+
+  test('does not read or rebuild a file that is already indexed', () async {
+    const pages = 8;
+    final fileId = await _insertSubjectFile(database, 'notes/done.pdf');
+    final file = await _writePdf(storage, 'notes/done.pdf', pages: pages);
+
+    final first = await service.indexPdf(fileId, 'notes/done.pdf');
+    expect(first.outcome, PdfIndexOutcome.indexed);
+
+    // Removing the file proves a second run never opens the document again.
+    await file.delete();
+
+    final second = await service.indexPdf(fileId, 'notes/done.pdf');
+
+    expect(second.outcome, PdfIndexOutcome.skipped);
+    expect(second.pagesIndexed, 0);
+    expect(second.openTime, Duration.zero);
+    expect(second.extractionTime, Duration.zero);
+    expect(second.documentRecycles, 0);
+    expect(second.pageCount, pages);
+    expect((await dao.getMetadata(fileId))?.status, 'indexed');
+    expect(await dao.search('SEARCHTERM'), hasLength(pages));
+  });
+
+  test('rebuilds when the stored index belongs to a different document',
+      () async {
+    const pages = 10;
+    final fileId = await _insertSubjectFile(database, 'notes/swapped.pdf');
+    await _writePdf(storage, 'notes/swapped.pdf', pages: pages);
+
+    // Progress recorded for a 99 page document cannot describe this one.
+    await _storePages(dao, fileId, lastPage: 4, totalPages: 99);
+
+    final report = await service.indexPdf(fileId, 'notes/swapped.pdf');
+
+    expect(report.outcome, PdfIndexOutcome.indexed);
+    expect(report.pagesIndexed, pages);
+    expect(await dao.search('STALEBATCH'), isEmpty);
+    expect(await dao.search('SEARCHTERM'), hasLength(pages));
+    expect((await dao.getMetadata(fileId))?.pageCount, pages);
+  });
+
+  test('opens the document once and never recycles it for a normal file',
+      () async {
+    const pages = 45; // spans three database batches
+    final fileId = await _insertSubjectFile(database, 'notes/single.pdf');
+    await _writePdf(storage, 'notes/single.pdf', pages: pages);
+
+    final report = await service.indexPdf(fileId, 'notes/single.pdf');
+
+    expect(report.outcome, PdfIndexOutcome.indexed);
+    expect(report.pagesIndexed, pages);
+    expect(
+      report.documentRecycles,
+      0,
+      reason: 'a small document must be served by one open',
+    );
+    expect(await dao.search('SEARCHTERM'), hasLength(pages));
+  });
+
+  test('recycles the open document when memory actually grows', () async {
+    const pages = 45;
+    final fileId = await _insertSubjectFile(database, 'notes/pressure.pdf');
+    await _writePdf(storage, 'notes/pressure.pdf', pages: pages);
+
+    // A negative budget forces the recycle path without allocating gigabytes.
+    final tightService = LocalPdfExtractionService(
+      dao,
+      storage,
+      documentMemoryBudgetBytes: -1,
+    );
+
+    final report = await tightService.indexPdf(fileId, 'notes/pressure.pdf');
+
+    expect(report.outcome, PdfIndexOutcome.indexed);
+    expect(report.documentRecycles, greaterThanOrEqualTo(1));
+    expect(
+      await dao.search('SEARCHTERM'),
+      hasLength(pages),
+      reason: 'recycling the document must not lose or duplicate pages',
+    );
+  });
+
+  test('reports the timings of every phase', () async {
+    const pages = 60;
+    final fileId = await _insertSubjectFile(database, 'notes/timed.pdf');
+    await _writePdf(storage, 'notes/timed.pdf', pages: pages);
+
+    final report = await service.indexPdf(fileId, 'notes/timed.pdf');
+
+    expect(report.pageCount, pages);
+    expect(report.pagesIndexed, pages);
+    expect(report.totalTime, greaterThan(Duration.zero));
+    expect(report.extractionTime, greaterThan(Duration.zero));
+    expect(
+      (report.openTime + report.extractionTime) ~/ report.parallelWorkers + report.databaseTime,
+      lessThanOrEqualTo(report.totalTime),
+      reason: 'the phases are measured inside the total, adjusted for parallel workers',
+    );
   });
 
   test('marks a missing file as error and never stays on indexing', () async {
     final fileId = await _insertSubjectFile(database, 'notes/gone.pdf');
 
-    await service.indexPdf(fileId, 'notes/gone.pdf');
+    final report = await service.indexPdf(fileId, 'notes/gone.pdf');
 
+    expect(report.outcome, PdfIndexOutcome.failed);
     final meta = await dao.getMetadata(fileId);
     expect(meta?.status, 'error');
   });
@@ -113,11 +260,35 @@ void main() {
     final fileId = await _insertSubjectFile(database, 'notes/broken.pdf');
     await storage.writeText('notes/broken.pdf', 'this is not a pdf at all');
 
-    await service.indexPdf(fileId, 'notes/broken.pdf');
+    final report = await service.indexPdf(fileId, 'notes/broken.pdf');
 
+    expect(report.outcome, PdfIndexOutcome.failed);
     final meta = await dao.getMetadata(fileId);
     expect(meta?.status, isNot(startsWith('indexing')));
   });
+}
+
+/// Simulates an interrupted run that stored `pages 1..lastPage` of a document
+/// with [totalPages] pages, using text that later runs must not rewrite.
+Future<PdfSearchMetadataData> _storePages(
+  PdfSearchDao dao,
+  int fileId, {
+  required int lastPage,
+  required int totalPages,
+}) async {
+  await dao.saveExtractedBatch(
+    fileId,
+    [
+      for (int page = 1; page <= lastPage; page++)
+        PdfExtractedPage(
+          pageNumber: page,
+          text: 'STALEBATCH SEARCHTERM UNIQUEPAGE$page page body $page',
+        ),
+    ],
+    lastPageIndexed: lastPage,
+    totalPages: totalPages,
+  );
+  return (await dao.getMetadata(fileId))!;
 }
 
 Future<File> _writePdf(

@@ -59,7 +59,7 @@ void main() {
         ),
       );
       await _pumpUntilFound(tester, find.text('Your day, calmly organized.'));
-      await tester.tap(find.byKey(const Key('nav_settings')));
+      await tester.tap(find.byKey(const Key('open_settings_button')));
       await tester.pump(const Duration(milliseconds: 300));
       await _pumpUntilFound(tester, find.text('College Information'));
       await tester.scrollUntilVisible(

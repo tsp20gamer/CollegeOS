@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:college_os/core/database/app_database.dart';
+import 'package:college_os/core/database/daos/pdf_search_dao.dart';
 import 'package:college_os/core/database/database_enums.dart';
 import 'package:college_os/features/attendance/data/drift_attendance_repository.dart';
 import 'package:college_os/features/backup/data/backup_database_store.dart';
@@ -403,6 +404,81 @@ void main() {
       database = AppDatabase.forTesting(NativeDatabase.memory());
     },
   );
+
+  test('upgrading the schema keeps an existing PDF search index', () async {
+    await database.close();
+    final directory = await Directory.systemTemp.createTemp(
+      'college_os_pdf_upgrade_',
+    );
+    final file = File(p.join(directory.path, 'college_os.sqlite'));
+    addTearDown(() async {
+      if (await directory.exists()) await directory.delete(recursive: true);
+    });
+
+    database = AppDatabase.forTesting(NativeDatabase(file));
+    final semesterId = await _insertSemester(database, active: true);
+    final subjectId = await _insertSubject(database, semesterId);
+    final fileId = await database.subjectFilesDao.insertFile(
+      SubjectFilesCompanion.insert(
+        subjectId: subjectId,
+        semesterId: semesterId,
+        fileName: 'notes.pdf',
+        fileExtension: 'pdf',
+        fileSizeBytes: 91 * 1024 * 1024,
+        relativeFilePath: 'notes/notes.pdf',
+      ),
+    );
+
+    // Rewind the database to the shape and version it had before the resume
+    // column existed, with an index that was interrupted at page 250 of 412.
+    await database.customStatement(
+      'ALTER TABLE pdf_search_metadata DROP COLUMN last_indexed_page',
+    );
+    await database.customStatement('''
+INSERT INTO pdf_search_metadata (file_id, status, page_count, indexed_at)
+VALUES ($fileId, 'indexing (250/412)', 412, 0)
+''');
+    await database.customStatement('''
+INSERT INTO pdf_page_fts (file_id, page_number, page_text)
+VALUES ('$fileId', '1', 'a page that was already extracted')
+''');
+    await database.customStatement('PRAGMA user_version = 12');
+    await database.close();
+
+    // Reopening runs the v12 -> v13 migration.
+    database = AppDatabase.forTesting(NativeDatabase(file));
+
+    final meta = await database.pdfSearchDao.getMetadata(fileId);
+    expect(meta, isNotNull, reason: 'the upgrade must keep the index metadata');
+    expect(meta!.status, 'indexing (250/412)');
+    expect(meta.pageCount, 412);
+    expect(
+      meta.lastIndexedPage,
+      0,
+      reason: 'a database written before the column existed starts at 0',
+    );
+    expect(
+      await database.pdfSearchDao.search('extracted'),
+      hasLength(1),
+      reason: 'pages indexed before the upgrade stay searchable',
+    );
+
+    // The new column is usable, so the interrupted run resumes after 250.
+    await database.pdfSearchDao.saveExtractedBatch(
+      fileId,
+      [const PdfExtractedPage(pageNumber: 251, text: 'a newly extracted page')],
+      lastPageIndexed: 251,
+      totalPages: 412,
+    );
+    final resumed = await database.pdfSearchDao.getMetadata(fileId);
+    expect(resumed?.status, 'indexing (251/412)');
+    expect(resumed?.lastIndexedPage, 251);
+    expect(await database.passesIntegrityCheck(), isTrue);
+    expect(await database.passesForeignKeyCheck(), isTrue);
+
+    await database.close();
+    database = AppDatabase.forTesting(NativeDatabase.memory());
+  });
 }
 
 Future<int> _insertSemester(

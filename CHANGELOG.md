@@ -1,5 +1,20 @@
 # CollegeOS changelog
 
+## Unreleased
+
+- Replaced the floating pill dock with a full-width bottom navigation bar: every destination keeps its icon and label at any width, and selection slides a single indicator between equal slots.
+- Made Notes a destination, covering per-subject material plus a search screen over every indexed PDF; a search shortcut sits above the bar on Home and Tasks.
+- Moved Settings out of the bar into a header action on every destination, pushed over the shell so it keeps a back button. Pushed screens now show a back button too.
+- Wrapped crowded header actions instead of overflowing them on a compact phone at a large text scale.
+- Kept reduced-motion behavior: the bar's indicator, icon and label animations collapse to zero duration and the short page move is skipped.
+- Turned the bar's selected indicator into a soft rounded rectangle and nudged it clear of the bar's own rounded ends. A pill radius clamped to half a tab's slot width, which is narrower than the bar is tall, so it painted an ellipse that read wrong at the first and last destinations.
+- Added AI note search: a natural-language question is answered from the user's own indexed PDF pages, with page references that are validated locally before display.
+- Kept AI strictly additive — keyword search still runs entirely offline, and no request is made without a configured key or retrieved context.
+- Moved the Gemini credential out of the request URL into the `x-goog-api-key` header and isolated it behind `GeminiConfig`, so a backend proxy can replace direct API access later.
+- Made AI retrieval build an OR'd FTS5 expression, since the keyword AND expression matched nothing for full-sentence questions.
+- Added a Skip days mode to the attendance planner: choose the dates you plan to miss and see the classes each one costs, the resulting overall attendance next to every affected subject's, and which already-marked classes the plan leaves alone.
+- Kept the planner's class-counts mode unchanged and scoped to one subject, and stopped it from subscribing to the timetable it never reads.
+
 ## 1.10.0+30 — 6 September 2026
 
 - Added a local pending-attendance reminder after the next eligible day's final class, refreshed as attendance and schedules change.

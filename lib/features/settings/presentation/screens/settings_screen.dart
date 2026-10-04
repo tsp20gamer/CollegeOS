@@ -577,7 +577,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Reduced motion',
                 value: reduceMotion ? 'On' : 'Off',
                 detail:
-                    'Page, dock, calendar and progress animations stop when Android requests reduced motion.',
+                    'Page, navigation bar, calendar and progress animations stop when Android requests reduced motion.',
               ),
               _AccessibilityStatusRow(
                 icon: Icons.contrast_rounded,

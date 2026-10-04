@@ -1,7 +1,9 @@
+import 'package:college_os/core/routing/route_names.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/effects.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class AppScaffold extends StatelessWidget {
   const AppScaffold({
@@ -9,6 +11,9 @@ class AppScaffold extends StatelessWidget {
     required this.subtitle,
     required this.child,
     this.actions = const [],
+    this.autoLeading = true,
+    this.showSettingsAction = false,
+    this.onSettingsPressed,
     super.key,
   });
 
@@ -17,8 +22,39 @@ class AppScaffold extends StatelessWidget {
   final Widget child;
   final List<Widget> actions;
 
+  /// Shows a back button whenever this screen was pushed onto a navigator.
+  ///
+  /// Tab roots and other unpushed screens stay leading-free, so this is only
+  /// ever visible on a screen the user can actually return from.
+  final bool autoLeading;
+
+  /// Adds a Settings action to the header.
+  ///
+  /// Settings is not a tab, so every destination that can open it asks for this
+  /// and the header is the one place it is guaranteed to be reachable from.
+  final bool showSettingsAction;
+
+  /// Overrides what the Settings action does. Defaults to pushing `/settings`.
+  final VoidCallback? onSettingsPressed;
+
+  /// The header's right-hand controls: this screen's own actions, then the
+  /// Settings action, which is the far right so it stays put between tabs.
+  List<Widget> trailingActions(BuildContext context) => [
+    ...actions,
+    if (showSettingsAction)
+      IconButton(
+        key: const Key('open_settings_button'),
+        tooltip: 'Settings',
+        onPressed: onSettingsPressed ?? () => context.push(RoutePaths.settings),
+        icon: const Icon(Icons.settings_outlined),
+      ),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final trailing = trailingActions(context);
+    final canPop =
+        autoLeading && (Navigator.maybeOf(context)?.canPop() ?? false);
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
@@ -40,51 +76,75 @@ class AppScaffold extends StatelessWidget {
                     constraints: const BoxConstraints(
                       maxWidth: AppLayout.contentMaxWidth,
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      shadows: AppGlows.text(
-                                        strength:
-                                            Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? .70
-                                            : .34,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (canPop) ...[
+                            const AppBackButton(),
+                            const SizedBox(width: AppSpacing.xs),
+                          ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    title,
+                                    maxLines: 1,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          shadows: AppGlows.text(
+                                            strength:
+                                                Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? .70
+                                                : .34,
+                                          ),
+                                        ),
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xxs),
+                                Text(
+                                  subtitle,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
-                                    ),
-                              ),
-                              const SizedBox(height: AppSpacing.xxs),
-                              Text(
-                                subtitle,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        if (actions.isNotEmpty) ...[
-                          const SizedBox(width: AppSpacing.sm),
-                          ...actions,
+                          if (trailing.isNotEmpty) ...[
+                            const SizedBox(width: AppSpacing.sm),
+                            // A compact phone with a large text scale can need more
+                            // width than the header has once a screen adds its own
+                            // actions. Wrapping keeps every action tappable and at
+                            // full size instead of overflowing the row.
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: constraints.maxWidth,
+                              ),
+                              child: Wrap(
+                                alignment: WrapAlignment.end,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: AppSpacing.sm,
+                                runSpacing: AppSpacing.xs,
+                                children: trailing,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -112,6 +172,27 @@ class AppScaffold extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The app's single back affordance for pushed screens.
+///
+/// Screens presented with [AppScaffold] have no `AppBar`, so without this a
+/// pushed screen could only be left with the Android system back gesture.
+class AppBackButton extends StatelessWidget {
+  const AppBackButton({this.onPressed, this.tooltip, super.key});
+
+  final VoidCallback? onPressed;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      key: const Key('app_back_button'),
+      tooltip: tooltip ?? MaterialLocalizations.of(context).backButtonTooltip,
+      onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
+      icon: const Icon(Icons.arrow_back_rounded),
     );
   }
 }

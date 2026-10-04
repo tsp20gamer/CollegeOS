@@ -50,8 +50,11 @@ void main() {
         ),
       );
       await _pumpUntilFound(tester, find.text('Your day, calmly organized.'));
-      await tester.tap(find.byKey(const Key('nav_settings')));
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.byKey(const Key('open_settings_button')));
+      // Settings arrives as a pushed route now, so let the transition land
+      // before looking for its tiles.
+      await tester.pump();
+      await _pumpUntilFound(tester, find.byKey(const Key('exams_marks_tile')));
       await tester.ensureVisible(find.byKey(const Key('exams_marks_tile')));
       await tester.pump(const Duration(milliseconds: 200));
       await tester.tap(find.byKey(const Key('exams_marks_tile')));

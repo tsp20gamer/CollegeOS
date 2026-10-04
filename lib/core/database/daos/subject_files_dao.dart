@@ -17,8 +17,19 @@ class SubjectFilesDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
-  Future<SubjectFileRow?> getById(int id) =>
-      (select(subjectFiles)..where((row) => row.id.equals(id))).getSingleOrNull();
+  /// Reactive stream of every stored file, newest first.
+  ///
+  /// Used by screens that work across subjects, such as an unscoped note search
+  /// that has to resolve a citation to a file without a subject in hand.
+  Stream<List<SubjectFileRow>> watchAll() {
+    return (select(
+      subjectFiles,
+    )..orderBy([(row) => OrderingTerm.desc(row.createdAt)])).watch();
+  }
+
+  Future<SubjectFileRow?> getById(int id) => (select(
+    subjectFiles,
+  )..where((row) => row.id.equals(id))).getSingleOrNull();
 
   Future<int> insertFile(SubjectFilesCompanion file) =>
       into(subjectFiles).insert(file);
@@ -26,6 +37,7 @@ class SubjectFilesDao extends DatabaseAccessor<AppDatabase>
   Future<int> deleteById(int id) =>
       (delete(subjectFiles)..where((row) => row.id.equals(id))).go();
 
-  Future<List<SubjectFileRow>> getAllForBackup() =>
-      (select(subjectFiles)..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
+  Future<List<SubjectFileRow>> getAllForBackup() => (select(
+    subjectFiles,
+  )..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
 }

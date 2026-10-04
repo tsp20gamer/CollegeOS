@@ -9,6 +9,8 @@ abstract final class RouteNames {
   static const timetable = 'timetable';
   static const timetableExceptions = 'timetable-exceptions';
   static const tasks = 'tasks';
+  static const notes = 'notes';
+  static const notesSearch = 'notes-search';
   static const attendanceSubject = 'attendance-subject';
   static const pendingAttendance = 'pending-attendance';
   static const attendanceAnalytics = 'attendance-analytics';
@@ -37,6 +39,8 @@ abstract final class RoutePaths {
   static const timetable = '/timetable';
   static const timetableExceptions = '/timetable/exceptions';
   static const tasks = '/tasks';
+  static const notes = '/notes';
+  static const notesSearch = '/notes/search';
   static const attendanceSubject = '/attendance/subject/:subjectId';
   static const pendingAttendance = '/attendance/pending';
   static const attendanceAnalytics = '/attendance/analytics';

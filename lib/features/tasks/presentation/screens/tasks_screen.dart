@@ -81,6 +81,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       title: 'Tasks',
       subtitle:
           semester.value?.name ?? 'Assignments and personal work, together.',
+      showSettingsAction: true,
       actions: [
         IconButton.filledTonal(
           key: const Key('add_task_button'),
