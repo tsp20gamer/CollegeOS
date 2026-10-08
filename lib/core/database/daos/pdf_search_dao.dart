@@ -13,9 +13,9 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
   /// Used when a previous run has to be thrown away completely, for example
   /// when the document's page count no longer matches what was indexed.
   Future<void> deleteFilePages(int fileId) async {
-    await (delete(pdfPageFts)
-          ..where((row) => row.fileId.equals(fileId.toString())))
-        .go();
+    await (delete(
+      pdfPageFts,
+    )..where((row) => row.fileId.equals(fileId.toString()))).go();
   }
 
   Future<void> markAsUnsupported(int fileId) =>
@@ -30,13 +30,12 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
     int fileId, {
     int pageCount = 0,
     int lastIndexedPage = 0,
-  }) =>
-      _writeMetadata(
-        fileId,
-        status: 'error',
-        pageCount: pageCount,
-        lastIndexedPage: lastIndexedPage,
-      );
+  }) => _writeMetadata(
+    fileId,
+    status: 'error',
+    pageCount: pageCount,
+    lastIndexedPage: lastIndexedPage,
+  );
 
   /// Prepares [fileId] for indexing and reports where to resume.
   ///
@@ -98,16 +97,18 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<void> completeIndexing(int fileId, int totalPages) => _writeMetadata(
-        fileId,
-        status: 'indexed',
-        pageCount: totalPages,
-        lastIndexedPage: totalPages,
-      );
+    fileId,
+    status: 'indexed',
+    pageCount: totalPages,
+    lastIndexedPage: totalPages,
+  );
 
   Future<void> deleteFileIndex(int fileId) async {
     return transaction(() async {
       await deleteFilePages(fileId);
-      await (delete(pdfSearchMetadata)..where((row) => row.fileId.equals(fileId))).go();
+      await (delete(
+        pdfSearchMetadata,
+      )..where((row) => row.fileId.equals(fileId))).go();
     });
   }
 
@@ -130,20 +131,27 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  Future<List<PdfSearchMetadataData>> getAllMetadata() => select(pdfSearchMetadata).get();
-  
-  Future<PdfSearchMetadataData?> getMetadata(int fileId) =>
-      (select(pdfSearchMetadata)..where((row) => row.fileId.equals(fileId))).getSingleOrNull();
+  Future<List<PdfSearchMetadataData>> getAllMetadata() =>
+      select(pdfSearchMetadata).get();
+
+  Future<PdfSearchMetadataData?> getMetadata(int fileId) => (select(
+    pdfSearchMetadata,
+  )..where((row) => row.fileId.equals(fileId))).getSingleOrNull();
 
   Future<List<PdfSearchResultRow>> search(String query) async {
     if (query.trim().isEmpty) return [];
 
     // Sanitize query to prevent FTS5 syntax errors
-    final sanitized = query.replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ').trim();
+    final sanitized = query
+        .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
+        .trim();
     if (sanitized.isEmpty) return [];
 
     // Create a prefix search for each word: word1* word2*
-    final ftsQuery = sanitized.split(RegExp(r'\s+')).map((w) => '$w*').join(' ');
+    final ftsQuery = sanitized
+        .split(RegExp(r'\s+'))
+        .map((w) => '$w*')
+        .join(' ');
 
     try {
       final result = await customSelect(
@@ -184,12 +192,15 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
   }) async {
     if (query.trim().isEmpty) return [];
 
-    final sanitized =
-        query.replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ').trim();
+    final sanitized = query
+        .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
+        .trim();
     if (sanitized.isEmpty) return [];
 
-    final ftsQuery =
-        sanitized.split(RegExp(r'\s+')).map((w) => '$w*').join(' ');
+    final ftsQuery = sanitized
+        .split(RegExp(r'\s+'))
+        .map((w) => '$w*')
+        .join(' ');
 
     return _selectAiContextRows(ftsQuery, limit);
   }
@@ -231,10 +242,7 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
         ORDER BY rank
         LIMIT ?
         ''',
-        variables: [
-          Variable.withString(ftsQuery),
-          Variable.withInt(limit),
-        ],
+        variables: [Variable.withString(ftsQuery), Variable.withInt(limit)],
         readsFrom: {pdfPageFts},
       ).get();
 
@@ -250,7 +258,6 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
       return [];
     }
   }
-
 }
 
 /// Where an interrupted indexing run has to continue.

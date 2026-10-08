@@ -56,13 +56,15 @@ Completion is one database transaction that creates settings, the current active
 
 ## 5. Main navigation and information architecture
 
-Use a Material 3 `NavigationBar` with five persistent destinations:
+Use a floating translucent glass dock with five persistent destinations:
 
 1. **Home** — overview and next actions
 2. **Attendance** — aggregate health, subjects, and rapid session entry
 3. **Timetable** — weekly schedule and today's classes
 4. **Tasks** — assignments and general tasks
-5. **Settings** — college and academic management, preferences, backup, app information, and destructive local-data actions
+5. **Notes** — per-subject material and search over every indexed PDF
+
+The dock floats above the content with a translucent, blurred surface. Every destination keeps its icon and label at any width; the selected one is marked by a cobalt icon, a cobalt label and a micro dot, never by a capsule behind it. Settings is deliberately not a destination: each destination header exposes it, and it opens above the shell.
 
 Each destination preserves its navigation stack and scroll position when switching tabs. Forms and details open above the relevant tab. Onboarding and full-screen restore progress live outside the tab shell.
 

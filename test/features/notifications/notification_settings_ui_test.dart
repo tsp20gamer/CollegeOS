@@ -49,6 +49,17 @@ void main() {
 
     await tester.tap(find.byKey(const Key('notification_settings_tile')));
     await tester.pumpAndSettle();
+
+    // The temporary diagnostics panel is gone; the sheet keeps only the test
+    // action and the Android settings shortcut.
+    expect(
+      find.byKey(const Key('notification_diagnostics_card')),
+      findsNothing,
+      reason: 'the temporary diagnostics card was removed',
+    );
+    expect(find.textContaining('Temporary diagnostics'), findsNothing);
+    expect(find.textContaining('Could not read Android status'), findsNothing);
+
     await tester.ensureVisible(find.byKey(const Key('send_test_notification')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('send_test_notification')));
@@ -64,22 +75,6 @@ void main() {
       find.text('Test sent. Check your notification shade.'),
       findsOneWidget,
     );
-    await tester.ensureVisible(
-      find.byKey(const Key('enable_precise_reminders')),
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('enable_precise_reminders')));
-    await tester.pump();
-    expect(platform.exactAlarmPermissionRequests, 1);
-    await tester.ensureVisible(
-      find.byKey(const Key('open_notification_battery_settings')),
-    );
-    await tester.pump();
-    await tester.tap(
-      find.byKey(const Key('open_notification_battery_settings')),
-    );
-    await tester.pump();
-    expect(platform.batterySettingsOpens, 1);
     await tester.tap(
       find.byKey(const Key('open_android_notification_settings')),
     );
@@ -92,14 +87,11 @@ void main() {
   });
 }
 
-final class _TestNotificationPlatform
-    implements NotificationPlatform, NotificationDiagnosticsPlatform {
+final class _TestNotificationPlatform implements NotificationPlatform {
   var allowed = false;
   var permissionRequests = 0;
   var testNotifications = 0;
   var settingsOpens = 0;
-  var exactAlarmPermissionRequests = 0;
-  var batterySettingsOpens = 0;
 
   @override
   Future<String?> initialize(void Function(String payload) onTap) async => null;
@@ -115,19 +107,11 @@ final class _TestNotificationPlatform
   }
 
   @override
-  Future<bool> requestExactAlarmPermission() async {
-    exactAlarmPermissionRequests++;
-    return true;
-  }
+  Future<bool> requestExactAlarmPermission() async => true;
 
   @override
   Future<void> openNotificationSettings() async {
     settingsOpens++;
-  }
-
-  @override
-  Future<void> openBatterySettings() async {
-    batterySettingsOpens++;
   }
 
   @override
@@ -143,20 +127,6 @@ final class _TestNotificationPlatform
 
   @override
   Future<List<PendingCollegeOsNotification>> pending() async => const [];
-
-  @override
-  Future<NotificationDiagnostics> diagnostics() async =>
-      NotificationDiagnostics(
-        permissionEnabled: allowed,
-        channelExists: true,
-        channelEnabled: allowed,
-        channelImportance: 'Maximum',
-        pendingReminderCount: 0,
-        timezone: 'Asia/Calcutta',
-        androidSdk: 36,
-        batteryOptimizationExempt: false,
-        exactAlarmAllowed: false,
-      );
 }
 
 Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {

@@ -159,18 +159,24 @@ Riverpod code generation is intentionally omitted at first to reduce generators 
 
 ## 5. Navigation design
 
-The bottom navigation bar spans the full width, sits flush with the bottom edge,
-and paints behind the system inset itself. All five destinations keep their icon
-and label at every width: labels are clamped to a 1.3 text scale factor, matching
-Material's own `NavigationBar`, and scaled down to fit their slot instead of
-being truncated or hidden. Selection slides one rounded indicator between
-equal-width slots while the icon cross-fades to its filled variant. The retained
-tab subtree makes a 150 ms translation of 1.2% of its width with no full-page
-opacity or blur layer. Android reduced-motion and accessible-navigation settings
-disable this decorative movement.
+The bottom navigation is a floating translucent dock. It keeps a 16 px margin
+from the left and right screen edges and 12 px above the system inset, and paints
+a 24 sigma backdrop blur under a white 8 % fill on the dark theme (75 % on light)
+with one soft shadow and a hairline rim, at radius 28. All five destinations keep
+their icon and label at every width: labels are clamped to a 1.3 text scale factor
+and scaled down to fit their slot instead of being truncated or hidden. Selection
+paints no capsule: the chosen destination gets the cobalt icon, a cobalt label and
+a 4 px cobalt dot, and its dot slot is reserved whether or not the dot is showing,
+so no label ever moves. Only the newly selected icon animates — a 240 ms pop to
+1.10 and back through 1.04 with a 2.5 px lift, plus an outline-to-filled
+cross-fade — while the retained tab subtree makes a 150 ms translation of 1.2% of
+its width with no full-page opacity layer. Android reduced-motion and
+accessible-navigation settings disable that decorative movement while leaving the
+glass itself unchanged.
 
-Because the shell uses `Scaffold.extendBody`, the bar's total height is folded
-into `MediaQuery.padding.bottom` for the body, so `AppLayout.scaffoldBottomPadding`
+Because the shell uses `Scaffold.extendBody`, the dock's measured height — its
+content plus the floating gap and the system inset — is folded into
+`MediaQuery.padding.bottom` for the body, so `AppLayout.scaffoldBottomPadding`
 derives content clearance from the resolved padding. A route pushed above the
 shell sees only the system inset, which is what makes the same helper correct
 both inside and outside the shell.

@@ -110,14 +110,53 @@ class AppDatabase extends _$AppDatabase {
           appSettings.academicYearStartDate,
         );
         await migrator.addColumn(appSettings, appSettings.academicYearEndDate);
-        await migrator.alterTable(
-          TableMigration(
-            timetableEntries,
-            newColumns: [
-              timetableEntries.effectiveFrom,
-              timetableEntries.effectiveUntil,
-            ],
-          ),
+        // The v6 timetable table is recreated from its own frozen definition
+        // instead of the current Dart class. A `TableMigration` would build
+        // this table with every column and constraint the current definition
+        // has, so the class-reminder column added in v14 would silently appear
+        // in every v6–v13 upgrade and the v6 shape could never change again.
+        // Pinning the historical shape keeps each intermediate schema exactly
+        // as it shipped, and the v14 step recreates the current shape later.
+        await customStatement('''
+CREATE TABLE "tmp_for_copy_timetable_entries_v6" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "semester_id" INTEGER NOT NULL REFERENCES semesters(id) ON DELETE CASCADE,
+  "subject_id" INTEGER NOT NULL,
+  "weekday" INTEGER NOT NULL,
+  "start_time" INTEGER NOT NULL,
+  "end_time" INTEGER NOT NULL,
+  "room" TEXT NOT NULL DEFAULT '',
+  "note" TEXT NOT NULL DEFAULT '',
+  "effective_from" INTEGER NULL,
+  "effective_until" INTEGER NULL,
+  FOREIGN KEY(subject_id, semester_id) REFERENCES subjects(id, semester_id) ON DELETE CASCADE,
+  CHECK(weekday BETWEEN 1 AND 7),
+  CHECK(start_time BETWEEN 0 AND 1439),
+  CHECK(end_time BETWEEN 1 AND 1440),
+  CHECK(end_time > start_time),
+  CHECK(effective_until IS NULL OR effective_from IS NULL OR effective_until >= effective_from)
+)
+''');
+        await customStatement('''
+INSERT INTO "tmp_for_copy_timetable_entries_v6"
+  ("id", "semester_id", "subject_id", "weekday", "start_time", "end_time",
+   "room", "note", "effective_from", "effective_until")
+SELECT "id", "semester_id", "subject_id", "weekday", "start_time",
+       "end_time", "room", "note", NULL, NULL
+FROM "timetable_entries"
+''');
+        await customStatement('DROP TABLE "timetable_entries"');
+        await customStatement(
+          'ALTER TABLE "tmp_for_copy_timetable_entries_v6" '
+          'RENAME TO "timetable_entries"',
+        );
+        await customStatement(
+          'CREATE INDEX timetable_semester_weekday_start '
+          'ON timetable_entries (semester_id, weekday, start_time)',
+        );
+        await customStatement(
+          'CREATE INDEX timetable_subject '
+          'ON timetable_entries (subject_id)',
         );
         await migrator.createTable(scheduledClassAttendance);
         await migrator.createTable(calendarDayOverrides);
@@ -176,10 +215,45 @@ SET effective_from = (
       }
       if (from < CollegeOsSchemaVersions.pdfIndexResume &&
           to >= CollegeOsSchemaVersions.pdfIndexResume) {
-        await migrator.addColumn(
-          pdfSearchMetadata,
-          pdfSearchMetadata.lastIndexedPage,
+        // The v12 recreation rebuilds pdf_search_metadata from the current
+        // Dart definition, which already contains last_indexed_page. Only add
+        // the column when it is genuinely missing so stacked v11→v13 and
+        // v12→v13 upgrades both succeed.
+        final columns = await customSelect(
+          'PRAGMA table_info(pdf_search_metadata)',
+        ).get();
+        final hasLastIndexedPage = columns.any(
+          (row) => row.read<String>('name') == 'last_indexed_page',
         );
+        if (!hasLastIndexedPage) {
+          await migrator.addColumn(
+            pdfSearchMetadata,
+            pdfSearchMetadata.lastIndexedPage,
+          );
+        }
+      }
+      if (from < CollegeOsSchemaVersions.classReminders &&
+          to >= CollegeOsSchemaVersions.classReminders) {
+        // The v6 timetable recreation already builds the table from the current
+        // definition, so a stacked upgrade can arrive here with the column in
+        // place. Only recreate when it is genuinely missing, which also keeps
+        // the new CHECK constraint identical to a fresh v14 create.
+        final columns = await customSelect(
+          'PRAGMA table_info(timetable_entries)',
+        ).get();
+        final hasReminder = columns.any(
+          (row) => row.read<String>('name') == 'reminder_minutes_before',
+        );
+        if (!hasReminder) {
+          // Every existing class keeps its subject, times, room and effective
+          // dates; it simply carries no reminder until one is chosen.
+          await migrator.alterTable(
+            TableMigration(
+              timetableEntries,
+              newColumns: [timetableEntries.reminderMinutesBefore],
+            ),
+          );
+        }
       }
     },
     beforeOpen: (details) async {

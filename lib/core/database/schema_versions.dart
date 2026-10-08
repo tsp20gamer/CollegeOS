@@ -12,5 +12,6 @@ abstract final class CollegeOsSchemaVersions {
   static const int pdfSearch = 11;
   static const int pdfSearchV2 = 12;
   static const int pdfIndexResume = 13;
-  static const int current = pdfIndexResume;
+  static const int classReminders = 14;
+  static const int current = classReminders;
 }

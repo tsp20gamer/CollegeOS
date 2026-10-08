@@ -172,6 +172,180 @@ void main() {
     expect(chip, findsNothing);
     expect(find.textContaining('Add the days you will miss'), findsOneWidget);
   });
+
+  testWidgets('planner clears every chosen day at once', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 2.5;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          attendanceSubjectsProvider.overrideWith((ref) => AsyncData(_results)),
+          activeSemesterProvider.overrideWith((ref) => Stream.value(_semester)),
+          attendanceEngineProvider.overrideWith(
+            (ref) => Stream.value(_snapshot),
+          ),
+          collegeSettingsProvider.overrideWith(
+            (ref) => Stream.value(_settings),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(480, 960),
+              disableAnimations: true,
+            ),
+            child: const AttendancePlannerScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Skip days'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('planner_add_absent_day')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('17'));
+    await tester.pump();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    final impact = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('planner_clear_days')),
+      120,
+      scrollable: impact,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('planner_clear_days')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Add the days you will miss'),
+      findsOneWidget,
+      reason: 'clearing the days returns the planner to its prompt',
+    );
+    expect(find.text('Attendance after these absences'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('planner releases the timetable when returning to counts', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 2.5;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var engineObserved = false;
+    final container = ProviderContainer(
+      overrides: [
+        attendanceSubjectsProvider.overrideWith((ref) => AsyncData(_results)),
+        activeSemesterProvider.overrideWith((ref) => Stream.value(_semester)),
+        attendanceEngineProvider.overrideWith((ref) => Stream.value(_snapshot)),
+        collegeSettingsProvider.overrideWith((ref) => Stream.value(_settings)),
+      ],
+      observers: [
+        _EngineObserver(() {
+          engineObserved = true;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(480, 960),
+              disableAnimations: true,
+            ),
+            child: const AttendancePlannerScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(engineObserved, isFalse);
+
+    await tester.tap(find.text('Skip days'));
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(engineObserved, isTrue);
+
+    // Switching back must release the timetable stream, not just hide it.
+    await tester.tap(find.text('Class counts'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('planner ignores a dismissed date picker', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 2.5;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          attendanceSubjectsProvider.overrideWith((ref) => AsyncData(_results)),
+          activeSemesterProvider.overrideWith((ref) => Stream.value(_semester)),
+          attendanceEngineProvider.overrideWith(
+            (ref) => Stream.value(_snapshot),
+          ),
+          collegeSettingsProvider.overrideWith(
+            (ref) => Stream.value(_settings),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(480, 960)),
+            child: const AttendancePlannerScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Skip days'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('planner_add_absent_day')));
+    await tester.pumpAndSettle();
+
+    // Dismissing the dialog without choosing leaves the plan untouched.
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('planner_skip_day_20260817')),
+      findsNothing,
+    );
+    expect(find.textContaining('Add the days you will miss'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+/// Records when the planner first subscribes to the attendance engine.
+final class _EngineObserver extends ProviderObserver {
+  _EngineObserver(this._onObserved);
+
+  final void Function() _onObserved;
+
+  @override
+  void didAddProvider(ProviderObserverContext context, Object? value) {
+    if (context.provider == attendanceEngineProvider) {
+      _onObserved();
+    }
+  }
 }
 
 final _now = DateTime.utc(2026, 8, 1);

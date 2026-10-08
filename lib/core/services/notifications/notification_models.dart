@@ -1,4 +1,4 @@
-enum NotificationEntityType { task, exam, attendance }
+enum NotificationEntityType { task, exam, attendance, classReminder }
 
 typedef CollegeOsNotification = ({
   NotificationEntityType type,
@@ -10,37 +10,32 @@ typedef CollegeOsNotification = ({
 
 typedef PendingCollegeOsNotification = ({int id, String? payload});
 
-final class NotificationDiagnostics {
-  const NotificationDiagnostics({
-    required this.permissionEnabled,
-    required this.channelExists,
-    required this.channelEnabled,
-    required this.channelImportance,
-    required this.pendingReminderCount,
-    required this.timezone,
-    required this.androidSdk,
-    required this.batteryOptimizationExempt,
-    required this.exactAlarmAllowed,
-  });
+/// Lowest id of the class-reminder band.
+///
+/// Tasks use their local record id, exams use it negated, attendance is
+/// reserved as zero, and class reminders sit in a band above every realistic
+/// record id, so all four namespaces stay disjoint at any scale.
+const int classReminderNotificationIdBase = 1000000000;
 
-  final bool permissionEnabled;
-  final bool channelExists;
-  final bool channelEnabled;
-  final String channelImportance;
-  final int pendingReminderCount;
-  final String timezone;
-  final int? androidSdk;
-  final bool? batteryOptimizationExempt;
-  final bool? exactAlarmAllowed;
-}
+/// Largest record id any namespace accepts.
+///
+/// Trailing reminders must also stay positive inside Android's signed 32-bit
+/// notification ids, which `classReminderNotificationIdBase * 2` still does.
+const int _maxNotificationEntityId = classReminderNotificationIdBase;
 
 int notificationId(NotificationEntityType type, int entityId) {
-  if (entityId <= 0) throw ArgumentError.value(entityId, 'entityId');
-  if (type == NotificationEntityType.attendance) {
-    if (entityId != 1) throw ArgumentError.value(entityId, 'entityId');
-    return 0; // Tasks are positive and exams negative; zero is reserved.
+  if (entityId <= 0 || entityId > _maxNotificationEntityId) {
+    throw ArgumentError.value(entityId, 'entityId');
   }
-  return type == NotificationEntityType.task ? entityId : -entityId;
+  return switch (type) {
+    NotificationEntityType.attendance => entityId == 1
+        ? 0 // Tasks are positive and exams negative; zero is reserved.
+        : throw ArgumentError.value(entityId, 'entityId'),
+    NotificationEntityType.task => entityId,
+    NotificationEntityType.exam => -entityId,
+    NotificationEntityType.classReminder =>
+      classReminderNotificationIdBase + entityId,
+  };
 }
 
 String notificationPayload(NotificationEntityType type, int entityId) =>
@@ -58,6 +53,7 @@ String notificationPayload(NotificationEntityType type, int entityId) =>
     'task' => NotificationEntityType.task,
     'exam' => NotificationEntityType.exam,
     'attendance' when id == 1 => NotificationEntityType.attendance,
+    'classReminder' => NotificationEntityType.classReminder,
     _ => null,
   };
   return type == null ? null : (type: type, entityId: id);

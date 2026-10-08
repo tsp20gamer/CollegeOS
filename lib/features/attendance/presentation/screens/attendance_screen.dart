@@ -687,8 +687,9 @@ class _CalendarDayCell extends StatelessWidget {
               : const Duration(milliseconds: 160),
           margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
           decoration: BoxDecoration(
+            // Selection is a filled surface, matching the timetable's day pill;
+            // no outline is needed to read it.
             color: selected ? colors.primaryContainer : null,
-            border: selected ? Border.all(color: colors.primary) : null,
             borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
           child: Column(
@@ -774,7 +775,7 @@ class _DayPanel extends StatelessWidget {
                     label: showHolidayAction
                         ? 'Present Day'
                         : 'Mark All Present',
-                    icon: Icons.check_circle_outline_rounded,
+                    icon: Icons.check_rounded,
                     tone: _DayActionTone.present,
                     onTap: day.sessions.isEmpty || isExcluded
                         ? null
@@ -786,7 +787,7 @@ class _DayPanel extends StatelessWidget {
                   child: _DayActionButton(
                     key: const Key('mark_all_absent'),
                     label: showHolidayAction ? 'Absent Day' : 'Mark All Absent',
-                    icon: Icons.cancel_outlined,
+                    icon: Icons.close_rounded,
                     tone: _DayActionTone.absent,
                     onTap: day.sessions.isEmpty || isExcluded
                         ? null
@@ -868,20 +869,15 @@ class _DayActionButton extends StatelessWidget {
       _DayActionTone.absent => colors.error,
       _DayActionTone.holiday => semantic.warning,
     };
-    final background = switch (tone) {
-      _DayActionTone.present => semantic.successContainer,
-      _DayActionTone.absent => colors.errorContainer,
-      _DayActionTone.holiday => semantic.warningContainer,
-    };
     return Semantics(
       button: true,
       enabled: onTap != null,
       label: label,
       child: Material(
-        color: onTap == null
-            ? colors.surfaceContainerHigh.withValues(alpha: .5)
-            : background.withValues(alpha: .72),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        // A quiet neutral control: the state lives in the icon and the label,
+        // not in a large filled block that reads like a radio button.
+        color: colors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(AppRadius.md),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -897,7 +893,7 @@ class _DayActionButton extends StatelessWidget {
                 children: [
                   Icon(
                     icon,
-                    size: 22,
+                    size: 20,
                     color: onTap == null ? colors.outline : foreground,
                   ),
                   const SizedBox(height: AppSpacing.xs),

@@ -1,5 +1,3 @@
-
-
 import 'package:college_os/core/database/daos/pdf_search_dao.dart';
 import 'package:college_os/features/notes/domain/pdf_extraction_service.dart';
 import 'package:college_os/features/subject_files/domain/subject_file_storage_service.dart';
@@ -24,8 +22,12 @@ class PdfIndexingTaskHandler extends TaskHandler {
     debugPrint('PdfIndexingTaskHandler.onStart() in background isolate');
 
     // Extract file details passed via FlutterForegroundTask.saveData
-    final fileIdStr = await FlutterForegroundTask.getData<String>(key: 'pdf_file_id');
-    final filePath = await FlutterForegroundTask.getData<String>(key: 'pdf_file_path');
+    final fileIdStr = await FlutterForegroundTask.getData<String>(
+      key: 'pdf_file_id',
+    );
+    final filePath = await FlutterForegroundTask.getData<String>(
+      key: 'pdf_file_path',
+    );
 
     if (fileIdStr == null || filePath == null) {
       debugPrint('Missing file info, stopping task');
@@ -50,7 +52,7 @@ class PdfIndexingTaskHandler extends TaskHandler {
 
       _extractionService = LocalPdfExtractionService(dao, storageService);
 
-      // We start indexing asynchronously but don't await it here, because onStart 
+      // We start indexing asynchronously but don't await it here, because onStart
       // should return to allow event loops.
       // We will perform the indexing in an unawaited Future.
       _performIndexing();
@@ -68,7 +70,8 @@ class PdfIndexingTaskHandler extends TaskHandler {
         onProgress: (pagesIndexed, totalPages) {
           FlutterForegroundTask.updateService(
             notificationTitle: 'CollegeOS',
-            notificationText: 'Indexing PDF — $pagesIndexed / $totalPages pages',
+            notificationText:
+                'Indexing PDF — $pagesIndexed / $totalPages pages',
           );
           // Send progress back to the main UI isolate
           FlutterForegroundTask.sendDataToMain({
@@ -79,7 +82,7 @@ class PdfIndexingTaskHandler extends TaskHandler {
           });
         },
       );
-      
+
       // Indexing complete
       FlutterForegroundTask.sendDataToMain({
         'event': 'complete',

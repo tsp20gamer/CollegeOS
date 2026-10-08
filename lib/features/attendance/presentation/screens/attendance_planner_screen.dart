@@ -63,7 +63,12 @@ class _AttendancePlannerScreenState
           error: (error, _) => ErrorState(
             title: 'Could not load attendance',
             message: error.toString(),
-            onRetry: () => ref.invalidate(attendanceEngineProvider),
+            onRetry: () {
+              // The subjects provider rethrows whichever upstream failed, so
+              // both have to be invalidated for the retry to reach it.
+              ref.invalidate(activeSemesterProvider);
+              ref.invalidate(attendanceEngineProvider);
+            },
           ),
           data: (values) {
             if (skipDays && (semester.isLoading || snapshot.isLoading)) {
@@ -339,12 +344,15 @@ class _SkipImpactCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final semantic = theme.extension<AppSemanticColors>()!;
+    final projectedColor = plan.overallProjected.isAtOrAboveTarget
+        ? semantic.success
+        : colors.error;
     final overallCurrent = plan.overallCurrent.attendancePercentage ?? 0;
     final overallProjected = plan.overallProjected.attendancePercentage ?? 0;
-    final message = _summaryMessage(plan);
     return Semantics(
       liveRegion: true,
-      label: message,
+      label: plan.summaryMessage,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -369,19 +377,22 @@ class _SkipImpactCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
+                    flex: 3,
                     child: _PercentageRing(
                       label: 'Overall now',
                       value: overallCurrent,
+                      accentColor: plan.overallCurrent.isAtOrAboveTarget
+                          ? semantic.success
+                          : colors.error,
                     ),
                   ),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                  Icon(Icons.arrow_forward_rounded, color: colors.primary),
                   Expanded(
+                    flex: 3,
                     child: _PercentageRing(
                       label: 'After',
                       value: overallProjected,
+                      accentColor: projectedColor,
                     ),
                   ),
                 ],
@@ -389,11 +400,12 @@ class _SkipImpactCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               GradientProgressBar(
                 value: overallProjected / 100,
+                color: projectedColor,
                 semanticLabel:
                     'Overall attendance after planned absences ${overallProjected.toStringAsFixed(1)} percent',
               ),
               const SizedBox(height: AppSpacing.sm),
-              Text(message, style: theme.textTheme.bodyMedium),
+              Text(plan.summaryMessage, style: theme.textTheme.bodyMedium),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 '${plan.skippedClassCount} ${plan.skippedClassCount == 1 ? 'class' : 'classes'} missed  \u2022  '
@@ -435,23 +447,6 @@ class _SkipImpactCard extends StatelessWidget {
       ),
     );
   }
-}
-
-String _summaryMessage(SkipDayPlan plan) {
-  if (!plan.changesAnything) {
-    return 'No unmarked classes fall on these days, so your attendance does not change yet.';
-  }
-  final classes = plan.skippedClassCount;
-  final days = plan.contributingDayCount;
-  final projected = plan.overallProjected;
-  final target = formatTarget(projected.target);
-  final standing = projected.isAtOrAboveTarget
-      ? 'You would stay at or above $target.'
-      : 'You would fall below $target.';
-  return 'Missing $classes ${classes == 1 ? 'class' : 'classes'} over '
-      '$days ${days == 1 ? 'day' : 'days'} leaves overall attendance at '
-      '${formatAttendancePercentage(projected.attendancePercentage)}. '
-      '$standing';
 }
 
 class _SkipSubjectRow extends StatelessWidget {
@@ -685,6 +680,7 @@ class _ProjectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = plan.current.attendancePercentage ?? 0;
     final projected = plan.projected.attendancePercentage ?? 0;
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -700,7 +696,15 @@ class _ProjectionCard extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 Expanded(
-                  child: _PercentageRing(label: 'Projected', value: projected),
+                  child: _PercentageRing(
+                    label: 'Projected',
+                    value: projected,
+                    accentColor:
+                        plan.projected.standing ==
+                            AttendanceStanding.atOrAboveTarget
+                        ? semantic.success
+                        : Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ],
             ),
@@ -718,10 +722,17 @@ class _ProjectionCard extends StatelessWidget {
 }
 
 class _PercentageRing extends StatelessWidget {
-  const _PercentageRing({required this.label, required this.value});
+  const _PercentageRing({
+    required this.label,
+    required this.value,
+    this.accentColor,
+  });
 
   final String label;
   final double value;
+
+  /// Colors the arc and its number by standing; null keeps the theme look.
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -729,6 +740,7 @@ class _PercentageRing extends StatelessWidget {
       GradientProgressRing(
         value: value / 100,
         size: 86,
+        color: accentColor,
         semanticLabel: '$label attendance ${value.toStringAsFixed(1)}%',
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xxs),
@@ -737,9 +749,10 @@ class _PercentageRing extends StatelessWidget {
             child: Text(
               '${value.toStringAsFixed(1)}%',
               maxLines: 1,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: accentColor,
+              ),
             ),
           ),
         ),

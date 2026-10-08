@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('gradient attendance indicators fit a compact phone', (
-    tester,
-  ) async {
+  testWidgets('attendance indicators fit a compact phone', (tester) async {
     tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -43,7 +41,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('78.3%'), findsOneWidget);
-    expect(find.byKey(const Key('gradient_ring_static_glow')), findsOneWidget);
+    expect(find.byKey(const Key('gradient_ring_track')), findsOneWidget);
     expect(find.byKey(const Key('gradient_ring_animated_arc')), findsOneWidget);
     expect(
       find.descendant(

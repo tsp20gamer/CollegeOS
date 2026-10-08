@@ -202,6 +202,20 @@ void main() {
         plan.overallCurrent.heldClasses,
       );
     });
+
+    test('summary explains an empty plan without numbers', () {
+      expect(
+        _plan(const []).summaryMessage,
+        'No unmarked classes fall on these days, so your attendance does not change yet.',
+      );
+    });
+
+    test('summary states the cost and the resulting standing', () {
+      final message = _plan([DateTime(2026, 8, 17)]).summaryMessage;
+      expect(message, contains('Missing 2 classes over 1 day'));
+      expect(message, contains('leaves overall attendance at 66.7%'));
+      expect(message, contains('You would fall below 75%.'));
+    });
   });
 
   group('overall metrics', () {

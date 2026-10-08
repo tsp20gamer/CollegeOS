@@ -1,5 +1,6 @@
 import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/features/attendance/application/attendance_providers.dart';
+import 'package:college_os/features/notifications/application/notification_providers.dart';
 import 'package:college_os/features/subjects/application/subject_providers.dart';
 import 'package:college_os/features/timetable/domain/timetable_repository.dart';
 import 'package:college_os/features/timetable/domain/timetable_services.dart';
@@ -97,22 +98,51 @@ final timetableCommandProvider =
     );
 
 final class TimetableCommandController extends AsyncNotifier<void> {
+  /// True when the student asked for a class reminder and Android refused
+  /// notification permission, so the UI can explain why nothing will arrive.
+  bool reminderPermissionDenied = false;
+
   @override
   Future<void> build() async {}
 
-  Future<bool> create(NewTimetableEntry entry) =>
-      _run(() => ref.read(timetableRepositoryProvider).create(entry));
+  Future<bool> create(NewTimetableEntry entry) => _run(() async {
+    await _ensureReminderDelivery(entry.reminderMinutesBefore);
+    await ref.read(timetableRepositoryProvider).create(entry);
+  });
 
-  Future<bool> createOneDay(NewTimetableEntry entry, DateTime date) => _run(
-    () => ref.read(timetableRepositoryProvider).createOneDay(entry, date),
-  );
+  Future<bool> createOneDay(NewTimetableEntry entry, DateTime date) =>
+      _run(() async {
+        await _ensureReminderDelivery(entry.reminderMinutesBefore);
+        await ref.read(timetableRepositoryProvider).createOneDay(entry, date);
+      });
 
   Future<bool> updateEntry(TimetableEntry entry, {DateTime? effectiveFrom}) =>
-      _run(
-        () => ref
+      _run(() async {
+        await _ensureReminderDelivery(entry.reminderMinutesBefore);
+        await ref
             .read(timetableRepositoryProvider)
-            .update(entry, effectiveFrom: effectiveFrom),
-      );
+            .update(entry, effectiveFrom: effectiveFrom);
+      });
+
+  /// Permission is requested in context, only when the class has a reminder.
+  ///
+  /// The projection itself is reactive: the class reminder provider rebuilds
+  /// from the stored timetable, so a saved reminder is scheduled without a
+  /// second code path that could drift from startup reconciliation. A platform
+  /// failure never blocks the class itself from being saved.
+  Future<void> _ensureReminderDelivery(int? minutesBefore) async {
+    if (minutesBefore == null) {
+      reminderPermissionDenied = false;
+      return;
+    }
+    try {
+      reminderPermissionDenied = !await ref
+          .read(notificationCoordinatorProvider)
+          .ensureEnabledForClassReminder(minutesBefore);
+    } catch (_) {
+      reminderPermissionDenied = true;
+    }
+  }
 
   Future<bool> deleteEntry(int id, {DateTime? effectiveFrom}) => _run(
     () => ref
@@ -120,7 +150,7 @@ final class TimetableCommandController extends AsyncNotifier<void> {
         .delete(id, effectiveFrom: effectiveFrom),
   );
 
-  Future<bool> _run(Future<Object?> Function() action) async {
+  Future<bool> _run(Future<void> Function() action) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(action);
     return !state.hasError;

@@ -12,6 +12,7 @@ import 'package:college_os/features/backup/application/backup_providers.dart';
 import 'package:college_os/features/backup/application/automatic_backup_coordinator.dart';
 import 'package:college_os/features/backup/application/incoming_backup_service.dart';
 import 'package:college_os/core/services/notifications/notification_models.dart';
+import 'package:college_os/features/notifications/application/class_reminder_providers.dart';
 import 'package:college_os/features/notifications/application/notification_providers.dart';
 import 'package:college_os/features/home_widget/application/home_widget_providers.dart';
 import 'package:college_os/features/home_widget/domain/home_widget_projection.dart';
@@ -90,6 +91,10 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
         await _syncAttendanceReminder(
           ref.read(pendingAttendanceReminderProvider),
         );
+        final classReminders = ref.read(pendingClassRemindersProvider);
+        if (classReminders != null) {
+          await _syncClassReminders(classReminders);
+        }
       }
     } catch (_) {
       // Platform notification availability never blocks CollegeOS startup.
@@ -110,6 +115,8 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
         router.push('/settings/exams-marks?examId=${target.entityId}');
       case NotificationEntityType.attendance:
         router.go('/attendance/pending');
+      case NotificationEntityType.classReminder:
+        router.go('/timetable');
     }
   }
 
@@ -143,7 +150,19 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
           .read(notificationCoordinatorProvider)
           .syncAttendanceReminder(reminder);
     } catch (_) {
-      // An OS error must not interrupt attendance entry; diagnostics remain available.
+      // An OS error must not interrupt attendance entry; the next launch
+      // reconciles the projection again.
+    }
+  }
+
+  Future<void> _syncClassReminders(List<CollegeOsNotification> reminders) async {
+    try {
+      await ref
+          .read(notificationCoordinatorProvider)
+          .syncClassReminders(reminders);
+    } catch (_) {
+      // Reminder intent stays in SQLite, so a failed projection is retried on
+      // the next change or launch.
     }
   }
 
@@ -176,6 +195,10 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
   Widget build(BuildContext context) {
     ref.listen(pendingAttendanceReminderProvider, (_, next) {
       unawaited(_syncAttendanceReminder(next));
+    });
+    ref.listen(pendingClassRemindersProvider, (_, next) {
+      if (next == null) return;
+      unawaited(_syncClassReminders(next));
     });
     ref.listen(attendanceUndoProvider, (_, undo) {
       if (undo == null) return;

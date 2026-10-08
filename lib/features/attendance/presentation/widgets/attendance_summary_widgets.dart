@@ -70,7 +70,9 @@ class AttendanceProgressRing extends StatelessWidget {
             GradientProgressRing(
               value: targetValue,
               size: size,
-              strokeWidth: size >= 80 ? 8 : 7,
+              // Thin and light: the number is the point, the ring is context.
+              strokeWidth: size >= 80 ? 5 : 4,
+              color: metrics.hasClasses ? color : null,
               child: const SizedBox.shrink(),
             ),
             AnimatedSwitcher(
@@ -80,9 +82,11 @@ class AttendanceProgressRing extends StatelessWidget {
                     ? '—'
                     : '${metrics.attendancePercentage!.round()}%',
                 key: ValueKey(metrics.attendancePercentage?.round()),
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: color,
+                // Plain theme text, not the status colour: the centre of the
+                // ring shows the value, and the badge below carries the status.
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -191,6 +195,7 @@ class AttendanceSubjectCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             GradientProgressBar(
               value: (view.metrics.attendancePercentage ?? 0) / 100,
+              color: view.metrics.hasClasses ? statusColor : null,
               semanticLabel: '${view.subject.name} attendance',
             ),
           ],

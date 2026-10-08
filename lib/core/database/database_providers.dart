@@ -64,8 +64,9 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
 );
 
 final subjectNoteRepositoryProvider = Provider<SubjectNoteRepository>(
-  (ref) =>
-      DriftSubjectNoteRepository(ref.watch(appDatabaseProvider).subjectNotesDao),
+  (ref) => DriftSubjectNoteRepository(
+    ref.watch(appDatabaseProvider).subjectNotesDao,
+  ),
 );
 
 final subjectFileStorageServiceProvider = Provider<SubjectFileStorageService>(
@@ -78,5 +79,3 @@ final subjectFileRepositoryProvider = Provider<SubjectFileRepository>(
     ref.watch(subjectFileStorageServiceProvider),
   ),
 );
-
-

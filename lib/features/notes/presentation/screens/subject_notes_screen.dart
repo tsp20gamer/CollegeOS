@@ -90,7 +90,8 @@ class _SubjectNotesScreenState extends ConsumerState<SubjectNotesScreen> {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => PdfSearchScreen(subjectId: subject.id),
+                      builder: (context) =>
+                          PdfSearchScreen(subjectId: subject.id),
                     ),
                   );
                 },
@@ -147,7 +148,13 @@ class _SubjectNotesScreenState extends ConsumerState<SubjectNotesScreen> {
               if (_currentTab == _SubjectMaterialTab.notes)
                 _buildNotesSection(context, notesAsync, subject, accent, colors)
               else
-                _buildFilesSection(context, filesAsync, subject, accent, colors),
+                _buildFilesSection(
+                  context,
+                  filesAsync,
+                  subject,
+                  accent,
+                  colors,
+                ),
             ],
           ),
         );
@@ -164,10 +171,8 @@ class _SubjectNotesScreenState extends ConsumerState<SubjectNotesScreen> {
   ) {
     return notesAsync.when(
       loading: () => const LoadingState(label: 'Loading notes...'),
-      error: (error, _) => ErrorState(
-        title: 'Could not load notes',
-        message: error.toString(),
-      ),
+      error: (error, _) =>
+          ErrorState(title: 'Could not load notes', message: error.toString()),
       data: (notes) {
         if (notes.isEmpty) {
           return EmptyState(
@@ -222,10 +227,8 @@ class _SubjectNotesScreenState extends ConsumerState<SubjectNotesScreen> {
   ) {
     return filesAsync.when(
       loading: () => const LoadingState(label: 'Loading files...'),
-      error: (error, _) => ErrorState(
-        title: 'Could not load files',
-        message: error.toString(),
-      ),
+      error: (error, _) =>
+          ErrorState(title: 'Could not load files', message: error.toString()),
       data: (files) {
         if (files.isEmpty) {
           return EmptyState(
@@ -278,7 +281,10 @@ class _SubjectNotesScreenState extends ConsumerState<SubjectNotesScreen> {
     );
   }
 
-  Future<void> _confirmDeleteFile(BuildContext context, SubjectFile file) async {
+  Future<void> _confirmDeleteFile(
+    BuildContext context,
+    SubjectFile file,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -410,10 +416,13 @@ class _FileCard extends StatelessWidget {
     final createdLocal = file.createdAt.toLocal();
     final dateStr = DateFormat('d MMM yyyy • h:mm a').format(createdLocal);
 
-    final (IconData icon, Color iconColor) = switch (file.fileExtension.toLowerCase()) {
+    final (IconData icon, Color iconColor) = switch (file.fileExtension
+        .toLowerCase()) {
       'pdf' => (Icons.picture_as_pdf_rounded, Colors.red.shade600),
       'ppt' || 'pptx' => (Icons.slideshow_rounded, Colors.orange.shade700),
-      'doc' || 'docx' || 'txt' => (Icons.description_rounded, Colors.blue.shade600),
+      'doc' ||
+      'docx' ||
+      'txt' => (Icons.description_rounded, Colors.blue.shade600),
       'png' || 'jpg' || 'jpeg' => (Icons.image_rounded, Colors.purple.shade600),
       _ => (Icons.insert_drive_file_rounded, Colors.grey.shade600),
     };
@@ -445,14 +454,16 @@ class _FileCard extends StatelessWidget {
                       file.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       '${_formatFileSize(file.fileSizeBytes)} • $dateStr',
-                      style: Theme.of(context).textTheme.labelSmall
-                          ?.copyWith(color: colors.onSurfaceVariant),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
                     if (file.title != file.fileName) ...[
                       const SizedBox(height: AppSpacing.xxs),
@@ -460,8 +471,10 @@ class _FileCard extends StatelessWidget {
                         file.fileName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall
-                            ?.copyWith(color: colors.onSurfaceVariant, fontSize: 11),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ],
@@ -489,7 +502,10 @@ class _FileCard extends StatelessWidget {
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(Icons.delete_outline, color: Colors.red),
-                      title: Text('Delete', style: TextStyle(color: Colors.red)),
+                      title: Text(
+                        'Delete',
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ),
                   ),
                 ],

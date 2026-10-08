@@ -29,6 +29,8 @@ final class NotificationCoordinator {
   bool _initialized = false;
   CollegeOsNotification? _attendanceReminder;
   Future<void> _attendanceQueue = Future.value();
+  Map<int, CollegeOsNotification> _classReminders = const {};
+  Future<void> _classQueue = Future.value();
 
   Future<void> syncAttendanceReminder(CollegeOsNotification? reminder) {
     final operation = _attendanceQueue.then((_) async {
@@ -74,6 +76,17 @@ final class NotificationCoordinator {
 
   Future<bool> ensureEnabledForReminder(DateTime? reminderAt) async {
     if (reminderAt == null) return true;
+    return _ensureReminderDelivery();
+  }
+
+  /// Class reminders store a lead time rather than an instant, so this asks for
+  /// permission only when a class actually carries a reminder.
+  Future<bool> ensureEnabledForClassReminder(int? minutesBefore) async {
+    if (minutesBefore == null) return true;
+    return _ensureReminderDelivery();
+  }
+
+  Future<bool> _ensureReminderDelivery() async {
     if ((await _settings.get()).notificationsEnabled &&
         await _platform.notificationsEnabled()) {
       await _requestExactAlarmAccess();
@@ -102,7 +115,50 @@ final class NotificationCoordinator {
   Future<void> disable() async {
     await _saveEnabled(false);
     await _attendanceQueue;
+    await _classQueue;
     await _cancelAllCollegeOsPending();
+  }
+
+  /// Projects each class's reminder into one Android alarm.
+  ///
+  /// [reminders] is the complete desired set for the class namespace, so this
+  /// cancels class alarms that are no longer wanted (a removed class, a
+  /// disabled reminder, a past occurrence) and schedules the rest. Like the
+  /// attendance reminder, calls are serialized and the projection is rebuilt
+  /// whenever the timetable, calendar or clock changes.
+  Future<void> syncClassReminders(List<CollegeOsNotification> reminders) {
+    final operation = _classQueue.then((_) async {
+      final enabled = (await _settings.get()).notificationsEnabled;
+      final desired = <int, CollegeOsNotification>{
+        for (final reminder in enabled ? reminders : const <CollegeOsNotification>[])
+          notificationId(reminder.type, reminder.entityId): reminder,
+      };
+      final stillPending = <int>{};
+      for (final pending in await _platform.pending()) {
+        final parsed = parseNotificationPayload(pending.payload);
+        if (parsed == null ||
+            parsed.type != NotificationEntityType.classReminder) {
+          continue;
+        }
+        final id = notificationId(parsed.type, parsed.entityId);
+        if (desired.containsKey(id)) {
+          stillPending.add(id);
+        } else {
+          await _platform.cancel(parsed.type, parsed.entityId);
+        }
+      }
+      for (final entry in desired.entries) {
+        final unchanged = _classReminders[entry.key] == entry.value;
+        if (unchanged && stillPending.contains(entry.key)) continue;
+        await _platform.schedule(entry.value);
+      }
+      _classReminders = desired;
+    });
+    _classQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
   }
 
   Future<void> syncTask({
@@ -179,12 +235,15 @@ final class NotificationCoordinator {
     }
     for (final pending in await _platform.pending()) {
       final parsed = parseNotificationPayload(pending.payload);
-      if (parsed != null &&
-          (parsed.type != NotificationEntityType.attendance ||
-              !settings.notificationsEnabled) &&
-          !expected.containsKey(pending.id)) {
-        await _platform.cancel(parsed.type, parsed.entityId);
+      if (parsed == null || expected.containsKey(pending.id)) continue;
+      // Class reminders and the attendance reminder keep their own projection
+      // channels, so startup must not sweep them before those syncs run.
+      if (parsed.type == NotificationEntityType.classReminder) continue;
+      if (parsed.type == NotificationEntityType.attendance &&
+          settings.notificationsEnabled) {
+        continue;
       }
+      await _platform.cancel(parsed.type, parsed.entityId);
     }
     for (final notification in expected.values) {
       await _platform.schedule(notification);
@@ -213,6 +272,7 @@ final class NotificationCoordinator {
 
   Future<void> _cancelAllCollegeOsPending() async {
     _attendanceReminder = null;
+    _classReminders = const {};
     for (final pending in await _platform.pending()) {
       final parsed = parseNotificationPayload(pending.payload);
       if (parsed != null) await _platform.cancel(parsed.type, parsed.entityId);

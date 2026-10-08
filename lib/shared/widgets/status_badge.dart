@@ -26,9 +26,10 @@ class StatusBadge extends StatelessWidget {
         vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
-        color: background ?? foreground.withValues(alpha: 0.10),
+        // No outline: the tinted fill alone sets the badge apart from the
+        // surface it sits on.
+        color: background ?? foreground.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: foreground.withValues(alpha: 0.24)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

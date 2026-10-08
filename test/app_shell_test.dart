@@ -4,6 +4,8 @@ import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/core/routing/navigation_shell.dart';
 import 'package:college_os/core/routing/route_names.dart';
 import 'package:college_os/core/theme/animation_tokens.dart';
+import 'package:college_os/core/theme/app_theme.dart';
+import 'package:college_os/core/theme/color_tokens.dart';
 import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
@@ -33,16 +35,40 @@ void main() {
         child: const CollegeOsApp(enableStartupAnimation: false),
       ),
     );
-    await _pumpUntilFound(tester, find.text('Your day, calmly organized.'));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('home_dashboard_ready')),
+    );
 
-    // The floating pill dock is gone, replaced by a real bottom navigation bar.
+    // The dock is one translucent glass strip that floats over the page.
     expect(find.byType(CollegeNavigationBar), findsOneWidget);
     expect(find.byKey(const Key('college-navigation-dock')), findsNothing);
     expect(find.byKey(const Key('navigation_shell_overlay')), findsNothing);
     expect(find.byKey(const Key('floating_navigation_dock')), findsNothing);
-    // The bar keeps its glass blur; only the floating dock's overlay and its
-    // scale animation are gone.
-    expect(find.byType(BackdropFilter), findsOneWidget);
+    final dockSurface = find.byKey(const Key('navigation_bar_surface'));
+    // The dock owns the blur, and it sits inside the dock's own clip so the
+    // rounded edge is not blurred away.
+    expect(
+      find.descendant(of: dockSurface, matching: find.byType(BackdropFilter)),
+      findsOneWidget,
+    );
+    expect(
+      find.byType(BackdropFilter),
+      findsOneWidget,
+      reason: 'the shell chrome carries exactly one blurred surface: the dock',
+    );
+    final barDecoration =
+        tester.widget<DecoratedBox>(dockSurface).decoration as BoxDecoration;
+    expect(
+      barDecoration.color,
+      Theme.of(tester.element(dockSurface)).brightness == Brightness.dark
+          ? const Color(0x14FFFFFF)
+          : const Color(0xBFFFFFFF),
+      reason: 'the dock is translucent, not an opaque bar',
+    );
+    expect(barDecoration.gradient, isNull);
+    expect(barDecoration.border, isNull);
+    expect(barDecoration.boxShadow, hasLength(1));
 
     final navigationScaffold = tester.widget<Scaffold>(
       find.byKey(const Key('navigation_shell_scaffold')),
@@ -59,23 +85,28 @@ void main() {
       findsOneWidget,
     );
 
-    // The bar spans the full width and sits flush with the bottom edge.
+    // The dock floats clear of every screen edge instead of sitting flush.
     final screen = tester.getSize(find.byType(MaterialApp));
-    final barRect = tester.getRect(
-      find.byKey(const Key('navigation_bar_surface')),
-    );
-    // The bar floats just inside the screen edges, above the content.
-    expect(barRect.width, screen.width - AppSpacing.xs * 2);
+    final barRect = tester.getRect(dockSurface);
+    expect(barRect.left, AppSpacing.md);
+    expect(barRect.right, screen.width - AppSpacing.md);
     expect(barRect.bottom, screen.height - AppSpacing.sm);
+    expect(barRect.top, greaterThan(0));
     expect(barRect.height, greaterThanOrEqualTo(AppLayout.navigationBarHeight));
+    // One smooth floating surface, not a pill clamped by the dock's height.
+    expect(_dockRadius(tester), AppRadius.xl);
+    expect(_dockRadius(tester) * 2, lessThan(barRect.height));
 
-    // Scrolled content still clears the bar.
+    // Scrolled content clears the dock *and* the gap it floats above, so the
+    // last row of a screen is never left behind the glass.
     final contentPadding = tester.widget<SliverPadding>(
       find.byKey(const Key('app_scaffold_content_padding')).first,
     );
+    final dockFootprint = barRect.height + (screen.height - barRect.bottom);
     expect(
       (contentPadding.padding as EdgeInsets).bottom,
-      greaterThanOrEqualTo(AppLayout.navigationBarHeight),
+      greaterThanOrEqualTo(dockFootprint + AppSpacing.xxs),
+      reason: 'content must clear the dock plus the gap below it',
     );
 
     // Every destination keeps its label, always.
@@ -106,24 +137,41 @@ void main() {
       colors.primary,
     );
 
-    final cellWidth = barRect.width / CollegeNavigationBar.destinations.length;
-    expect(_indicatorLeft(tester), closeTo(barRect.left + 6, .5));
-
-    // The selected pill is a soft rounded rectangle. A pill radius would clamp
-    // to half the slot width, which is narrower than the bar is tall, and paint
-    // an ellipse at both ends of the bar.
-    final indicatorRect = tester.getRect(
-      find.byKey(const Key('navigation_bar_indicator')),
-    );
-    expect(indicatorRect.height, AppLayout.navigationBarHeight);
-    expect(_indicatorRadius(tester), AppRadius.lg);
+    // Selection is minimal: a cobalt icon and label with a tiny cobalt dot
+    // underneath. No capsule is painted behind the selected destination.
+    expect(find.byKey(const Key('navigation_bar_indicator')), findsNothing);
+    final homeLabel = tester.getRect(find.byKey(const Key('dock_label_Home')));
+    final homeDot = tester.getRect(find.byKey(const Key('dock_dot_Home')));
+    expect(homeDot.width, closeTo(4, .5));
     expect(
-      _indicatorRadius(tester) * 2,
-      lessThan(indicatorRect.height),
-      reason: 'a pill radius would clamp to half the slot width',
+      homeDot.center.dx,
+      closeTo(homeLabel.center.dx, .5),
+      reason: 'the dot sits under its own label',
     );
-    expect(indicatorRect.left, greaterThan(barRect.left));
-    expect(indicatorRect.right, lessThan(barRect.right));
+    expect(homeDot.top, greaterThanOrEqualTo(homeLabel.bottom));
+    expect(homeDot.center.dy, lessThan(barRect.bottom));
+    expect(_activeDotScale(tester, 'Home'), 1.0);
+    expect(_activeDotOpacity(tester, 'Home'), 1.0);
+    for (final destination in CollegeNavigationBar.destinations) {
+      if (destination.label == 'Home') {
+        continue;
+      }
+      expect(
+        _activeDotScale(tester, destination.label),
+        .2,
+        reason: '${destination.label} is not the selected destination',
+      );
+      expect(_activeDotOpacity(tester, destination.label), 0.0);
+      expect(
+        tester
+            .widget<Icon>(
+              find.byKey(ValueKey('dock_icon_${destination.label}_false')),
+            )
+            .color,
+        colors.onSurfaceVariant,
+        reason: 'inactive icons stay muted',
+      );
+    }
 
     // Selecting a destination slides the indicator and runs the short page move.
     await tester.tap(find.byKey(const Key('nav_tasks')));
@@ -136,11 +184,20 @@ void main() {
         .dx;
     expect(pageOffset, greaterThan(0));
     expect(pageOffset, lessThan(.012));
+    // Mid-flight the tapped icon is popped and lifted, while every other
+    // destination stays exactly where it was.
+    expect(_popScale(tester, 'Tasks'), greaterThan(1.0));
+    expect(_iconLift(tester, 'Tasks'), lessThan(0));
+    expect(_popScale(tester, 'Home'), 1.0);
+    expect(_iconLift(tester, 'Home'), 0.0);
     await _pumpFrames(tester);
-    expect(
-      _indicatorLeft(tester),
-      closeTo(barRect.left + 3 * cellWidth + 6, .5),
-    );
+    expect(_popScale(tester, 'Tasks'), 1.0);
+    expect(_iconLift(tester, 'Tasks'), 0.0);
+    expect(_iconRestScale(tester, 'Tasks'), AppMotion.dockSelectedIconScale);
+    expect(_activeDotScale(tester, 'Tasks'), 1.0);
+    expect(_activeDotOpacity(tester, 'Tasks'), 1.0);
+    expect(_activeDotScale(tester, 'Home'), .2);
+    expect(_activeDotOpacity(tester, 'Home'), 0.0);
     expect(
       tester
           .widget<SlideTransition>(find.byKey(const Key('dock_page_motion')))
@@ -148,31 +205,61 @@ void main() {
           .value,
       Offset.zero,
     );
+    // Every destination resolves to the one Electric Cobalt accent.
     expect(
       tester
           .widget<Icon>(find.byKey(const ValueKey('dock_icon_Tasks_true')))
           .color,
-      colors.primary,
+      Theme.of(
+        tester.element(find.byKey(const Key('nav_tasks'))),
+      ).extension<FeatureColors>()!.tasks.accent,
+    );
+    expect(
+      Theme.of(
+        tester.element(find.byKey(const Key('nav_tasks'))),
+      ).extension<FeatureColors>()!.tasks.accent,
+      Theme.of(
+        tester.element(find.byKey(const Key('nav_tasks'))),
+      ).extension<FeatureColors>()!.attendance.accent,
+      reason: 'features share one accent instead of owning colours',
     );
     expect(
       find.text('Assignments and personal work, together.'),
       findsOneWidget,
     );
 
-    // The notes search shortcut belongs to Home and Tasks only, and Scaffold
-    // keeps it clear of the bar without any manual offset.
-    expect(find.byKey(const Key('search_notes_fab')), findsOneWidget);
-    final fabRect = tester.getRect(find.byKey(const Key('search_notes_fab')));
-    expect(fabRect.bottom, lessThanOrEqualTo(barRect.top));
-    expect(fabRect.right, lessThanOrEqualTo(barRect.right));
+    // The notes search shortcut is a header action on Home and Tasks, sitting
+    // immediately before Settings and clear of the dock and of each other.
+    expect(find.byKey(const Key('open_notes_search_button')), findsOneWidget);
+    expect(find.byKey(const Key('search_notes_fab')), findsNothing);
+    final searchRect = tester.getRect(
+      find.byKey(const Key('open_notes_search_button')),
+    );
+    final settingsRect = tester.getRect(
+      find.byKey(const Key('open_settings_button')),
+    );
+    expect(
+      searchRect.overlaps(settingsRect),
+      isFalse,
+      reason: 'the search button sits beside Settings, not on top of it',
+    );
+    expect(
+      searchRect.right,
+      lessThanOrEqualTo(settingsRect.left),
+      reason: 'the header reads [context] [Search] [Settings]',
+    );
+    expect(
+      searchRect.bottom,
+      lessThanOrEqualTo(barRect.top),
+      reason: 'no header control reaches the dock',
+    );
     await tester.tap(find.byKey(const Key('nav_timetable')));
     await _pumpFrames(tester);
     expect(find.text('A practical view of your week.'), findsOneWidget);
-    expect(
-      _indicatorLeft(tester),
-      closeTo(barRect.left + 2 * cellWidth + 6, .5),
-    );
-    expect(find.byKey(const Key('search_notes_fab')), findsNothing);
+    expect(_activeDotScale(tester, 'Timetable'), 1.0);
+    expect(_activeDotOpacity(tester, 'Timetable'), 1.0);
+    expect(_activeDotScale(tester, 'Tasks'), .2);
+    expect(find.byKey(const Key('open_notes_search_button')), findsNothing);
 
     // Settings is reachable from every destination header, and the notes
     // shortcut only appears on the two destinations that asked for it.
@@ -188,7 +275,7 @@ void main() {
           destination.key == const Key('nav_home') ||
           destination.key == const Key('nav_tasks');
       expect(
-        find.byKey(const Key('search_notes_fab')),
+        find.byKey(const Key('open_notes_search_button')),
         wantsShortcut ? findsOneWidget : findsNothing,
         reason: 'notes shortcut on ${destination.label}',
       );
@@ -235,7 +322,7 @@ void main() {
     );
     await _pumpUntilFound(
       tester,
-      find.text('City College of Engineering and Technology'),
+      find.byKey(const Key('home_dashboard_ready')),
     );
 
     await tester.tap(find.byKey(const Key('nav_notes')));
@@ -248,19 +335,14 @@ void main() {
     // The shortcut from Home lands on the same unscoped search screen.
     await tester.tap(find.byKey(const Key('nav_home')));
     await _pumpFrames(tester);
-    await tester.tap(find.byKey(const Key('search_notes_fab')));
+    await tester.tap(find.byKey(const Key('open_notes_search_button')));
     await _pumpFrames(tester);
     expect(find.text('Search PDFs'), findsOneWidget);
     // Search lives under the Notes branch, so the bar stays available.
     expect(find.byType(CollegeNavigationBar), findsOneWidget);
-    final barRect = tester.getRect(
-      find.byKey(const Key('navigation_bar_surface')),
-    );
-    final cellWidth = barRect.width / CollegeNavigationBar.destinations.length;
-    expect(
-      _indicatorLeft(tester),
-      closeTo(barRect.left + 4 * cellWidth + 6, .5),
-    );
+    expect(_activeDotScale(tester, 'Notes'), 1.0);
+    expect(_activeDotOpacity(tester, 'Notes'), 1.0);
+    expect(_activeDotScale(tester, 'Home'), .2);
 
     // Unscoped search must not trigger per-subject indexing work, and must be
     // leavable without the Android back gesture.
@@ -288,20 +370,23 @@ void main() {
     );
 
     await tester.pumpWidget(bar(0));
-    final barRect = tester.getRect(
-      find.byKey(const Key('navigation_bar_surface')),
-    );
-    final slotWidth = barRect.width / CollegeNavigationBar.destinations.length;
-    expect(_indicatorLeft(tester), closeTo(barRect.left + 6, .5));
+    expect(_activeDotScale(tester, 'Home'), 1.0);
+    expect(_activeDotOpacity(tester, 'Home'), 1.0);
 
-    // With animations disabled the indicator lands on the new slot in a single
-    // frame instead of sliding there.
+    // With animations disabled the dot lands on the new destination in a single
+    // frame instead of animating, and the icon never pops.
     await tester.pumpWidget(bar(2));
     await tester.pump();
+    expect(_activeDotScale(tester, 'Timetable'), 1.0);
+    expect(_activeDotOpacity(tester, 'Timetable'), 1.0);
+    expect(_activeDotScale(tester, 'Home'), .2);
+    expect(_activeDotOpacity(tester, 'Home'), 0.0);
     expect(
-      _indicatorLeft(tester),
-      closeTo(barRect.left + 2 * slotWidth + 6, .5),
+      _iconRestScale(tester, 'Timetable'),
+      AppMotion.dockSelectedIconScale,
     );
+    expect(_popScale(tester, 'Timetable'), 1.0);
+    expect(_iconLift(tester, 'Timetable'), 0.0);
 
     final iconScales = tester.widgetList<TweenAnimationBuilder<double>>(
       find.descendant(
@@ -327,8 +412,25 @@ void main() {
       labelStyles.every((style) => style.duration == Duration.zero),
       isTrue,
     );
-    // The glass blur is a static surface, not an animation.
-    expect(find.byType(BackdropFilter), findsOneWidget);
+    // Reduced motion changes none of the glass: the dock keeps its blur and its
+    // hairline rim, and the dot is the only selected-state decoration.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('navigation_bar_surface')),
+        matching: find.byType(BackdropFilter),
+      ),
+      findsOneWidget,
+    );
+    final rimDecoration =
+        tester
+                .widget<DecoratedBox>(
+                  find.byKey(const Key('navigation_bar_rim')),
+                )
+                .decoration
+            as BoxDecoration;
+    expect(rimDecoration.border, isNotNull);
+    expect(rimDecoration.gradient, isNull);
+    expect(rimDecoration.boxShadow, isNull);
   });
 
   testWidgets('labels stay inside the bar at a large text scale', (
@@ -373,26 +475,116 @@ void main() {
       );
     }
   });
+
+  testWidgets('floats as a translucent glass dock in both themes', (
+    tester,
+  ) async {
+    Widget dock(Brightness brightness) => MaterialApp(
+      theme: brightness == Brightness.dark ? AppTheme.dark : AppTheme.light,
+      home: Scaffold(
+        bottomNavigationBar: CollegeNavigationBar(
+          selectedIndex: 0,
+          onSelected: (_) {},
+        ),
+      ),
+    );
+
+    for (final brightness in Brightness.values) {
+      await tester.pumpWidget(dock(brightness));
+      // MaterialApp cross-fades a theme change, so let it land before reading.
+      await tester.pumpAndSettle();
+      final surface = find.byKey(const Key('navigation_bar_surface'));
+      final rendered = Theme.of(tester.element(surface));
+      expect(rendered.brightness, brightness);
+      final decoration =
+          tester.widget<DecoratedBox>(surface).decoration as BoxDecoration;
+
+      // Translucent glass with one soft shadow and no border on the outer box.
+      expect(
+        decoration.color,
+        rendered.brightness == Brightness.dark
+            ? const Color(0x14FFFFFF)
+            : const Color(0xBFFFFFFF),
+      );
+      expect(
+        decoration.color!.a,
+        rendered.brightness == Brightness.dark ? lessThan(.1) : greaterThan(.7),
+        reason: 'dark glass is a light wash, light glass a mostly-white fill',
+      );
+      expect(decoration.gradient, isNull);
+      expect(decoration.border, isNull);
+      expect(decoration.boxShadow, hasLength(1));
+      expect(_dockRadius(tester), AppRadius.xl);
+
+      // The blur belongs to the dock, and the hairline rim is painted above it
+      // so the edge stays crisp.
+      expect(
+        find.descendant(of: surface, matching: find.byType(BackdropFilter)),
+        findsOneWidget,
+      );
+      final rim =
+          tester
+                  .widget<DecoratedBox>(
+                    find.byKey(const Key('navigation_bar_rim')),
+                  )
+                  .decoration
+              as BoxDecoration;
+      expect(rim.border, isNotNull);
+      expect(rim.gradient, isNull);
+
+      // Five equal slots, every label present and inside the dock.
+      final barRect = tester.getRect(surface);
+      for (final destination in CollegeNavigationBar.destinations) {
+        expect(find.byKey(destination.key), findsOneWidget);
+        final label = find.byKey(Key('dock_label_${destination.label}'));
+        expect(label, findsOneWidget);
+        final labelRect = tester.getRect(label);
+        expect(labelRect.left, greaterThanOrEqualTo(barRect.left));
+        expect(labelRect.right, lessThanOrEqualTo(barRect.right));
+      }
+    }
+  });
 }
 
-/// Global left edge of the selected-destination pill.
-double _indicatorLeft(WidgetTester tester) =>
-    tester.getRect(find.byKey(const Key('navigation_bar_indicator'))).left;
-
-/// Corner radius the indicator paints with.
-double _indicatorRadius(WidgetTester tester) {
-  final decoration =
-      tester
-              .widget<DecoratedBox>(
-                find.descendant(
-                  of: find.byKey(const Key('navigation_bar_indicator')),
-                  matching: find.byType(DecoratedBox),
-                ),
-              )
-              .decoration
-          as BoxDecoration;
-  return (decoration.borderRadius! as BorderRadius).topLeft.x;
+/// Corner radius the dock's glass is clipped to.
+double _dockRadius(WidgetTester tester) {
+  final clip = tester.widget<ClipRRect>(
+    find.descendant(
+      of: find.byKey(const Key('navigation_bar_surface')),
+      matching: find.byType(ClipRRect),
+    ),
+  );
+  return (clip.borderRadius as BorderRadius).topLeft.x;
 }
+
+/// Scale the destination's active dot paints with.
+double _activeDotScale(WidgetTester tester, String label) => tester
+    .widget<AnimatedScale>(find.byKey(Key('dock_dot_scale_$label')))
+    .scale;
+
+/// Opacity the destination's active dot paints with.
+double _activeDotOpacity(WidgetTester tester, String label) => tester
+    .widget<AnimatedOpacity>(find.byKey(Key('dock_dot_fade_$label')))
+    .opacity;
+
+/// Scale of a destination icon's tap pop, 1.0 at rest.
+double _popScale(WidgetTester tester, String label) => tester
+    .widget<Transform>(find.byKey(ValueKey('dock_icon_pop_$label')))
+    .transform
+    .getMaxScaleOnAxis();
+
+/// Vertical lift of a destination icon's tap pop, in logical pixels.
+double _iconLift(WidgetTester tester, String label) => tester
+    .widget<Transform>(find.byKey(ValueKey('dock_icon_lift_$label')))
+    .transform
+    .getTranslation()
+    .y;
+
+/// Resting scale of a destination's icon.
+double _iconRestScale(WidgetTester tester, String label) => tester
+    .widget<Transform>(find.byKey(ValueKey('dock_icon_rest_$label')))
+    .transform
+    .getMaxScaleOnAxis();
 
 /// Advances past the selection animation and the Scaffold's FAB segue.
 ///

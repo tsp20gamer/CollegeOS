@@ -45,6 +45,7 @@ void main() {
         endTime: 12 * 60,
         room: ' Lab 4 ',
         note: ' Practical ',
+        reminderMinutesBefore: null,
       ));
       final earlyId = await repository.create((
         semesterId: semesterId,
@@ -54,6 +55,7 @@ void main() {
         endTime: 10 * 60,
         room: 'A-101',
         note: '',
+        reminderMinutesBefore: null,
       ));
 
       final rows = await repository.watchForSemester(semesterId).first;
@@ -71,6 +73,7 @@ void main() {
         endTime: 14 * 60,
         room: 'B-204',
         note: 'Updated',
+        reminderMinutesBefore: null,
       ));
       final updated =
           (await repository.watchForSemester(semesterId).first).last;
@@ -92,6 +95,7 @@ void main() {
         endTime: 9 * 60,
         room: '',
         note: '',
+        reminderMinutesBefore: null,
       )),
       throwsA(anything),
     );
@@ -104,6 +108,7 @@ void main() {
         endTime: 10 * 60,
         room: '',
         note: '',
+        reminderMinutesBefore: null,
       )),
       throwsA(anything),
     );
@@ -127,6 +132,7 @@ void main() {
         endTime: 10 * 60,
         room: 'A-101',
         note: '',
+        reminderMinutesBefore: null,
       ));
       final historicalDate = DateTime(2026, 9, 28);
       await database.attendanceEngineDao.upsertAttendance(
@@ -150,6 +156,7 @@ void main() {
         endTime: 10 * 60,
         room: 'Lab 1',
         note: 'October schedule',
+        reminderMinutesBefore: null,
       ), effectiveFrom: DateTime(2026, 10, 1));
 
       final versions = await database.timetableDao
@@ -201,6 +208,7 @@ void main() {
       endTime: 15 * 60,
       room: 'Extra Lab',
       note: 'One-day workshop',
+      reminderMinutesBefore: null,
     ), date);
 
     final onDate = await repository
@@ -227,5 +235,93 @@ void main() {
         (await database.timetableDao.watchForSemester(semesterId).first).single;
     expect(stored.effectiveFrom, date);
     expect(stored.effectiveUntil, date);
+  });
+
+  test('stores a class reminder and carries it across schedule versions', () async {
+    final id = await repository.create((
+      semesterId: semesterId,
+      subjectId: subjectId,
+      weekday: DateTime.monday,
+      startTime: 9 * 60,
+      endTime: 10 * 60,
+      room: 'A-101',
+      note: '',
+      reminderMinutesBefore: 45,
+    ));
+    expect(
+      (await repository.watchForSemester(semesterId).first).single
+          .reminderMinutesBefore,
+      45,
+      reason: 'a custom 45-minute lead time round-trips',
+    );
+
+    // A schedule change from a later date creates a new version of the class,
+    // which must carry the reminder forward instead of dropping it.
+    await repository.update(
+      (
+        id: id,
+        semesterId: semesterId,
+        subjectId: subjectId,
+        weekday: DateTime.monday,
+        startTime: 9 * 60,
+        endTime: 10 * 60,
+        room: 'B-204',
+        note: '',
+        reminderMinutesBefore: 45,
+      ),
+      effectiveFrom: DateTime(2026, 10, 1),
+    );
+    final versions = await database.timetableDao
+        .watchForSemester(semesterId)
+        .first;
+    expect(versions, hasLength(2));
+    expect(
+      versions.map((row) => row.reminderMinutesBefore),
+      everyElement(45),
+      reason: 'both the historical and the current version keep the reminder',
+    );
+
+    // Clearing the reminder is a normal value, not a special case.
+    final current = versions.singleWhere(
+      (row) => row.effectiveFrom == DateTime(2026, 10, 1),
+    );
+    await repository.update(
+      (
+        id: current.id,
+        semesterId: current.semesterId,
+        subjectId: current.subjectId,
+        weekday: current.weekday,
+        startTime: current.startTime,
+        endTime: current.endTime,
+        room: current.room,
+        note: current.note,
+        reminderMinutesBefore: null,
+      ),
+      effectiveFrom: DateTime(2026, 10, 5),
+    );
+    expect(
+      (await repository
+              .watchForSemester(semesterId, effectiveOn: DateTime(2026, 10, 6))
+              .first)
+          .single
+          .reminderMinutesBefore,
+      equals(null),
+    );
+
+    // The database enforces the same range the form does.
+    expect(
+      () => repository.create((
+        semesterId: semesterId,
+        subjectId: subjectId,
+        weekday: DateTime.tuesday,
+        startTime: 9 * 60,
+        endTime: 10 * 60,
+        room: '',
+        note: '',
+        reminderMinutesBefore: 20000,
+      )),
+      throwsA(anything),
+      reason: 'a lead time beyond seven days is rejected by the schema',
+    );
   });
 }

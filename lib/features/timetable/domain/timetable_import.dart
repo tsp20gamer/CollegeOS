@@ -222,32 +222,29 @@ final class TimetableCsvParser {
                       entry.startTime == row.startTime &&
                       entry.endTime == row.endTime,
                 ));
+        // Only the times matter here, so both sources are reduced to one slot
+        // shape instead of sharing the full timetable record.
+        final occupiedSlots = <({int start, int end})>[
+          ...existingEntries
+              .where((entry) => entry.weekday == row.weekday)
+              .map((entry) => (start: entry.startTime, end: entry.endTime)),
+          ...candidates
+              .where(
+                (candidate) =>
+                    candidate.willImport &&
+                    candidate.row.weekday == row.weekday,
+              )
+              .map(
+                (candidate) => (
+                  start: candidate.row.startTime,
+                  end: candidate.row.endTime,
+                ),
+              ),
+        ];
         final overlap =
             !duplicate &&
-            [
-              ...existingEntries.where((entry) => entry.weekday == row.weekday),
-              ...candidates
-                  .where(
-                    (candidate) =>
-                        candidate.willImport &&
-                        candidate.row.weekday == row.weekday,
-                  )
-                  .map(
-                    (candidate) => (
-                      id: -candidate.row.line,
-                      semesterId: 0,
-                      subjectId: candidate.matchedSubjectId ?? 0,
-                      weekday: candidate.row.weekday,
-                      startTime: candidate.row.startTime,
-                      endTime: candidate.row.endTime,
-                      room: candidate.row.room,
-                      note: candidate.row.note,
-                    ),
-                  ),
-            ].any(
-              (entry) =>
-                  row.startTime < entry.endTime &&
-                  row.endTime > entry.startTime,
+            occupiedSlots.any(
+              (slot) => row.startTime < slot.end && row.endTime > slot.start,
             );
         candidates.add(
           TimetableImportCandidate(

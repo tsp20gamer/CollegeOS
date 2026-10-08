@@ -39,7 +39,7 @@ void main() {
         try {
           await _pumpUntilFound(
             tester,
-            find.text('City College of Engineering and Technology'),
+            find.byKey(const Key('home_dashboard_ready')),
           );
           _expectNoLayoutFailure(tester, 'Home at ${width.toInt()}dp');
           for (final destination in [
@@ -125,7 +125,7 @@ void main() {
       try {
         await _pumpUntilFound(
           tester,
-          find.text('City College of Engineering and Technology'),
+          find.byKey(const Key('home_dashboard_ready')),
         );
         GoRouter.of(
           tester.element(find.byKey(const Key('nav_home'))),

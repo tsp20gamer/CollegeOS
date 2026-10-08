@@ -1,6 +1,5 @@
 import 'dart:io';
 
-
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/subject_files/application/subject_files_providers.dart';
@@ -88,7 +87,9 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
     super.initState();
     _fileName = widget.initialFileName;
     _filePath = widget.initialFilePath;
-    final defaultTitle = _fileName != null ? p.basenameWithoutExtension(_fileName!) : '';
+    final defaultTitle = _fileName != null
+        ? p.basenameWithoutExtension(_fileName!)
+        : '';
     _titleController = TextEditingController(text: defaultTitle);
   }
 
@@ -167,7 +168,12 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
                       ),
                       child: Row(
                         children: [
-                          _buildFileIcon(p.extension(_fileName!).replaceFirst('.', '').toLowerCase()),
+                          _buildFileIcon(
+                            p
+                                .extension(_fileName!)
+                                .replaceFirst('.', '')
+                                .toLowerCase(),
+                          ),
                           const SizedBox(width: AppSpacing.md),
                           Expanded(
                             child: Column(
@@ -182,9 +188,13 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
                                 ),
                                 const SizedBox(height: AppSpacing.xxs),
                                 Text(
-                                  _formatFileSize(File(_filePath!).lengthSync()),
+                                  _formatFileSize(
+                                    File(_filePath!).lengthSync(),
+                                  ),
                                   style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(color: colors.onSurfaceVariant),
+                                      ?.copyWith(
+                                        color: colors.onSurfaceVariant,
+                                      ),
                                 ),
                               ],
                             ),
@@ -262,7 +272,9 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Save to Subject'),
-                    onPressed: command.isLoading || _filePath == null ? null : _save,
+                    onPressed: command.isLoading || _filePath == null
+                        ? null
+                        : _save,
                   ),
                 ],
               ),
@@ -310,7 +322,9 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate() || _filePath == null || _fileName == null) {
+    if (!_formKey.currentState!.validate() ||
+        _filePath == null ||
+        _fileName == null) {
       return;
     }
 
@@ -333,7 +347,9 @@ class _UploadFileSheetState extends ConsumerState<UploadFileSheet> {
     final (IconData icon, Color color) = switch (ext) {
       'pdf' => (Icons.picture_as_pdf_rounded, Colors.red.shade600),
       'ppt' || 'pptx' => (Icons.slideshow_rounded, Colors.orange.shade700),
-      'doc' || 'docx' || 'txt' => (Icons.description_rounded, Colors.blue.shade600),
+      'doc' ||
+      'docx' ||
+      'txt' => (Icons.description_rounded, Colors.blue.shade600),
       'png' || 'jpg' || 'jpeg' => (Icons.image_rounded, Colors.purple.shade600),
       _ => (Icons.insert_drive_file_rounded, Colors.grey.shade600),
     };

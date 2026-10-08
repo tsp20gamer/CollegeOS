@@ -94,7 +94,10 @@ void main() {
           child: const CollegeOsApp(enableStartupAnimation: false),
         ),
       );
-      await _pumpUntilFound(tester, find.text('Your day, calmly organized.'));
+      await _pumpUntilFound(
+        tester,
+        find.byKey(const Key('home_dashboard_ready')),
+      );
       await tester.tap(find.byKey(const Key('open_settings_button')));
       // Settings arrives as a pushed route now, so wait for its list to exist
       // before scrolling it.

@@ -75,8 +75,8 @@ final aiSearchServiceProvider = FutureProvider<AiSearchService>((ref) async {
 /// rather than overwriting newer state).
 final aiSearchControllerProvider =
     NotifierProvider<AiSearchController, AiNoteSearchStatus>(
-  AiSearchController.new,
-);
+      AiSearchController.new,
+    );
 
 class AiSearchController extends Notifier<AiNoteSearchStatus> {
   /// Cap on cached answers. Small on purpose: Phase 1 answers independent
@@ -155,8 +155,8 @@ class AiSearchController extends Notifier<AiNoteSearchStatus> {
 
       final service = await ref.read(aiSearchServiceProvider.future);
       final result = await service.ask(
-            AiSearchRequest(question: trimmed, contexts: contexts),
-          );
+        AiSearchRequest(question: trimmed, contexts: contexts),
+      );
 
       if (token != _requestToken) return; // superseded while waiting
 
@@ -177,12 +177,11 @@ class AiSearchController extends Notifier<AiNoteSearchStatus> {
     List<int>? allowedFileIds,
   ) async {
     try {
-      final contexts =
-          await ref.read(pdfContextRepositoryProvider).retrieveContext(question);
+      final contexts = await ref
+          .read(pdfContextRepositoryProvider)
+          .retrieveContext(question);
       if (allowedFileIds == null) return contexts;
-      return contexts
-          .where((c) => allowedFileIds.contains(c.fileId))
-          .toList();
+      return contexts.where((c) => allowedFileIds.contains(c.fileId)).toList();
     } catch (_) {
       return const [];
     }
@@ -198,22 +197,22 @@ class AiSearchController extends Notifier<AiNoteSearchStatus> {
 
     final (AiNoteSearchPhase phase, String? message) = switch (result.failure) {
       AiFailure.offline => (
-          AiNoteSearchPhase.offline,
-          result.answer.isNotEmpty
-              ? result.answer
-              : 'AI search needs an internet connection.',
-        ),
+        AiNoteSearchPhase.offline,
+        result.answer.isNotEmpty
+            ? result.answer
+            : 'AI search needs an internet connection.',
+      ),
       AiFailure.notConfigured ||
       AiFailure.timeout ||
       AiFailure.rateLimited ||
       AiFailure.unauthorized ||
       AiFailure.server ||
       AiFailure.malformedResponse => (
-          AiNoteSearchPhase.apiError,
-          result.answer.isNotEmpty
-              ? result.answer
-              : 'AI search is unavailable right now.',
-        ),
+        AiNoteSearchPhase.apiError,
+        result.answer.isNotEmpty
+            ? result.answer
+            : 'AI search is unavailable right now.',
+      ),
       AiFailure.noContext => (AiNoteSearchPhase.noContext, notFoundMessage),
       AiFailure.none =>
         // An answer that cites nothing and admits it is not grounded is the

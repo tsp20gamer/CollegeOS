@@ -163,7 +163,7 @@ final class LocalPdfExtractionService implements PdfExtractionService {
 
   final PdfSearchDao _dao;
   final SubjectFileStorageService _storageService;
-  
+
   /// Whether to attempt parallel extraction using exactly 2 isolates.
   /// Falls back to single isolate if system resources (e.g. processor count)
   /// are highly constrained.
@@ -366,7 +366,10 @@ final class LocalPdfExtractionService implements PdfExtractionService {
             lastIndexedPage = lastPageAttempted;
             pagesIndexed = pagesExtracted;
             if (onProgress != null) {
-              onProgress(lastIndexedPage, totalPages == 0 ? lastPageAttempted : totalPages);
+              onProgress(
+                lastIndexedPage,
+                totalPages == 0 ? lastPageAttempted : totalPages,
+              );
             }
             debugPrint(
               'PdfIndex[$fileId] $lastPageAttempted/$totalPages pages '
@@ -766,7 +769,8 @@ final class LocalPdfExtractionService implements PdfExtractionService {
         receivePorts[i].listen((msg) {
           if (msg is SendPort) {
             sendPorts.add(msg);
-            if (sendPorts.length == numWorkers && !sendPortsCompleter.isCompleted) {
+            if (sendPorts.length == numWorkers &&
+                !sendPortsCompleter.isCompleted) {
               sendPortsCompleter.complete();
             }
           } else if (msg is Map && msg['type'] == 'error') {
@@ -783,7 +787,7 @@ final class LocalPdfExtractionService implements PdfExtractionService {
       if (outcome.isCompleted) throw Exception(await outcome.future);
 
       // Ask worker 0 for the document page count
-      
+
       sendPorts[0].send({
         'type': 'getPageCount',
         'replyTo': pageCountPort.sendPort,
@@ -920,7 +924,10 @@ final class LocalPdfExtractionService implements PdfExtractionService {
               lastIndexedPage = batchEnd;
               nextBatchToWrite = batchEnd;
               if (onProgress != null) {
-                onProgress(lastIndexedPage, pageCount == 0 ? batchEnd : pageCount);
+                onProgress(
+                  lastIndexedPage,
+                  pageCount == 0 ? batchEnd : pageCount,
+                );
               }
             }
 

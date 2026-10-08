@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:college_os/core/theme/animation_tokens.dart';
 import 'package:college_os/core/theme/color_tokens.dart';
-import 'package:college_os/core/theme/effects.dart';
 import 'package:flutter/material.dart';
 
 class GradientProgressRing extends StatelessWidget {
@@ -10,8 +9,9 @@ class GradientProgressRing extends StatelessWidget {
     required this.value,
     required this.child,
     this.size = 72,
-    this.strokeWidth = 8,
+    this.strokeWidth = 5,
     this.semanticLabel,
+    this.color,
     super.key,
   });
 
@@ -20,6 +20,10 @@ class GradientProgressRing extends StatelessWidget {
   final double size;
   final double strokeWidth;
   final String? semanticLabel;
+
+  /// Draws the arc in this color instead of the default cobalt fill,
+  /// letting callers match a status or a feature's signature hue.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -35,15 +39,14 @@ class GradientProgressRing extends StatelessWidget {
             children: [
               RepaintBoundary(
                 child: CustomPaint(
-                  key: const Key('gradient_ring_static_glow'),
+                  key: const Key('gradient_ring_track'),
                   isComplex: true,
                   willChange: false,
-                  painter: _GradientRingGlowPainter(
-                    value: value.clamp(0, 1),
+                  painter: _GradientRingTrackPainter(
                     strokeWidth: strokeWidth,
                     trackColor: Theme.of(
                       context,
-                    ).colorScheme.outlineVariant.withValues(alpha: .28),
+                    ).colorScheme.outlineVariant.withValues(alpha: .55),
                   ),
                 ),
               ),
@@ -57,6 +60,7 @@ class GradientProgressRing extends StatelessWidget {
                   painter: _GradientRingPainter(
                     value: animatedValue,
                     strokeWidth: strokeWidth,
+                    color: color,
                   ),
                 ),
               ),
@@ -70,22 +74,25 @@ class GradientProgressRing extends StatelessWidget {
 }
 
 class _GradientRingPainter extends CustomPainter {
-  const _GradientRingPainter({required this.value, required this.strokeWidth});
+  const _GradientRingPainter({
+    required this.value,
+    required this.strokeWidth,
+    required this.color,
+  });
 
   final double value;
   final double strokeWidth;
+  final Color? color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final radius = (size.shortestSide - strokeWidth) / 2;
     final bounds = Rect.fromCircle(center: center, radius: radius);
+    // Use a solid cobalt fill (or caller-provided color) — no multi-color sweep.
+    final fillColor = color ?? AppColors.cobalt;
     final progress = Paint()
-      ..shader = const SweepGradient(
-        colors: [AppColors.violet, AppColors.blue, AppColors.violet],
-        stops: [0, .65, 1],
-        transform: GradientRotation(-math.pi / 2),
-      ).createShader(bounds)
+      ..color = fillColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
@@ -102,17 +109,22 @@ class _GradientRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GradientRingPainter oldDelegate) =>
-      value != oldDelegate.value || strokeWidth != oldDelegate.strokeWidth;
+      value != oldDelegate.value ||
+      strokeWidth != oldDelegate.strokeWidth ||
+      color != oldDelegate.color;
 }
 
-class _GradientRingGlowPainter extends CustomPainter {
-  const _GradientRingGlowPainter({
-    required this.value,
+/// The quiet track behind the arc.
+///
+/// It used to carry a blurred halo as well; the halo is gone, because a glow
+/// around a progress ring is exactly the decoration this design system removes.
+/// What remains is a single low-contrast circle.
+class _GradientRingTrackPainter extends CustomPainter {
+  const _GradientRingTrackPainter({
     required this.strokeWidth,
     required this.trackColor,
   });
 
-  final double value;
   final double strokeWidth;
   final Color trackColor;
 
@@ -120,34 +132,15 @@ class _GradientRingGlowPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final radius = (size.shortestSide - strokeWidth) / 2;
-    final bounds = Rect.fromCircle(center: center, radius: radius);
     final track = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
     canvas.drawCircle(center, radius, track);
-    if (value <= 0) return;
-
-    final glow = Paint()
-      ..shader = SweepGradient(
-        colors: [
-          AppColors.violet.withValues(alpha: .50),
-          AppColors.blue.withValues(alpha: .50),
-          AppColors.violet.withValues(alpha: .50),
-        ],
-        stops: const [0, .65, 1],
-        transform: const GradientRotation(-math.pi / 2),
-      ).createShader(bounds)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth + 1.5
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-    canvas.drawArc(bounds, -math.pi / 2, math.pi * 2 * value, false, glow);
   }
 
   @override
-  bool shouldRepaint(covariant _GradientRingGlowPainter oldDelegate) =>
-      value != oldDelegate.value ||
+  bool shouldRepaint(covariant _GradientRingTrackPainter oldDelegate) =>
       strokeWidth != oldDelegate.strokeWidth ||
       trackColor != oldDelegate.trackColor;
 }
@@ -157,6 +150,7 @@ class GradientProgressBar extends StatelessWidget {
     required this.value,
     this.height = 7,
     this.semanticLabel,
+    this.color,
     super.key,
   });
 
@@ -164,9 +158,14 @@ class GradientProgressBar extends StatelessWidget {
   final double height;
   final String? semanticLabel;
 
+  /// Fills the bar with this color instead of the default cobalt,
+  /// for status- or feature-tinted progress.
+  final Color? color;
+
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final fillColor = color ?? AppColors.cobalt;
     return Semantics(
       label: semanticLabel,
       value: '${(value.clamp(0, 1) * 100).round()}%',
@@ -181,7 +180,7 @@ class GradientProgressBar extends StatelessWidget {
                 ColoredBox(
                   color: Theme.of(
                     context,
-                  ).colorScheme.outlineVariant.withValues(alpha: .25),
+                  ).colorScheme.outlineVariant.withValues(alpha: .22),
                 ),
                 Align(
                   alignment: Alignment.centerLeft,
@@ -191,9 +190,7 @@ class GradientProgressBar extends StatelessWidget {
                         : AppDurations.medium,
                     curve: AppCurves.standard,
                     width: constraints.maxWidth * value.clamp(0, 1),
-                    decoration: const BoxDecoration(
-                      gradient: AppGradients.primary,
-                    ),
+                    color: fillColor,
                   ),
                 ),
               ],

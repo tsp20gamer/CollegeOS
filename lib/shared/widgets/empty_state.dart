@@ -9,6 +9,7 @@ class EmptyState extends StatelessWidget {
     required this.title,
     required this.message,
     this.action,
+    this.accentColor,
     super.key,
   });
 
@@ -17,9 +18,21 @@ class EmptyState extends StatelessWidget {
   final String message;
   final Widget? action;
 
+  /// Tints the icon container toward a feature's signature hue instead of
+  /// the shared primary container, so each area's empty state reads as its
+  /// own. Both the accent and the container should come from the same
+  /// [FeaturePalette].
+  final Color? accentColor;
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final containerColor = accentColor == null
+        ? colors.primaryContainer
+        : Color.alphaBlend(
+            accentColor!.withValues(alpha: .16),
+            colors.surfaceContainerLow,
+          );
     return Semantics(
       container: true,
       child: Center(
@@ -34,11 +47,15 @@ class EmptyState extends StatelessWidget {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    color: colors.primaryContainer,
+                    color: containerColor,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   alignment: Alignment.center,
-                  child: Icon(icon, color: colors.onPrimaryContainer, size: 30),
+                  child: Icon(
+                    icon,
+                    color: accentColor ?? colors.onPrimaryContainer,
+                    size: 30,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(title, style: Theme.of(context).textTheme.titleLarge),

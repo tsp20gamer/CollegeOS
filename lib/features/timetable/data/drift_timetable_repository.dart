@@ -38,6 +38,7 @@ final class DriftTimetableRepository implements TimetableRepository {
         endTime: entry.endTime,
         room: Value(entry.room.trim()),
         note: Value(entry.note.trim()),
+        reminderMinutesBefore: Value(entry.reminderMinutesBefore),
         effectiveFrom: Value(semesterStart),
       ),
     );
@@ -55,6 +56,7 @@ final class DriftTimetableRepository implements TimetableRepository {
         endTime: entry.endTime,
         room: Value(entry.room.trim()),
         note: Value(entry.note.trim()),
+        reminderMinutesBefore: Value(entry.reminderMinutesBefore),
         effectiveFrom: Value(day),
         effectiveUntil: Value(day),
       ),
@@ -73,6 +75,7 @@ final class DriftTimetableRepository implements TimetableRepository {
         endTime: entry.endTime,
         room: Value(entry.room.trim()),
         note: Value(entry.note.trim()),
+        reminderMinutesBefore: Value(entry.reminderMinutesBefore),
       ),
       effectiveFrom ?? DateTime.now(),
     );
@@ -91,5 +94,6 @@ final class DriftTimetableRepository implements TimetableRepository {
     endTime: row.endTime,
     room: row.room,
     note: row.note,
+    reminderMinutesBefore: row.reminderMinutesBefore,
   );
 }

@@ -1,6 +1,5 @@
 import 'package:college_os/core/database/database_enums.dart';
 import 'package:college_os/core/routing/route_names.dart';
-import 'package:college_os/core/services/notifications/notification_models.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/spacing.dart';
@@ -147,7 +146,7 @@ class SettingsScreen extends ConsumerWidget {
                           subtitle: Text(
                             current.notificationsEnabled
                                 ? 'On • Tap to send a test notification'
-                                : 'Off • Task and exam reminders are paused',
+                                : 'Off • Task, exam and class reminders are paused',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -396,76 +395,6 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.secondaryContainer.withValues(alpha: .45),
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.science_outlined, size: 20),
-                        SizedBox(width: AppSpacing.xs),
-                        Expanded(
-                          child: Text(
-                            'Temporary diagnostics • remove after notification testing is complete.',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  ref
-                      .watch(notificationDiagnosticsProvider)
-                      .when(
-                        loading: () => const Card(
-                          child: Padding(
-                            padding: EdgeInsets.all(AppSpacing.md),
-                            child: Center(child: CircularProgressIndicator()),
-                          ),
-                        ),
-                        error: (error, _) => Card(
-                          child: ListTile(
-                            leading: const Icon(Icons.error_outline_rounded),
-                            title: const Text('Could not read Android status'),
-                            subtitle: Text('$error'),
-                            trailing: IconButton(
-                              tooltip: 'Retry',
-                              onPressed: () => ref.invalidate(
-                                notificationDiagnosticsProvider,
-                              ),
-                              icon: const Icon(Icons.refresh_rounded),
-                            ),
-                          ),
-                        ),
-                        data: (diagnostics) => _NotificationDiagnosticsCard(
-                          diagnostics: diagnostics,
-                          collegeOsEnabled: enabled == true,
-                          onRefresh: () =>
-                              ref.invalidate(notificationDiagnosticsProvider),
-                          onRequestExactAlarm: () async {
-                            final allowed = await ref
-                                .read(notificationPlatformProvider)
-                                .requestExactAlarmPermission();
-                            ref.invalidate(notificationDiagnosticsProvider);
-                            if (sheetContext.mounted) {
-                              _message(
-                                sheetContext,
-                                allowed
-                                    ? 'Precise reminders are enabled.'
-                                    : 'Allow Alarms & reminders in Android Settings for precise delivery.',
-                              );
-                            }
-                          },
-                          onOpenBatterySettings: () => ref
-                              .read(notificationPlatformProvider)
-                              .openBatterySettings(),
-                        ),
-                      ),
-                  const SizedBox(height: AppSpacing.md),
                   FilledButton.icon(
                     key: const Key('send_test_notification'),
                     onPressed: operation.isLoading
@@ -477,7 +406,6 @@ class SettingsScreen extends ConsumerWidget {
                                       .notifier,
                                 )
                                 .sendTest();
-                            ref.invalidate(notificationDiagnosticsProvider);
                             if (!sheetContext.mounted) return;
                             _message(
                               sheetContext,
@@ -516,7 +444,7 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Task, exam, and pending-attendance reminders stay on this device. Attendance reminders arrive 15 minutes after the last class, skip holidays, and refresh when you use CollegeOS. Only the next eligible day is scheduled. Precise alarm access improves delivery while the phone is idle.',
+                    'Task, exam, class and pending-attendance reminders stay on this device. A class reminder is projected for its next occurrence and skips holidays, closures and cancelled classes. Attendance reminders arrive 15 minutes after the last class, and only the next eligible day is scheduled. Reminders refresh when you use CollegeOS, and precise alarm access improves delivery while the phone is idle.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -782,173 +710,6 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _NotificationDiagnosticsCard extends StatelessWidget {
-  const _NotificationDiagnosticsCard({
-    required this.diagnostics,
-    required this.collegeOsEnabled,
-    required this.onRefresh,
-    required this.onRequestExactAlarm,
-    required this.onOpenBatterySettings,
-  });
-
-  final NotificationDiagnostics diagnostics;
-  final bool collegeOsEnabled;
-  final VoidCallback onRefresh;
-  final VoidCallback onRequestExactAlarm;
-  final VoidCallback onOpenBatterySettings;
-
-  @override
-  Widget build(BuildContext context) {
-    final healthy =
-        collegeOsEnabled &&
-        diagnostics.permissionEnabled &&
-        diagnostics.channelEnabled;
-    return Card(
-      key: const Key('notification_diagnostics_card'),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          ListTile(
-            leading: Icon(
-              healthy ? Icons.check_circle_rounded : Icons.warning_rounded,
-              color: healthy
-                  ? const Color(0xFF12A66A)
-                  : Theme.of(context).colorScheme.error,
-            ),
-            title: Text(
-              healthy
-                  ? 'Delivery path is ready'
-                  : 'Delivery path needs attention',
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            subtitle: Text(
-              healthy
-                  ? 'Android permission and the CollegeOS channel are enabled.'
-                  : 'Review the failed status below before testing again.',
-            ),
-            trailing: IconButton(
-              tooltip: 'Refresh diagnostics',
-              onPressed: onRefresh,
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ),
-          const Divider(height: 1),
-          _DiagnosticRow(
-            label: 'CollegeOS setting',
-            value: collegeOsEnabled ? 'Enabled' : 'Disabled',
-            good: collegeOsEnabled,
-          ),
-          _DiagnosticRow(
-            label: 'Android permission',
-            value: diagnostics.permissionEnabled ? 'Allowed' : 'Blocked',
-            good: diagnostics.permissionEnabled,
-          ),
-          _DiagnosticRow(
-            label: 'Reminder channel',
-            value: diagnostics.channelExists
-                ? '${diagnostics.channelImportance} importance'
-                : 'Missing',
-            good: diagnostics.channelEnabled,
-          ),
-          _DiagnosticRow(
-            label: 'Pending reminders',
-            value: '${diagnostics.pendingReminderCount}',
-          ),
-          _DiagnosticRow(label: 'Local timezone', value: diagnostics.timezone),
-          _DiagnosticRow(
-            label: 'Battery access',
-            value: switch (diagnostics.batteryOptimizationExempt) {
-              true => 'Unrestricted',
-              false => 'Optimized (may delay)',
-              null => 'Unavailable',
-            },
-            good: diagnostics.batteryOptimizationExempt,
-          ),
-          _DiagnosticRow(
-            label: 'Precise reminders',
-            value: switch (diagnostics.exactAlarmAllowed) {
-              true => 'Allowed',
-              false => 'Needs access',
-              null => 'Unavailable',
-            },
-            good: diagnostics.exactAlarmAllowed,
-          ),
-          if (diagnostics.androidSdk != null)
-            _DiagnosticRow(
-              label: 'Android API',
-              value: '${diagnostics.androidSdk}',
-            ),
-          if (diagnostics.exactAlarmAllowed == false) ...[
-            const Divider(height: 1),
-            ListTile(
-              key: const Key('enable_precise_reminders'),
-              leading: const Icon(Icons.alarm_on_rounded),
-              title: const Text('Enable precise reminders'),
-              subtitle: const Text(
-                'Allow CollegeOS under Android’s Alarms & reminders access.',
-              ),
-              trailing: const Icon(Icons.open_in_new_rounded),
-              onTap: onRequestExactAlarm,
-            ),
-          ],
-          if (diagnostics.batteryOptimizationExempt == false) ...[
-            const Divider(height: 1),
-            ListTile(
-              key: const Key('open_notification_battery_settings'),
-              leading: const Icon(Icons.battery_saver_outlined),
-              title: const Text('Review battery restrictions'),
-              subtitle: const Text(
-                'Set CollegeOS to unrestricted if your phone delays reminders.',
-              ),
-              trailing: const Icon(Icons.open_in_new_rounded),
-              onTap: onOpenBatterySettings,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _DiagnosticRow extends StatelessWidget {
-  const _DiagnosticRow({required this.label, required this.value, this.good});
-
-  final String label;
-  final String value;
-  final bool? good;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(
-      horizontal: AppSpacing.md,
-      vertical: AppSpacing.xs,
-    ),
-    child: Row(
-      children: [
-        Expanded(child: Text(label)),
-        const SizedBox(width: AppSpacing.sm),
-        if (good != null) ...[
-          Icon(
-            good! ? Icons.check_rounded : Icons.close_rounded,
-            size: 18,
-            color: good!
-                ? const Color(0xFF12A66A)
-                : Theme.of(context).colorScheme.error,
-          ),
-          const SizedBox(width: AppSpacing.xxs),
-        ],
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.end,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
 class _AccessibilityStatusRow extends StatelessWidget {
   const _AccessibilityStatusRow({
     required this.icon,
@@ -1197,7 +958,12 @@ class _BrandIcon extends StatelessWidget {
     width: size,
     height: size,
     decoration: BoxDecoration(
-      color: const Color(0xFF07163A),
+      // Deep brand tint instead of a hardcoded navy, so the logo plate
+      // follows the theme.
+      color: Color.alphaBlend(
+        Colors.black.withValues(alpha: .55),
+        Theme.of(context).colorScheme.primary,
+      ),
       borderRadius: BorderRadius.circular(AppRadius.sm),
     ),
     child: Padding(

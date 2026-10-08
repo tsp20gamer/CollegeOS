@@ -1,45 +1,32 @@
 import 'package:flutter/animation.dart';
-import 'package:flutter/physics.dart';
 
 abstract final class AppDurations {
   static const fast = Duration(milliseconds: 150);
   static const medium = Duration(milliseconds: 250);
   static const slow = Duration(milliseconds: 400);
 
-  /// Duration for the dock indicator's spring-driven slide.
+  /// Duration of the dock icon's selection pop.
   ///
-  /// Slightly longer than [medium] so the overshoot has room to settle,
-  /// but the perceived speed is faster because the spring reaches 90 %
-  /// of the target in about 180 ms.
-  static const dockSpring = Duration(milliseconds: 500);
+  /// Long enough for the rise-and-settle to read as one motion, short enough
+  /// that the icon is back at rest while the page is still moving.
+  static const dockSelection = Duration(milliseconds: 240);
 
-  /// Duration for the icon bounce after a dock tap.
-  static const dockBounce = Duration(milliseconds: 450);
+  /// Duration for the dock's active indicator dot.
+  static const dockDot = Duration(milliseconds: 150);
 
-  /// Duration for the label slide up/down.
-  static const dockLabel = Duration(milliseconds: 300);
+  /// Duration the timetable day pill takes to glide between day slots.
+  ///
+  /// Slightly longer than the dock's pop: the pill travels a real distance, so
+  /// it needs the extra time to read as one continuous slide.
+  static const dayPillGlide = Duration(milliseconds: 260);
+
+  /// Duration for a day change's content cross-fade.
+  static const dayContent = Duration(milliseconds: 220);
 }
 
 abstract final class AppCurves {
   static const standard = Curves.easeOutCubic;
   static const emphasized = Curves.easeInOutCubicEmphasized;
-
-  /// A spring curve for the dock indicator and similar bouncy motions.
-  ///
-  /// The parameters give a visible overshoot (~8 %) that settles quickly,
-  /// which reads as responsive without feeling jittery.
-  static const dockSpring = _SpringCurve(
-    mass: 1.0,
-    stiffness: 280,
-    damping: 18,
-  );
-
-  /// A snappier spring for the icon bounce.
-  static const dockBounce = _SpringCurve(
-    mass: 0.8,
-    stiffness: 400,
-    damping: 12,
-  );
 
   /// A gentle deceleration for the dock hide/show.
   static const dockReveal = Curves.easeOutQuart;
@@ -50,12 +37,20 @@ abstract final class AppMotion {
   static const routeSlideFraction = 0.035;
   static const routeStartScale = 0.985;
 
-  /// How much the selected icon scales up.
-  static const dockSelectedIconScale = 1.08;
+  /// Resting scale of the selected dock icon.
+  ///
+  /// A touch stronger than its neighbours: selection reads from the cobalt
+  /// glyph, the cobalt label and the dot underneath it, never from a capsule.
+  static const dockSelectedIconScale = 1.04;
 
-  /// How far the icon bounces up (in logical pixels) when tapped.
-  /// Set to 0 to disable vertical bounce (scale-only transition).
-  static const dockBounceOffset = 0.0;
+  /// Peak of the icon's selection pop, before it settles back.
+  static const dockIconPeakScale = 1.10;
+
+  /// Scale the pop passes through on the way down.
+  static const dockIconPopScale = 1.04;
+
+  /// How far the icon lifts during the pop, in logical pixels.
+  static const dockIconLift = 2.5;
 
   /// Fraction of horizontal slide for page transition on tab switch.
   static const dockPageSlideFraction = .018;
@@ -63,34 +58,6 @@ abstract final class AppMotion {
   /// Opacity the outgoing page fades to during a tab switch.
   static const dockPageFadeOutOpacity = 0.6;
 
-  /// How much the indicator stretches wider while moving between tabs.
-  static const dockIndicatorStretchFactor = 1.15;
-}
-
-/// A [Curve] backed by a [SpringSimulation] for physically motivated motion.
-///
-/// Unlike the canned cubic curves, a spring gives a natural overshoot that
-/// settles precisely at the target, producing the "snappy dock" feel without
-/// requiring manual keyframe tuning.
-class _SpringCurve extends Curve {
-  const _SpringCurve({
-    required this.mass,
-    required this.stiffness,
-    required this.damping,
-  });
-
-  final double mass;
-  final double stiffness;
-  final double damping;
-
-  @override
-  double transformInternal(double t) {
-    final sim = SpringSimulation(
-      SpringDescription(mass: mass, stiffness: stiffness, damping: damping),
-      0, // start
-      1, // end
-      0, // initial velocity
-    );
-    return sim.x(t);
-  }
+  /// Fraction of horizontal travel for the timetable day content.
+  static const dayContentSlide = 0.02;
 }

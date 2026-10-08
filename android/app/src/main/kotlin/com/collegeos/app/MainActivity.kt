@@ -1,13 +1,11 @@
 package com.collegeos.app
 
 import android.Manifest
-import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.os.PowerManager
 import android.provider.OpenableColumns
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
@@ -45,11 +43,9 @@ class MainActivity : FlutterActivity() {
                         startActivity(intent)
                         result.success(null)
                     }
-                    "getNotificationDiagnostics" -> {
-                        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+                    "getNotificationStatus" -> {
                         val notificationManager =
                             getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-                        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
                         val channelId = call.argument<String>("channelId")
                         val appNotificationsEnabled = notificationManager.areNotificationsEnabled()
                         val postPermissionGranted =
@@ -67,31 +63,11 @@ class MainActivity : FlutterActivity() {
                             } else {
                                 true
                             }
-                        val exactAlarmAllowed =
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                alarmManager.canScheduleExactAlarms()
-                            } else {
-                                true
-                            }
                         result.success(mapOf(
-                            "sdkInt" to Build.VERSION.SDK_INT,
-                            "batteryOptimizationExempt" to powerManager.isIgnoringBatteryOptimizations(packageName),
                             "postPermissionGranted" to postPermissionGranted,
                             "appNotificationsEnabled" to appNotificationsEnabled,
                             "channelEnabled" to channelEnabled,
-                            "exactAlarmAllowed" to exactAlarmAllowed,
                         ))
-                    }
-                    "openBatterySettings" -> {
-                        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                        try {
-                            startActivity(intent)
-                        } catch (_: Exception) {
-                            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.parse("package:$packageName")
-                            })
-                        }
-                        result.success(null)
                     }
                     else -> result.notImplemented()
                 }

@@ -1,7 +1,6 @@
 import 'package:college_os/core/routing/route_names.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/core/theme/dimensions.dart';
-import 'package:college_os/core/theme/effects.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,8 +11,10 @@ class AppScaffold extends StatelessWidget {
     required this.child,
     this.actions = const [],
     this.autoLeading = true,
+    this.showSearchAction = false,
     this.showSettingsAction = false,
     this.onSettingsPressed,
+    this.onSearchPressed,
     super.key,
   });
 
@@ -37,10 +38,28 @@ class AppScaffold extends StatelessWidget {
   /// Overrides what the Settings action does. Defaults to pushing `/settings`.
   final VoidCallback? onSettingsPressed;
 
-  /// The header's right-hand controls: this screen's own actions, then the
-  /// Settings action, which is the far right so it stays put between tabs.
+  /// Adds the notes/PDF search action to the header, immediately before
+  /// Settings.
+  ///
+  /// Search lives under the Notes branch, so this navigates there instead of
+  /// pushing a screen over the shell: the bottom bar stays available, exactly
+  /// as it did when this shortcut was a floating button above the bar.
+  final bool showSearchAction;
+
+  /// Overrides what the search action does.
+  final VoidCallback? onSearchPressed;
+
+  /// The header's right-hand controls: this screen's own actions, then search,
+  /// then Settings, which stays far right so it does not move between tabs.
   List<Widget> trailingActions(BuildContext context) => [
     ...actions,
+    if (showSearchAction)
+      IconButton(
+        key: const Key('open_notes_search_button'),
+        tooltip: 'Search notes',
+        onPressed: onSearchPressed ?? () => context.go(RoutePaths.notesSearch),
+        icon: const Icon(Icons.search_rounded),
+      ),
     if (showSettingsAction)
       IconButton(
         key: const Key('open_settings_button'),
@@ -97,16 +116,7 @@ class AppScaffold extends StatelessWidget {
                                     style: Theme.of(context)
                                         .textTheme
                                         .headlineMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w800,
-                                          shadows: AppGlows.text(
-                                            strength:
-                                                Theme.of(context).brightness ==
-                                                    Brightness.dark
-                                                ? .70
-                                                : .34,
-                                          ),
-                                        ),
+                                        ?.copyWith(fontWeight: FontWeight.w800),
                                   ),
                                 ),
                                 const SizedBox(height: AppSpacing.xxs),

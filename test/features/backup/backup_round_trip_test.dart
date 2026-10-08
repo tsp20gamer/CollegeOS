@@ -241,6 +241,55 @@ void main() {
     expect(prepared.data.calendarEvents, isEmpty);
   });
 
+  test('schema-v13 backups default class reminders to none', () async {
+    final backup = await service.create('1.0.0+1');
+    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final data =
+        jsonDecode(utf8.decode(archive.find('data.json')!.content))
+            as Map<String, dynamic>;
+    expect(
+      (data['timetable'] as List<dynamic>).single['reminderMinutesBefore'],
+      45,
+      reason: 'a saved class reminder is part of the archive',
+    );
+    for (final entry in data['timetable'] as List<dynamic>) {
+      (entry as Map<String, dynamic>).remove('reminderMinutesBefore');
+    }
+    final legacy = _replaceDataAndHash(
+      backup.bytes,
+      data,
+      databaseSchemaVersion: 13,
+    );
+
+    final prepared = service.inspect(
+      bytes: legacy,
+      sourceName: 'schema_v13.collegeos',
+    );
+
+    expect(prepared.data.timetable.single.reminderMinutesBefore, null);
+  });
+
+  test('rejects a class reminder lead time outside the schema range', () async {
+    final backup = await service.create('1.0.0+1');
+    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final data =
+        jsonDecode(utf8.decode(archive.find('data.json')!.content))
+            as Map<String, dynamic>;
+    (data['timetable'] as List<dynamic>).single['reminderMinutesBefore'] = 99999;
+    final changed = _replaceDataAndHash(backup.bytes, data);
+
+    expect(
+      () => service.inspect(bytes: changed, sourceName: 'reminder.collegeos'),
+      throwsA(
+        isA<BackupException>().having(
+          (error) => error.code,
+          'code',
+          'invalid_relationships',
+        ),
+      ),
+    );
+  });
+
   test('rejects broken relationships before restore', () async {
     final backup = await service.create('1.0.0+1');
     final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
@@ -378,6 +427,7 @@ Future<void> _seedCompleteDatabase(AppDatabase database) async {
           endTime: 600,
           room: 'Lab 2',
           note: 'Bring laptop',
+          reminderMinutesBefore: 45,
           effectiveFrom: DateTime(2026, 8, 1),
           effectiveUntil: DateTime(2026, 9, 30),
         ),

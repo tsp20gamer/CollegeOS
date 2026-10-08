@@ -2,10 +2,12 @@ import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/features/notes/domain/subject_note_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final subjectNotesProvider =
-    StreamProvider.family<List<SubjectNote>, int>((ref, subjectId) {
-      return ref.watch(subjectNoteRepositoryProvider).watchBySubject(subjectId);
-    });
+final subjectNotesProvider = StreamProvider.family<List<SubjectNote>, int>((
+  ref,
+  subjectId,
+) {
+  return ref.watch(subjectNoteRepositoryProvider).watchBySubject(subjectId);
+});
 
 final noteCommandProvider = AsyncNotifierProvider<NoteCommandController, void>(
   NoteCommandController.new,

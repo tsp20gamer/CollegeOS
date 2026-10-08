@@ -6,8 +6,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
-final class AndroidNotificationPlatform
-    implements NotificationPlatform, NotificationDiagnosticsPlatform {
+final class AndroidNotificationPlatform implements NotificationPlatform {
   AndroidNotificationPlatform({FlutterLocalNotificationsPlugin? plugin})
     : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
@@ -68,7 +67,7 @@ final class AndroidNotificationPlatform
           AndroidFlutterLocalNotificationsPlugin
         >();
     if (android == null) return true;
-    final native = await _nativeDiagnostics();
+    final native = await _nativeStatus();
     final permissionEnabled =
         native.postPermissionGranted ??
         native.appNotificationsEnabled ??
@@ -119,12 +118,6 @@ final class AndroidNotificationPlatform
   }
 
   @override
-  Future<void> openBatterySettings() async {
-    await _ensureInitialized();
-    await _settingsChannel.invokeMethod('openBatterySettings');
-  }
-
-  @override
   Future<void> showTestNotification() async {
     await _ensureInitialized();
     await _plugin.cancel(id: _testNotificationId);
@@ -170,60 +163,27 @@ final class AndroidNotificationPlatform
         .toList(growable: false);
   }
 
-  @override
-  Future<NotificationDiagnostics> diagnostics() async {
-    await _ensureInitialized();
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    final native = await _nativeDiagnostics();
-    final permissionEnabled =
-        native.postPermissionGranted ??
-        native.appNotificationsEnabled ??
-        await android?.areNotificationsEnabled() ??
-        true;
-    final channels = await android?.getNotificationChannels();
-    final reminderChannel = channels
-        ?.where((channel) => channel.id == _channelId)
-        .firstOrNull;
-    return NotificationDiagnostics(
-      permissionEnabled: permissionEnabled,
-      channelExists: reminderChannel != null,
-      channelEnabled:
-          native.channelEnabled ??
-          (reminderChannel != null &&
-              reminderChannel.importance != Importance.none),
-      channelImportance: _importanceLabel(reminderChannel?.importance),
-      pendingReminderCount: (await pending()).length,
-      timezone: tz.local.name,
-      androidSdk: native.sdkInt,
-      batteryOptimizationExempt: native.batteryOptimizationExempt,
-      exactAlarmAllowed:
-          native.exactAlarmAllowed ??
-          (await android?.canScheduleExactNotifications()),
-    );
-  }
-
-  Future<_NativeNotificationDiagnostics> _nativeDiagnostics() async {
+  /// Reads Android's own permission and channel state.
+  ///
+  /// This is the bridge [notificationsEnabled] relies on: an OEM
+  /// aggregate-permission probe can report `false` after the user has already
+  /// granted the visible Android permission, so the native values win when they
+  /// are available.
+  Future<_NativeNotificationStatus> _nativeStatus() async {
     try {
       final result = await _settingsChannel.invokeMapMethod<String, Object?>(
-        'getNotificationDiagnostics',
+        'getNotificationStatus',
         <String, String>{'channelId': _channelId},
       );
-      return _NativeNotificationDiagnostics(
-        sdkInt: result?['sdkInt'] as int?,
-        batteryOptimizationExempt:
-            result?['batteryOptimizationExempt'] as bool?,
+      return _NativeNotificationStatus(
         postPermissionGranted: result?['postPermissionGranted'] as bool?,
         appNotificationsEnabled: result?['appNotificationsEnabled'] as bool?,
         channelEnabled: result?['channelEnabled'] as bool?,
-        exactAlarmAllowed: result?['exactAlarmAllowed'] as bool?,
       );
     } on PlatformException {
-      return const _NativeNotificationDiagnostics();
+      return const _NativeNotificationStatus();
     } on MissingPluginException {
-      return const _NativeNotificationDiagnostics();
+      return const _NativeNotificationStatus();
     }
   }
 
@@ -273,33 +233,16 @@ final class AndroidNotificationPlatform
   }
 }
 
-final class _NativeNotificationDiagnostics {
-  const _NativeNotificationDiagnostics({
-    this.sdkInt,
-    this.batteryOptimizationExempt,
+final class _NativeNotificationStatus {
+  const _NativeNotificationStatus({
     this.postPermissionGranted,
     this.appNotificationsEnabled,
     this.channelEnabled,
-    this.exactAlarmAllowed,
   });
 
-  final int? sdkInt;
-  final bool? batteryOptimizationExempt;
   final bool? postPermissionGranted;
   final bool? appNotificationsEnabled;
   final bool? channelEnabled;
-  final bool? exactAlarmAllowed;
 }
-
-String _importanceLabel(Importance? importance) => switch (importance) {
-  Importance.max => 'Maximum',
-  Importance.high => 'High',
-  Importance.defaultImportance => 'Default',
-  Importance.low => 'Low',
-  Importance.min => 'Minimum',
-  Importance.none => 'Blocked',
-  null => 'Missing',
-  _ => importance.name,
-};
 
 void _ignoreTap(String _) {}

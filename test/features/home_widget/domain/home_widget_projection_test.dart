@@ -118,6 +118,7 @@ TimetableEntry _entry() => (
   endTime: 630,
   room: 'A-201',
   note: '',
+  reminderMinutesBefore: null,
 );
 
 ProjectedClassSession _session(

@@ -1,4 +1,5 @@
 import 'package:college_os/core/theme/spacing.dart';
+import 'package:college_os/features/notifications/domain/class_reminder_preset.dart';
 import 'package:college_os/features/subjects/domain/subject_repository.dart';
 import 'package:college_os/features/timetable/application/timetable_providers.dart';
 import 'package:college_os/features/timetable/domain/timetable_repository.dart';
@@ -45,6 +46,7 @@ class _TimetableEntryFormSheetState
   late int _startTime;
   late int _endTime;
   late DateTime _effectiveFrom;
+  int? _reminderMinutesBefore;
 
   bool get _isEditing => widget.entry != null;
   bool get _isOneDay => widget.oneDayDate != null;
@@ -68,6 +70,7 @@ class _TimetableEntryFormSheetState
       text: source?.room.isNotEmpty == true ? source!.room : subject.room,
     );
     _noteController = TextEditingController(text: source?.note ?? '');
+    _reminderMinutesBefore = source?.reminderMinutesBefore;
   }
 
   @override
@@ -210,6 +213,27 @@ class _TimetableEntryFormSheetState
                     prefixIcon: Icon(Icons.location_on_outlined),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<ClassReminderPreset>(
+                  key: const Key('timetable_reminder_field'),
+                  initialValue: inferClassReminderPreset(_reminderMinutesBefore),
+                  decoration: InputDecoration(
+                    labelText: 'Reminder',
+                    prefixIcon: const Icon(
+                      Icons.notifications_active_outlined,
+                    ),
+                    helperText: _reminderHelper(),
+                    helperMaxLines: 2,
+                  ),
+                  items: [
+                    for (final preset in ClassReminderPreset.values)
+                      DropdownMenuItem(
+                        value: preset,
+                        child: Text(preset.label),
+                      ),
+                  ],
+                  onChanged: command.isLoading ? null : _onReminderChanged,
+                ),
                 if (_isEditing) ...[
                   const SizedBox(height: AppSpacing.md),
                   ListTile(
@@ -334,6 +358,7 @@ class _TimetableEntryFormSheetState
       endTime: _endTime,
       room: room,
       note: note,
+      reminderMinutesBefore: _reminderMinutesBefore,
     );
     final success = existing == null
         ? _isOneDay
@@ -348,15 +373,168 @@ class _TimetableEntryFormSheetState
             endTime: _endTime,
             room: room,
             note: note,
+            reminderMinutesBefore: _reminderMinutesBefore,
           ), effectiveFrom: _effectiveFrom);
     if (!mounted) return;
     if (success) {
+      if (controller.reminderPermissionDenied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Class saved, but Android notifications are not enabled.',
+            ),
+          ),
+        );
+      }
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not save this class.')),
       );
     }
+  }
+
+  /// Lead time in words, resolved against this class's own start time.
+  String _reminderHelper() {
+    final minutes = _reminderMinutesBefore;
+    if (minutes == null) return 'No reminder for this class';
+    final displayMinutes = _startTime == 1440 ? 0 : _startTime;
+    final start = MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay(
+        hour: displayMinutes ~/ 60,
+        minute: displayMinutes % 60,
+      ),
+    );
+    return '${formatClassReminderLead(minutes)} a $start class';
+  }
+
+  Future<void> _onReminderChanged(ClassReminderPreset? preset) async {
+    if (preset == null) return;
+    if (preset == ClassReminderPreset.off) {
+      setState(() => _reminderMinutesBefore = null);
+      return;
+    }
+    if (preset != ClassReminderPreset.custom) {
+      setState(() => _reminderMinutesBefore = preset.minutesBefore);
+      return;
+    }
+    final custom = await _pickCustomLead();
+    if (custom == null || !mounted) return;
+    setState(() => _reminderMinutesBefore = custom);
+  }
+
+  /// The custom time setter: any lead time in hours and minutes before class.
+  Future<int?> _pickCustomLead() async {
+    final initial = _reminderMinutesBefore ?? 15;
+    var hours = initial ~/ 60;
+    var minutes = initial % 60;
+    // The stored value is always selectable, so opening Custom can never round
+    // an existing reminder away.
+    final hourOptions = <int>{
+      for (var value = 0; value <= 12; value++) value,
+      hours,
+    }.toList()..sort();
+    final minuteOptions = <int>{
+      for (var value = 0; value < 60; value += 5) value,
+      minutes,
+    }.toList()..sort();
+    return showModalBottomSheet<int>(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          final total = hours * 60 + minutes;
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.xl,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Custom reminder',
+                    style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Choose how long before the class CollegeOS should remind you.',
+                    style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          key: const Key('timetable_reminder_hours_field'),
+                          initialValue: hours,
+                          decoration: const InputDecoration(
+                            labelText: 'Hours',
+                          ),
+                          items: [
+                            for (final value in hourOptions)
+                              DropdownMenuItem(
+                                value: value,
+                                child: Text('$value'),
+                              ),
+                          ],
+                          onChanged: (value) =>
+                              setSheetState(() => hours = value ?? hours),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          key: const Key('timetable_reminder_minutes_field'),
+                          initialValue: minutes,
+                          decoration: const InputDecoration(
+                            labelText: 'Minutes',
+                          ),
+                          items: [
+                            for (final value in minuteOptions)
+                              DropdownMenuItem(
+                                value: value,
+                                child: Text('$value'),
+                              ),
+                          ],
+                          onChanged: (value) =>
+                              setSheetState(() => minutes = value ?? minutes),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Reminds you ${formatClassReminderLead(hours * 60 + minutes)}.',
+                    key: const Key('timetable_reminder_preview'),
+                    style: Theme.of(sheetContext).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(sheetContext).colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  FilledButton(
+                    key: const Key('save_custom_reminder_button'),
+                    onPressed: () => Navigator.pop(sheetContext, total),
+                    child: const Text('Set reminder'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _pickEffectiveDate() async {

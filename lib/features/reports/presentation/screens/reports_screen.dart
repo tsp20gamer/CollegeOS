@@ -409,7 +409,7 @@ class _AnalyticsSummary extends StatelessWidget {
                       key: const Key('analytics_overall_ring'),
                       value: (percentage ?? 0) / 100,
                       size: ringSize,
-                      strokeWidth: 11,
+                      strokeWidth: 6,
                       semanticLabel: percentage == null
                           ? 'No overall attendance percentage'
                           : '${percentage.toStringAsFixed(1)}% overall attendance',
@@ -419,9 +419,11 @@ class _AnalyticsSummary extends StatelessWidget {
                             : '${percentage.toStringAsFixed(1)}%',
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
-                              color: AppColors.blue,
-                              fontWeight: FontWeight.w900,
-                              shadows: AppGlows.text(strength: .9),
+                              color: colors.primary,
+                              fontWeight: FontWeight.w800,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
                             ),
                       ),
                     ),
@@ -433,10 +435,7 @@ class _AnalyticsSummary extends StatelessWidget {
                           Text(
                             'Overall',
                             style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  shadows: AppGlows.text(strength: .40),
-                                ),
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
@@ -646,9 +645,8 @@ class _TrendBar extends StatelessWidget {
           Text(
             percentage == null ? '—' : '${percentage.round()}%',
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: percentage == null ? null : AppColors.blue,
+              color: percentage == null ? null : AppColors.cobalt,
               fontWeight: FontWeight.w800,
-              shadows: percentage == null ? null : AppGlows.text(strength: .45),
             ),
           ),
           const SizedBox(height: AppSpacing.xs),

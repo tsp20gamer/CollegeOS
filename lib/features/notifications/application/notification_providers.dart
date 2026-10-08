@@ -42,15 +42,6 @@ final notificationCoordinatorProvider = Provider<NotificationCoordinator>(
   ),
 );
 
-final notificationDiagnosticsProvider =
-    FutureProvider.autoDispose<NotificationDiagnostics>((ref) async {
-      final platform = ref.watch(notificationPlatformProvider);
-      if (platform case final NotificationDiagnosticsPlatform diagnostics) {
-        return diagnostics.diagnostics();
-      }
-      throw UnsupportedError('Notification diagnostics are unavailable.');
-    });
-
 final notificationPermissionControllerProvider =
     AsyncNotifierProvider<NotificationPermissionController, void>(
       NotificationPermissionController.new,

@@ -163,6 +163,7 @@ TimetableEntry _entry({
   endTime: end,
   room: 'A-1',
   note: '',
+  reminderMinutesBefore: null,
 );
 
 ScheduledClass _scheduled({

@@ -56,19 +56,6 @@ final class PlannedSkipDay {
       state == AttendanceDayState.collegeClosed;
 
   bool get isOutsideSemester => state == AttendanceDayState.outsideSemester;
-
-  /// Subjects skipped on this date, in timetable order, with their counts.
-  List<({Subject subject, int classes})> get subjectCounts {
-    final counts = <int, ({Subject subject, int classes})>{};
-    for (final session in skippableSessions) {
-      final existing = counts[session.subject.id];
-      counts[session.subject.id] = (
-        subject: session.subject,
-        classes: (existing?.classes ?? 0) + 1,
-      );
-    }
-    return List.unmodifiable(counts.values);
-  }
 }
 
 /// How a planned skip changes one subject.
@@ -120,6 +107,25 @@ final class SkipDayPlan {
   double get overallPercentagePointChange =>
       (overallProjected.attendancePercentage ?? 0) -
       (overallCurrent.attendancePercentage ?? 0);
+
+  /// The one-sentence outcome the impact card shows and announces.
+  String get summaryMessage {
+    if (!changesAnything) {
+      return 'No unmarked classes fall on these days, so your attendance does not change yet.';
+    }
+    final classes = skippedClassCount;
+    final days = contributingDayCount;
+    final projected = overallProjected;
+    final target = '${(projected.target * 100).toStringAsFixed(0)}%';
+    final standing = projected.isAtOrAboveTarget
+        ? 'You would stay at or above $target.'
+        : 'You would fall below $target.';
+    final percentage = projected.attendancePercentage;
+    return 'Missing $classes ${classes == 1 ? 'class' : 'classes'} over '
+        '$days ${days == 1 ? 'day' : 'days'} leaves overall attendance at '
+        "${percentage == null ? '—' : '${percentage.toStringAsFixed(1)}%'}. "
+        '$standing';
+  }
 }
 
 abstract final class AttendancePlannerService {

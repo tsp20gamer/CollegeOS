@@ -26,6 +26,7 @@ class SubjectNotesDao extends DatabaseAccessor<AppDatabase>
   Future<int> deleteById(int id) =>
       (delete(subjectNotes)..where((row) => row.id.equals(id))).go();
 
-  Future<List<SubjectNoteRow>> getAllForBackup() =>
-      (select(subjectNotes)..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
+  Future<List<SubjectNoteRow>> getAllForBackup() => (select(
+    subjectNotes,
+  )..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
 }

@@ -1,6 +1,7 @@
 import 'package:college_os/core/database/app_database.dart';
 import 'package:college_os/core/database/database_enums.dart';
 import 'package:college_os/features/backup/domain/backup_models.dart';
+import 'package:college_os/features/notifications/domain/class_reminder_preset.dart';
 
 final class BackupDataSnapshot {
   const BackupDataSnapshot({
@@ -119,6 +120,7 @@ final class BackupDataSnapshot {
           'endTime': row.endTime,
           'room': row.room,
           'note': row.note,
+          'reminderMinutesBefore': row.reminderMinutesBefore,
           'effectiveFrom': row.effectiveFrom == null
               ? null
               : _date(row.effectiveFrom!),
@@ -355,6 +357,12 @@ final class BackupDataSnapshot {
             endTime: _integer(row, 'endTime'),
             room: _string(row, 'room'),
             note: _string(row, 'note'),
+            // Reminder intent was added in schema v14; older archives simply
+            // restore the class without one.
+            reminderMinutesBefore: _nullableInteger(
+              row,
+              'reminderMinutesBefore',
+            ),
             effectiveFrom: _nullableLocalDate(row, 'effectiveFrom'),
             effectiveUntil: _nullableLocalDate(row, 'effectiveUntil'),
           );
@@ -536,39 +544,39 @@ final class BackupDataSnapshot {
         .toList(growable: false);
     final notes = root.containsKey('notes')
         ? _list(root, 'notes')
-            .map((value) {
-              final row = _map(value, 'note');
-              return SubjectNoteRow(
-                id: _integer(row, 'id'),
-                subjectId: _integer(row, 'subjectId'),
-                semesterId: _integer(row, 'semesterId'),
-                title: _string(row, 'title'),
-                body: _string(row, 'body'),
-                createdAt: _utcInstant(row, 'createdAt'),
-                updatedAt: _utcInstant(row, 'updatedAt'),
-              );
-            })
-            .toList(growable: false)
+              .map((value) {
+                final row = _map(value, 'note');
+                return SubjectNoteRow(
+                  id: _integer(row, 'id'),
+                  subjectId: _integer(row, 'subjectId'),
+                  semesterId: _integer(row, 'semesterId'),
+                  title: _string(row, 'title'),
+                  body: _string(row, 'body'),
+                  createdAt: _utcInstant(row, 'createdAt'),
+                  updatedAt: _utcInstant(row, 'updatedAt'),
+                );
+              })
+              .toList(growable: false)
         : const <SubjectNoteRow>[];
     final subjectFiles = root.containsKey('subjectFiles')
         ? _list(root, 'subjectFiles')
-            .map((value) {
-              final row = _map(value, 'subjectFile');
-              return SubjectFileRow(
-                id: _integer(row, 'id'),
-                subjectId: _integer(row, 'subjectId'),
-                semesterId: _integer(row, 'semesterId'),
-                title: _string(row, 'title'),
-                fileName: _string(row, 'fileName'),
-                fileExtension: _string(row, 'fileExtension'),
-                fileSizeBytes: _integer(row, 'fileSizeBytes'),
-                mimeType: _string(row, 'mimeType'),
-                relativeFilePath: _string(row, 'relativeFilePath'),
-                createdAt: _utcInstant(row, 'createdAt'),
-                updatedAt: _utcInstant(row, 'updatedAt'),
-              );
-            })
-            .toList(growable: false)
+              .map((value) {
+                final row = _map(value, 'subjectFile');
+                return SubjectFileRow(
+                  id: _integer(row, 'id'),
+                  subjectId: _integer(row, 'subjectId'),
+                  semesterId: _integer(row, 'semesterId'),
+                  title: _string(row, 'title'),
+                  fileName: _string(row, 'fileName'),
+                  fileExtension: _string(row, 'fileExtension'),
+                  fileSizeBytes: _integer(row, 'fileSizeBytes'),
+                  mimeType: _string(row, 'mimeType'),
+                  relativeFilePath: _string(row, 'relativeFilePath'),
+                  createdAt: _utcInstant(row, 'createdAt'),
+                  updatedAt: _utcInstant(row, 'updatedAt'),
+                );
+              })
+              .toList(growable: false)
         : const <SubjectFileRow>[];
     final result = BackupDataSnapshot(
       settings: settings,
@@ -687,6 +695,12 @@ final class BackupDataSnapshot {
             row.effectiveUntil == null ||
             !row.effectiveUntil!.isBefore(row.effectiveFrom!),
         'A timetable entry has an invalid effective date range.',
+      );
+      _require(
+        row.reminderMinutesBefore == null ||
+            (row.reminderMinutesBefore! >= minClassReminderLeadMinutes &&
+                row.reminderMinutesBefore! <= maxClassReminderLeadMinutes),
+        'A timetable entry has an invalid reminder lead time.',
       );
     }
     for (final row in attendance) {

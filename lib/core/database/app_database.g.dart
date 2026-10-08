@@ -2634,6 +2634,16 @@ class $TimetableEntriesTable extends TimetableEntries
       ).withConverter<DateTime?>(
         $TimetableEntriesTable.$convertereffectiveUntiln,
       );
+  static const VerificationMeta _reminderMinutesBeforeMeta =
+      const VerificationMeta('reminderMinutesBefore');
+  @override
+  late final GeneratedColumn<int> reminderMinutesBefore = GeneratedColumn<int>(
+    'reminder_minutes_before',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2646,6 +2656,7 @@ class $TimetableEntriesTable extends TimetableEntries
     note,
     effectiveFrom,
     effectiveUntil,
+    reminderMinutesBefore,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2714,6 +2725,15 @@ class $TimetableEntriesTable extends TimetableEntries
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
+    if (data.containsKey('reminder_minutes_before')) {
+      context.handle(
+        _reminderMinutesBeforeMeta,
+        reminderMinutesBefore.isAcceptableOrUnknown(
+          data['reminder_minutes_before']!,
+          _reminderMinutesBeforeMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2767,6 +2787,10 @@ class $TimetableEntriesTable extends TimetableEntries
           data['${effectivePrefix}effective_until'],
         ),
       ),
+      reminderMinutesBefore: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_minutes_before'],
+      ),
     );
   }
 
@@ -2797,6 +2821,14 @@ class TimetableEntryRow extends DataClass
   final String note;
   final DateTime? effectiveFrom;
   final DateTime? effectiveUntil;
+
+  /// Lead time, in minutes before [startTime], for this class's reminder.
+  ///
+  /// `null` means the class has no reminder. The lead time is relative to each
+  /// occurrence, so a weekly class reminds before every one of its classes.
+  /// Declared last so a migration that only adds this column produces the same
+  /// table SQL as a fresh create.
+  final int? reminderMinutesBefore;
   const TimetableEntryRow({
     required this.id,
     required this.semesterId,
@@ -2808,6 +2840,7 @@ class TimetableEntryRow extends DataClass
     required this.note,
     this.effectiveFrom,
     this.effectiveUntil,
+    this.reminderMinutesBefore,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2830,6 +2863,9 @@ class TimetableEntryRow extends DataClass
         $TimetableEntriesTable.$convertereffectiveUntiln.toSql(effectiveUntil),
       );
     }
+    if (!nullToAbsent || reminderMinutesBefore != null) {
+      map['reminder_minutes_before'] = Variable<int>(reminderMinutesBefore);
+    }
     return map;
   }
 
@@ -2849,6 +2885,9 @@ class TimetableEntryRow extends DataClass
       effectiveUntil: effectiveUntil == null && nullToAbsent
           ? const Value.absent()
           : Value(effectiveUntil),
+      reminderMinutesBefore: reminderMinutesBefore == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderMinutesBefore),
     );
   }
 
@@ -2868,6 +2907,9 @@ class TimetableEntryRow extends DataClass
       note: serializer.fromJson<String>(json['note']),
       effectiveFrom: serializer.fromJson<DateTime?>(json['effectiveFrom']),
       effectiveUntil: serializer.fromJson<DateTime?>(json['effectiveUntil']),
+      reminderMinutesBefore: serializer.fromJson<int?>(
+        json['reminderMinutesBefore'],
+      ),
     );
   }
   @override
@@ -2884,6 +2926,7 @@ class TimetableEntryRow extends DataClass
       'note': serializer.toJson<String>(note),
       'effectiveFrom': serializer.toJson<DateTime?>(effectiveFrom),
       'effectiveUntil': serializer.toJson<DateTime?>(effectiveUntil),
+      'reminderMinutesBefore': serializer.toJson<int?>(reminderMinutesBefore),
     };
   }
 
@@ -2898,6 +2941,7 @@ class TimetableEntryRow extends DataClass
     String? note,
     Value<DateTime?> effectiveFrom = const Value.absent(),
     Value<DateTime?> effectiveUntil = const Value.absent(),
+    Value<int?> reminderMinutesBefore = const Value.absent(),
   }) => TimetableEntryRow(
     id: id ?? this.id,
     semesterId: semesterId ?? this.semesterId,
@@ -2913,6 +2957,9 @@ class TimetableEntryRow extends DataClass
     effectiveUntil: effectiveUntil.present
         ? effectiveUntil.value
         : this.effectiveUntil,
+    reminderMinutesBefore: reminderMinutesBefore.present
+        ? reminderMinutesBefore.value
+        : this.reminderMinutesBefore,
   );
   TimetableEntryRow copyWithCompanion(TimetableEntriesCompanion data) {
     return TimetableEntryRow(
@@ -2932,6 +2979,9 @@ class TimetableEntryRow extends DataClass
       effectiveUntil: data.effectiveUntil.present
           ? data.effectiveUntil.value
           : this.effectiveUntil,
+      reminderMinutesBefore: data.reminderMinutesBefore.present
+          ? data.reminderMinutesBefore.value
+          : this.reminderMinutesBefore,
     );
   }
 
@@ -2947,7 +2997,8 @@ class TimetableEntryRow extends DataClass
           ..write('room: $room, ')
           ..write('note: $note, ')
           ..write('effectiveFrom: $effectiveFrom, ')
-          ..write('effectiveUntil: $effectiveUntil')
+          ..write('effectiveUntil: $effectiveUntil, ')
+          ..write('reminderMinutesBefore: $reminderMinutesBefore')
           ..write(')'))
         .toString();
   }
@@ -2964,6 +3015,7 @@ class TimetableEntryRow extends DataClass
     note,
     effectiveFrom,
     effectiveUntil,
+    reminderMinutesBefore,
   );
   @override
   bool operator ==(Object other) =>
@@ -2978,7 +3030,8 @@ class TimetableEntryRow extends DataClass
           other.room == this.room &&
           other.note == this.note &&
           other.effectiveFrom == this.effectiveFrom &&
-          other.effectiveUntil == this.effectiveUntil);
+          other.effectiveUntil == this.effectiveUntil &&
+          other.reminderMinutesBefore == this.reminderMinutesBefore);
 }
 
 class TimetableEntriesCompanion extends UpdateCompanion<TimetableEntryRow> {
@@ -2992,6 +3045,7 @@ class TimetableEntriesCompanion extends UpdateCompanion<TimetableEntryRow> {
   final Value<String> note;
   final Value<DateTime?> effectiveFrom;
   final Value<DateTime?> effectiveUntil;
+  final Value<int?> reminderMinutesBefore;
   const TimetableEntriesCompanion({
     this.id = const Value.absent(),
     this.semesterId = const Value.absent(),
@@ -3003,6 +3057,7 @@ class TimetableEntriesCompanion extends UpdateCompanion<TimetableEntryRow> {
     this.note = const Value.absent(),
     this.effectiveFrom = const Value.absent(),
     this.effectiveUntil = const Value.absent(),
+    this.reminderMinutesBefore = const Value.absent(),
   });
   TimetableEntriesCompanion.insert({
     this.id = const Value.absent(),
@@ -3015,6 +3070,7 @@ class TimetableEntriesCompanion extends UpdateCompanion<TimetableEntryRow> {
     this.note = const Value.absent(),
     this.effectiveFrom = const Value.absent(),
     this.effectiveUntil = const Value.absent(),
+    this.reminderMinutesBefore = const Value.absent(),
   }) : semesterId = Value(semesterId),
        subjectId = Value(subjectId),
        weekday = Value(weekday),
@@ -3031,6 +3087,7 @@ class TimetableEntriesCompanion extends UpdateCompanion<TimetableEntryRow> {
     Expression<String>? note,
     Expression<int>? effectiveFrom,
     Expression<int>? effectiveUntil,
+    Expression<int>? reminderMinutesBefore,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3043,6 +3100,8 @@ class TimetableEntriesCompanion extends UpdateCompanion<TimetableEntryRow> {
       if (note != null) 'note': note,
       if (effectiveFrom != null) 'effective_from': effectiveFrom,
       if (effectiveUntil != null) 'effective_until': effectiveUntil,
+      if (reminderMinutesBefore != null)
+        'reminder_minutes_before': reminderMinutesBefore,
     });
   }
 
@@ -3057,6 +3116,7 @@ class TimetableEntriesCompanion extends UpdateCompanion<TimetableEntryRow> {
     Value<String>? note,
     Value<DateTime?>? effectiveFrom,
     Value<DateTime?>? effectiveUntil,
+    Value<int?>? reminderMinutesBefore,
   }) {
     return TimetableEntriesCompanion(
       id: id ?? this.id,
@@ -3069,6 +3129,8 @@ class TimetableEntriesCompanion extends UpdateCompanion<TimetableEntryRow> {
       note: note ?? this.note,
       effectiveFrom: effectiveFrom ?? this.effectiveFrom,
       effectiveUntil: effectiveUntil ?? this.effectiveUntil,
+      reminderMinutesBefore:
+          reminderMinutesBefore ?? this.reminderMinutesBefore,
     );
   }
 
@@ -3113,6 +3175,11 @@ class TimetableEntriesCompanion extends UpdateCompanion<TimetableEntryRow> {
         ),
       );
     }
+    if (reminderMinutesBefore.present) {
+      map['reminder_minutes_before'] = Variable<int>(
+        reminderMinutesBefore.value,
+      );
+    }
     return map;
   }
 
@@ -3128,7 +3195,8 @@ class TimetableEntriesCompanion extends UpdateCompanion<TimetableEntryRow> {
           ..write('room: $room, ')
           ..write('note: $note, ')
           ..write('effectiveFrom: $effectiveFrom, ')
-          ..write('effectiveUntil: $effectiveUntil')
+          ..write('effectiveUntil: $effectiveUntil, ')
+          ..write('reminderMinutesBefore: $reminderMinutesBefore')
           ..write(')'))
         .toString();
   }
@@ -12755,6 +12823,7 @@ typedef $$TimetableEntriesTableCreateCompanionBuilder =
       Value<String> note,
       Value<DateTime?> effectiveFrom,
       Value<DateTime?> effectiveUntil,
+      Value<int?> reminderMinutesBefore,
     });
 typedef $$TimetableEntriesTableUpdateCompanionBuilder =
     TimetableEntriesCompanion Function({
@@ -12768,6 +12837,7 @@ typedef $$TimetableEntriesTableUpdateCompanionBuilder =
       Value<String> note,
       Value<DateTime?> effectiveFrom,
       Value<DateTime?> effectiveUntil,
+      Value<int?> reminderMinutesBefore,
     });
 
 final class $$TimetableEntriesTableReferences
@@ -12884,6 +12954,11 @@ class $$TimetableEntriesTableFilterComposer
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
 
+  ColumnFilters<int> get reminderMinutesBefore => $composableBuilder(
+    column: $table.reminderMinutesBefore,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SemestersTableFilterComposer get semesterId {
     final $$SemestersTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -12989,6 +13064,11 @@ class $$TimetableEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get reminderMinutesBefore => $composableBuilder(
+    column: $table.reminderMinutesBefore,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SemestersTableOrderingComposer get semesterId {
     final $$SemestersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -13054,6 +13134,11 @@ class $$TimetableEntriesTableAnnotationComposer
         column: $table.effectiveUntil,
         builder: (column) => column,
       );
+
+  GeneratedColumn<int> get reminderMinutesBefore => $composableBuilder(
+    column: $table.reminderMinutesBefore,
+    builder: (column) => column,
+  );
 
   $$SemestersTableAnnotationComposer get semesterId {
     final $$SemestersTableAnnotationComposer composer = $composerBuilder(
@@ -13149,6 +13234,7 @@ class $$TimetableEntriesTableTableManager
                 Value<String> note = const Value.absent(),
                 Value<DateTime?> effectiveFrom = const Value.absent(),
                 Value<DateTime?> effectiveUntil = const Value.absent(),
+                Value<int?> reminderMinutesBefore = const Value.absent(),
               }) => TimetableEntriesCompanion(
                 id: id,
                 semesterId: semesterId,
@@ -13160,6 +13246,7 @@ class $$TimetableEntriesTableTableManager
                 note: note,
                 effectiveFrom: effectiveFrom,
                 effectiveUntil: effectiveUntil,
+                reminderMinutesBefore: reminderMinutesBefore,
               ),
           createCompanionCallback:
               ({
@@ -13173,6 +13260,7 @@ class $$TimetableEntriesTableTableManager
                 Value<String> note = const Value.absent(),
                 Value<DateTime?> effectiveFrom = const Value.absent(),
                 Value<DateTime?> effectiveUntil = const Value.absent(),
+                Value<int?> reminderMinutesBefore = const Value.absent(),
               }) => TimetableEntriesCompanion.insert(
                 id: id,
                 semesterId: semesterId,
@@ -13184,6 +13272,7 @@ class $$TimetableEntriesTableTableManager
                 note: note,
                 effectiveFrom: effectiveFrom,
                 effectiveUntil: effectiveUntil,
+                reminderMinutesBefore: reminderMinutesBefore,
               ),
           withReferenceMapper: (p0) => p0
               .map(

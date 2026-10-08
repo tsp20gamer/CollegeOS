@@ -26,6 +26,14 @@ class TimetableEntries extends Table {
   IntColumn get effectiveUntil =>
       integer().map(const EpochDayConverter()).nullable()();
 
+  /// Lead time, in minutes before [startTime], for this class's reminder.
+  ///
+  /// `null` means the class has no reminder. The lead time is relative to each
+  /// occurrence, so a weekly class reminds before every one of its classes.
+  /// Declared last so a migration that only adds this column produces the same
+  /// table SQL as a fresh create.
+  IntColumn get reminderMinutesBefore => integer().nullable()();
+
   @override
   List<String> get customConstraints => [
     'FOREIGN KEY (subject_id, semester_id) '
@@ -36,5 +44,7 @@ class TimetableEntries extends Table {
     'CHECK (end_time > start_time)',
     'CHECK (effective_until IS NULL OR effective_from IS NULL '
         'OR effective_until >= effective_from)',
+    'CHECK (reminder_minutes_before IS NULL OR '
+        'reminder_minutes_before BETWEEN 0 AND 10080)',
   ];
 }

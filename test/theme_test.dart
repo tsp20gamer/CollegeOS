@@ -22,10 +22,12 @@ void main() {
       );
       expect(dark.scaffoldBackgroundColor, AppColors.darkSurface);
       expect(dark.colorScheme.surfaceContainerLow, AppColors.darkSurfaceLow);
-      expect(light.colorScheme.primary, AppColors.violet);
-      expect(dark.colorScheme.primary, AppColors.violet);
-      expect(light.colorScheme.secondary, AppColors.blue);
-      expect(dark.colorScheme.secondary, AppColors.blue);
+      // Primary accent is Electric Cobalt in both modes.
+      expect(light.colorScheme.primary, AppColors.cobalt);
+      expect(dark.colorScheme.primary, AppColors.cobalt);
+      // Secondary is also cobalt (unified single accent).
+      expect(light.colorScheme.secondary, AppColors.cobalt);
+      expect(dark.colorScheme.secondary, AppColors.cobalt);
       expect(dark.textTheme.bodyMedium?.fontFamily, isNot('Inter'));
       expect(dark.textTheme.labelSmall?.fontFamily, isNot('Geist'));
     });
@@ -74,18 +76,9 @@ void main() {
       }
     });
 
-    test('subject accent glow stays tight and restrained', () {
-      final shadows = AppGlows.subjectAccent(
-        const Color(0xFF008000),
-        brightness: Brightness.dark,
-      );
-
-      expect(shadows, hasLength(2));
-      expect(shadows.first.blurRadius, 6);
-      expect(shadows.first.spreadRadius, 0);
-      expect(shadows.last.blurRadius, 14);
-      expect(shadows.last.spreadRadius, lessThan(0));
-      expect(shadows.first.color.a, lessThan(.4));
+    test('AppGlows.text returns empty list (no neon text glow)', () {
+      final shadows = AppGlows.text(strength: 1.0);
+      expect(shadows, isEmpty);
     });
 
     testWidgets('normal pages open quickly and close with a complete fade', (

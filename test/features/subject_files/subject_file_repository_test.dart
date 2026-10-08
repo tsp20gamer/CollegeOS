@@ -91,49 +91,61 @@ void main() {
 
   tearDown(() => database.close());
 
-  test('creates, reads, and deletes subject files with storage cleanup', () async {
-    final fileId1 = await repository.create((
-      subjectId: subjectId,
-      semesterId: semesterId,
-      title: 'Lecture 1 Slides',
-      fileName: 'lecture_1.pptx',
-      fileExtension: 'pptx',
-      fileSizeBytes: 2048576,
-      mimeType: 'application/vnd.ms-powerpoint',
-      relativeFilePath: 'subject_files/$subjectId/test_lecture_1.pptx',
-    ));
-    storageService.savedPaths.add('subject_files/$subjectId/test_lecture_1.pptx');
+  test(
+    'creates, reads, and deletes subject files with storage cleanup',
+    () async {
+      final fileId1 = await repository.create((
+        subjectId: subjectId,
+        semesterId: semesterId,
+        title: 'Lecture 1 Slides',
+        fileName: 'lecture_1.pptx',
+        fileExtension: 'pptx',
+        fileSizeBytes: 2048576,
+        mimeType: 'application/vnd.ms-powerpoint',
+        relativeFilePath: 'subject_files/$subjectId/test_lecture_1.pptx',
+      ));
+      storageService.savedPaths.add(
+        'subject_files/$subjectId/test_lecture_1.pptx',
+      );
 
-    final fileId2 = await repository.create((
-      subjectId: subjectId,
-      semesterId: semesterId,
-      title: 'Syllabus PDF',
-      fileName: 'syllabus.pdf',
-      fileExtension: 'pdf',
-      fileSizeBytes: 524288,
-      mimeType: 'application/pdf',
-      relativeFilePath: 'subject_files/$subjectId/test_syllabus.pdf',
-    ));
-    storageService.savedPaths.add('subject_files/$subjectId/test_syllabus.pdf');
+      final fileId2 = await repository.create((
+        subjectId: subjectId,
+        semesterId: semesterId,
+        title: 'Syllabus PDF',
+        fileName: 'syllabus.pdf',
+        fileExtension: 'pdf',
+        fileSizeBytes: 524288,
+        mimeType: 'application/pdf',
+        relativeFilePath: 'subject_files/$subjectId/test_syllabus.pdf',
+      ));
+      storageService.savedPaths.add(
+        'subject_files/$subjectId/test_syllabus.pdf',
+      );
 
-    var files = await repository.watchBySubject(subjectId).first;
-    expect(files.length, 2);
-    // Newest first
-    expect(files[0].id, fileId2);
-    expect(files[0].title, 'Syllabus PDF');
-    expect(files[0].fileExtension, 'pdf');
-    expect(files[1].id, fileId1);
-    expect(files[1].title, 'Lecture 1 Slides');
-    expect(files[1].fileSizeBytes, 2048576);
+      var files = await repository.watchBySubject(subjectId).first;
+      expect(files.length, 2);
+      // Newest first
+      expect(files[0].id, fileId2);
+      expect(files[0].title, 'Syllabus PDF');
+      expect(files[0].fileExtension, 'pdf');
+      expect(files[1].id, fileId1);
+      expect(files[1].title, 'Lecture 1 Slides');
+      expect(files[1].fileSizeBytes, 2048576);
 
-    // Delete file 1 and verify storage cleanup
-    await repository.delete(fileId1);
-    expect(storageService.savedPaths.contains('subject_files/$subjectId/test_lecture_1.pptx'), isFalse);
+      // Delete file 1 and verify storage cleanup
+      await repository.delete(fileId1);
+      expect(
+        storageService.savedPaths.contains(
+          'subject_files/$subjectId/test_lecture_1.pptx',
+        ),
+        isFalse,
+      );
 
-    files = await repository.watchBySubject(subjectId).first;
-    expect(files.length, 1);
-    expect(files.single.id, fileId2);
-  });
+      files = await repository.watchBySubject(subjectId).first;
+      expect(files.length, 1);
+      expect(files.single.id, fileId2);
+    },
+  );
 
   test('backup store captures and restores subject files cleanly', () async {
     final store = DriftBackupDatabaseStore(database);

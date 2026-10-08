@@ -5,7 +5,6 @@ import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/features/onboarding/data/drift_onboarding_repository.dart';
 import 'package:college_os/features/onboarding/domain/college_setup.dart';
 import 'package:college_os/features/subjects/data/drift_subject_repository.dart';
-import 'package:college_os/features/tasks/domain/task_service.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,7 +51,10 @@ void main() {
           child: const CollegeOsApp(enableStartupAnimation: false),
         ),
       );
-      await _pumpUntilFound(tester, find.text('Your day, calmly organized.'));
+      await _pumpUntilFound(
+        tester,
+        find.byKey(const Key('home_dashboard_ready')),
+      );
       await tester.tap(find.byKey(const Key('nav_tasks')));
       await _pumpUntilFound(tester, find.text('No active tasks'));
       await tester.tap(find.byKey(const Key('add_task_button')));
@@ -95,12 +97,12 @@ void main() {
       expect(completed.isCompleted, isTrue);
       expect(completed.completedAt, isNotNull);
 
-      tester
-          .widget<SegmentedButton<TaskFilter>>(
-            find.byKey(const Key('task_filter')),
-          )
-          .onSelectionChanged!({TaskFilter.completed});
-      await tester.pump();
+      // The filter is a chip row now, tapped the way a student taps it.
+      await tester.ensureVisible(
+        find.byKey(const Key('task_filter_completed')),
+      );
+      await tester.tap(find.byKey(const Key('task_filter_completed')));
+      await tester.pumpAndSettle();
       await _pumpUntilFound(tester, find.text('Systems assignment'));
       await tester.tap(find.byKey(Key('task_toggle_${created.id}')));
       await _pumpUntilAbsent(tester, find.text('Systems assignment'));
@@ -109,12 +111,9 @@ void main() {
         isFalse,
       );
 
-      tester
-          .widget<SegmentedButton<TaskFilter>>(
-            find.byKey(const Key('task_filter')),
-          )
-          .onSelectionChanged!({TaskFilter.all});
-      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('task_filter_all')));
+      await tester.tap(find.byKey(const Key('task_filter_all')));
+      await tester.pumpAndSettle();
       await _pumpUntilFound(tester, find.text('Systems assignment'));
       await tester.tap(find.text('Systems assignment'));
       await _pumpUntilFound(tester, find.byKey(const Key('task_title_field')));

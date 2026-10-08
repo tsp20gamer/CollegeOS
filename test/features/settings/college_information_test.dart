@@ -39,7 +39,10 @@ void main() {
         child: const CollegeOsApp(enableStartupAnimation: false),
       ),
     );
-    await _pumpUntilFound(tester, find.text('Your day, calmly organized.'));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('home_dashboard_ready')),
+    );
 
     await tester.tap(find.byKey(const Key('open_settings_button')));
     await tester.pump(const Duration(milliseconds: 500));

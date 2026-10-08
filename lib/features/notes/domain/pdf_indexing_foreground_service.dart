@@ -13,12 +13,15 @@ class PdfIndexingForegroundService {
 
     final isRunning = await FlutterForegroundTask.isRunningService;
     if (isRunning) {
-      debugPrint('PdfIndexingForegroundService: already running, skipping start for $fileId');
+      debugPrint(
+        'PdfIndexingForegroundService: already running, skipping start for $fileId',
+      );
       return;
     }
 
     // 1. Request required permissions (Android 13+ POST_NOTIFICATIONS)
-    final NotificationPermission notificationPermission = await FlutterForegroundTask.checkNotificationPermission();
+    final NotificationPermission notificationPermission =
+        await FlutterForegroundTask.checkNotificationPermission();
     if (notificationPermission != NotificationPermission.granted) {
       await FlutterForegroundTask.requestNotificationPermission();
     }
@@ -43,8 +46,14 @@ class PdfIndexingForegroundService {
     );
 
     // 3. Save parameters for the TaskHandler to read
-    await FlutterForegroundTask.saveData(key: 'pdf_file_id', value: fileId.toString());
-    await FlutterForegroundTask.saveData(key: 'pdf_file_path', value: relativeFilePath);
+    await FlutterForegroundTask.saveData(
+      key: 'pdf_file_id',
+      value: fileId.toString(),
+    );
+    await FlutterForegroundTask.saveData(
+      key: 'pdf_file_path',
+      value: relativeFilePath,
+    );
 
     // 4. Start the service
     await FlutterForegroundTask.startService(

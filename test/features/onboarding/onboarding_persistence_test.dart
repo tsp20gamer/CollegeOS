@@ -205,9 +205,12 @@ void main() {
     await tester.drag(find.byType(ListView).last, const Offset(0, -500));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Go to Home'));
-    await _pumpUntilFound(tester, find.text('Your day, calmly organized.'));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('home_dashboard_ready')),
+    );
 
-    expect(find.text('Your day, calmly organized.'), findsOneWidget);
+    expect(find.byKey(const Key('home_dashboard_ready')), findsOneWidget);
     final settings = await database.settingsDao.getSettings();
     final activeSemester = await database.semestersDao.findActive();
     expect(settings.onboardingCompleted, isTrue);
@@ -231,9 +234,12 @@ void main() {
         child: const CollegeOsApp(enableStartupAnimation: false),
       ),
     );
-    await _pumpUntilFound(tester, find.text('Your day, calmly organized.'));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('home_dashboard_ready')),
+    );
 
-    expect(find.text('Your day, calmly organized.'), findsOneWidget);
+    expect(find.byKey(const Key('home_dashboard_ready')), findsOneWidget);
     expect(find.byKey(const Key('get_started_button')), findsNothing);
     await _disposeApp(tester);
   });

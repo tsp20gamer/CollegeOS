@@ -16,6 +16,7 @@ void main() {
   var exposeReminderChannel = false;
   var pluginNotificationsEnabled = true;
   var nativePermissionGranted = true;
+  var nativeChannelEnabled = true;
   var exactAlarmAllowed = false;
 
   setUp(() {
@@ -25,6 +26,7 @@ void main() {
     exposeReminderChannel = false;
     pluginNotificationsEnabled = true;
     nativePermissionGranted = true;
+    nativeChannelEnabled = true;
     exactAlarmAllowed = false;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
@@ -58,14 +60,11 @@ void main() {
         });
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(settingsChannel, (call) async {
-          if (call.method == 'getNotificationDiagnostics') {
+          if (call.method == 'getNotificationStatus') {
             return <String, dynamic>{
-              'sdkInt': 36,
-              'batteryOptimizationExempt': false,
               'postPermissionGranted': nativePermissionGranted,
               'appNotificationsEnabled': pluginNotificationsEnabled,
-              'channelEnabled': true,
-              'exactAlarmAllowed': exactAlarmAllowed,
+              'channelEnabled': nativeChannelEnabled,
             };
           }
           return null;
@@ -116,25 +115,20 @@ void main() {
     );
   });
 
-  test(
-    'reports permission, channel, pending, timezone and battery state',
-    () async {
-      exposeReminderChannel = true;
-      final platform = AndroidNotificationPlatform();
+  test('native status bridge decides permission and channel state', () async {
+    exposeReminderChannel = true;
+    final platform = AndroidNotificationPlatform();
 
-      final diagnostics = await platform.diagnostics();
+    expect(await platform.notificationsEnabled(), isTrue);
 
-      expect(diagnostics.permissionEnabled, isTrue);
-      expect(diagnostics.channelExists, isTrue);
-      expect(diagnostics.channelEnabled, isTrue);
-      expect(diagnostics.channelImportance, 'Maximum');
-      expect(diagnostics.pendingReminderCount, 0);
-      expect(diagnostics.timezone, isNotEmpty);
-      expect(diagnostics.androidSdk, 36);
-      expect(diagnostics.batteryOptimizationExempt, isFalse);
-      expect(diagnostics.exactAlarmAllowed, isFalse);
-    },
-  );
+    // A blocked reminder channel in Android must win over the app-level
+    // permission the plugin reports.
+    nativeChannelEnabled = false;
+    expect(await platform.notificationsEnabled(), isFalse);
+
+    nativeChannelEnabled = true;
+    expect(await platform.notificationsEnabled(), isTrue);
+  });
 
   test('uses native runtime permission when the OEM probe is stale', () async {
     pluginNotificationsEnabled = false;

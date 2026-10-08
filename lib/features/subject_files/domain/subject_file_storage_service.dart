@@ -27,7 +27,8 @@ abstract interface class SubjectFileStorageService {
   Future<void> openOrShareFile(String relativeFilePath, String title);
 }
 
-final class LocalSubjectFileStorageService implements SubjectFileStorageService {
+final class LocalSubjectFileStorageService
+    implements SubjectFileStorageService {
   const LocalSubjectFileStorageService();
 
   static const _baseFolderName = 'subject_files';
@@ -45,14 +46,21 @@ final class LocalSubjectFileStorageService implements SubjectFileStorageService 
     );
     await subjectDir.create(recursive: true);
 
-    final cleanName = p.basename(originalFileName).replaceAll(RegExp(r'[^\w\.\-]'), '_');
-    final extension = p.extension(cleanName).replaceFirst('.', '').toLowerCase();
+    final cleanName = p
+        .basename(originalFileName)
+        .replaceAll(RegExp(r'[^\w\.\-]'), '_');
+    final extension = p
+        .extension(cleanName)
+        .replaceFirst('.', '')
+        .toLowerCase();
     final uniqueName = '${DateTime.now().millisecondsSinceEpoch}_$cleanName';
     final targetFile = File(p.join(subjectDir.path, uniqueName));
 
     await targetFile.writeAsBytes(bytes, flush: true);
 
-    final relative = p.join(_baseFolderName, '$subjectId', uniqueName).replaceAll('\\', '/');
+    final relative = p
+        .join(_baseFolderName, '$subjectId', uniqueName)
+        .replaceAll('\\', '/');
 
     return (
       relativeFilePath: relative,
@@ -74,8 +82,13 @@ final class LocalSubjectFileStorageService implements SubjectFileStorageService 
     );
     await subjectDir.create(recursive: true);
 
-    final cleanName = p.basename(originalFileName).replaceAll(RegExp(r'[^\w\.\-]'), '_');
-    final extension = p.extension(cleanName).replaceFirst('.', '').toLowerCase();
+    final cleanName = p
+        .basename(originalFileName)
+        .replaceAll(RegExp(r'[^\w\.\-]'), '_');
+    final extension = p
+        .extension(cleanName)
+        .replaceFirst('.', '')
+        .toLowerCase();
     final uniqueName = '${DateTime.now().millisecondsSinceEpoch}_$cleanName';
     final targetFile = File(p.join(subjectDir.path, uniqueName));
 
@@ -83,7 +96,9 @@ final class LocalSubjectFileStorageService implements SubjectFileStorageService 
     await sourceFile.copy(targetFile.path);
     final fileSizeBytes = await sourceFile.length();
 
-    final relative = p.join(_baseFolderName, '$subjectId', uniqueName).replaceAll('\\', '/');
+    final relative = p
+        .join(_baseFolderName, '$subjectId', uniqueName)
+        .replaceAll('\\', '/');
 
     return (
       relativeFilePath: relative,

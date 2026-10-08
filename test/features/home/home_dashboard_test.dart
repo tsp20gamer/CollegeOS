@@ -131,8 +131,14 @@ void main() {
           child: const CollegeOsApp(enableStartupAnimation: false),
         ),
       );
-      await _pumpUntilFound(tester, find.text('City College'));
-      expect(find.text('Semester 1'), findsOneWidget);
+      await _pumpUntilFound(
+        tester,
+        find.byKey(const Key('home_dashboard_ready')),
+      );
+      // The college/semester banner was removed from Home: identity now lives
+      // in the compact header (greeting plus date) and the dashboard itself.
+      expect(find.text('City College'), findsNothing);
+      expect(find.text('Semester 1'), findsNothing);
       expect(find.text('Operating Systems'), findsWidgets);
       expect(find.text('50.0%'), findsNWidgets(2));
       expect(

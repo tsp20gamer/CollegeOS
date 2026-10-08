@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Turned the bottom navigation back into a floating dock: the strip keeps a 16 px margin from the screen edges and 12 px above the system inset, and paints a 24-sigma backdrop blur under a white 8 % fill (75 % on light) with one soft shadow and a hairline rim at radius 28.
+- Replaced the sliding selection capsule with the mockup's minimal active state: the chosen destination shows a cobalt icon, a cobalt label and a 4 px cobalt dot, with the dot's slot reserved so no label ever moves.
+- Animated only the newly selected icon: a 240 ms 1.0 → 1.10 → 1.04 pop with a 2.5 px lift, an outline-to-filled cross-fade, and a dot that scales in over 150 ms. Reduced motion collapses all of it and leaves the glass itself unchanged.
+- Replaced the Timetable day selector with a rounded day bar: one strip one surface step above the canvas holds the Mon–Sat pills, the selected day is a solid cobalt pill, and the per-day class counts moved to the day heading below.
+- Replaced the page slide+fade with an optimized transition: pushed pages appear instantly and popped pages fade out completely, with the first route and reduced motion still skipping the animation entirely.
+- Exported the missing v11–v13 drift schema snapshots and regenerated the migration verifier so `make-migrations` runs again and migration tests cover the current schema version; fixed the v12→v13 stacked upgrade adding `last_indexed_page` twice.
 - Replaced the floating pill dock with a full-width bottom navigation bar: every destination keeps its icon and label at any width, and selection slides a single indicator between equal slots.
 - Made Notes a destination, covering per-subject material plus a search screen over every indexed PDF; a search shortcut sits above the bar on Home and Tasks.
 - Moved Settings out of the bar into a header action on every destination, pushed over the shell so it keeps a back button. Pushed screens now show a back button too.
@@ -14,6 +20,12 @@
 - Made AI retrieval build an OR'd FTS5 expression, since the keyword AND expression matched nothing for full-sentence questions.
 - Added a Skip days mode to the attendance planner: choose the dates you plan to miss and see the classes each one costs, the resulting overall attendance next to every affected subject's, and which already-marked classes the plan leaves alone.
 - Kept the planner's class-counts mode unchanged and scoped to one subject, and stopped it from subscribing to the timetable it never reads.
+- Replaced the multi-hue accent system with a single Electric Cobalt accent: `FeatureColors` now resolves every feature to `#2563EB` in light mode and to the same hue one lightness step up in dark mode, so features no longer own colours. Green, amber and red are reserved for state through `AppSemanticColors`.
+- Let progress rings and bars take a status color: attendance indicators now read green when on target, amber when fragile, and red when below, on Home, subject cards, and the planner.
+- Removed the blurred glass panel from the navigation dock in favour of a solid surface with one soft shadow: the selected pill is a flat low-opacity cobalt fill with no gradient, border or landing glow. The spring indicator, icon bounce, label slide, hide-on-scroll and reduced-motion behaviour are unchanged.
+- Added explicit divider tokens (white/5 on dark, a whisper of neutral black on light) so grouped rows separate with a barely-visible line instead of an outline, and removed the unused cobalt wash gradient helper.
+- Added distinctive primary and secondary section headers to Home in place of the uniform icon-plus-title rows, and grouped related sections tighter than the hero areas.
+- Replaced hardcoded navy logo plates on Home and Settings with a theme-derived brand tint, and gave cards quieter depth shadows in both modes.
 
 ## 1.10.0+30 — 6 September 2026
 

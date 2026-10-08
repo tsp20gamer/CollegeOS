@@ -57,6 +57,103 @@ void main() {
     expect(parseNotificationPayload('bad:42'), isNull);
   });
 
+  test('class reminders keep a disjoint, positive notification ID band', () {
+    expect(
+      notificationId(NotificationEntityType.classReminder, 7),
+      classReminderNotificationIdBase + 7,
+    );
+    expect(parseNotificationPayload('classReminder:7'), (
+      type: NotificationEntityType.classReminder,
+      entityId: 7,
+    ));
+    final ids = {
+      for (final type in NotificationEntityType.values) notificationId(type, 1),
+    };
+    expect(
+      ids,
+      hasLength(NotificationEntityType.values.length),
+      reason: 'every entity type owns its own ID',
+    );
+    expect(
+      notificationId(NotificationEntityType.classReminder, 1),
+      greaterThan(0),
+      reason: 'Android notification IDs stay positive inside the band',
+    );
+    expect(
+      () => notificationId(NotificationEntityType.classReminder, 0),
+      throwsArgumentError,
+    );
+  });
+
+  test('class reminders project once, update in place and cancel stale', () async {
+    final platform = _FakePlatform();
+    final settings = _FakeSettings(enabled: true);
+    final coordinator = NotificationCoordinator(
+      platform: platform,
+      tasks: _FakeTasks(const []),
+      exams: _FakeExams(const []),
+      settings: settings,
+      now: () => now,
+    );
+    final firstId = notificationId(NotificationEntityType.classReminder, 1);
+    final secondId = notificationId(NotificationEntityType.classReminder, 2);
+    final first = _classReminder(id: 1, minutesBefore: 10);
+    final second = _classReminder(id: 2, minutesBefore: 30);
+
+    await coordinator.syncClassReminders([first, second]);
+    expect(platform.scheduled.keys, containsAll([firstId, secondId]));
+
+    // Android reports both alarms as pending, so an unchanged projection is not
+    // re-scheduled on the next clock tick.
+    platform.pendingItems.addAll([
+      (id: firstId, payload: 'classReminder:1'),
+      (id: secondId, payload: 'classReminder:2'),
+    ]);
+    platform.scheduled.clear();
+    await coordinator.syncClassReminders([first, second]);
+    expect(platform.scheduled, isEmpty);
+
+    // A dropped class is cancelled, and a changed lead time is replaced.
+    await coordinator.syncClassReminders([first]);
+    expect(platform.cancelled, [
+      (type: NotificationEntityType.classReminder, id: 2),
+    ]);
+    expect(platform.scheduled.containsKey(firstId), isFalse);
+
+    final later = _classReminder(id: 1, minutesBefore: 60);
+    await coordinator.syncClassReminders([later]);
+    expect(platform.scheduled[firstId], later);
+
+    // Switching notifications off clears the whole namespace, and a later sync
+    // cannot put anything back while they stay off.
+    await coordinator.disable();
+    expect(platform.scheduled, isEmpty);
+    await coordinator.syncClassReminders([later]);
+    expect(platform.scheduled, isEmpty);
+  });
+
+  test('startup reconcile leaves class alarms to the class channel', () async {
+    final classId = notificationId(NotificationEntityType.classReminder, 3);
+    final platform = _FakePlatform()
+      ..pendingItems.add((id: classId, payload: 'classReminder:3'))
+      ..pendingItems.add((id: 999, payload: 'task:999'));
+    final coordinator = NotificationCoordinator(
+      platform: platform,
+      tasks: _FakeTasks(const []),
+      exams: _FakeExams(const []),
+      settings: _FakeSettings(enabled: true),
+      now: () => now,
+    );
+
+    await coordinator.initialize((_) {});
+
+    expect(
+      platform.cancelled,
+      [(type: NotificationEntityType.task, id: 999)],
+      reason: 'a valid class projection must survive the startup sweep',
+    );
+  });
+
   test(
     'startup reconciles future intent without requesting permission',
     () async {
@@ -288,9 +385,6 @@ final class _FakePlatform implements NotificationPlatform {
   Future<void> openNotificationSettings() async {}
 
   @override
-  Future<void> openBatterySettings() async {}
-
-  @override
   Future<void> showTestNotification() async {
     testNotifications++;
   }
@@ -381,6 +475,19 @@ final class _FakeExams implements ExamRepository {
   Stream<List<Exam>> watchForSemester(int semesterId) =>
       throw UnimplementedError();
 }
+
+CollegeOsNotification _classReminder({
+  required int id,
+  required int minutesBefore,
+}) => (
+  type: NotificationEntityType.classReminder,
+  entityId: id,
+  title: 'Class $id',
+  body: 'Starts soon',
+  scheduledAt: DateTime.utc(2026, 8, 13, 11).add(
+    Duration(minutes: minutesBefore),
+  ),
+);
 
 CollegeTask _task({
   required int id,

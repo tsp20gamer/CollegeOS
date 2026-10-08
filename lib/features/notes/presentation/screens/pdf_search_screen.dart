@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:college_os/core/theme/effects.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
 
@@ -87,7 +86,6 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Indexing is reconciled per subject. An unscoped search has no file list
     // of its own, and every subject is already covered by its own screen.
@@ -128,12 +126,7 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
                         Text(
                           'Search PDFs',
                           style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                shadows: AppGlows.text(
-                                  strength: isDark ? .70 : .34,
-                                ),
-                              ),
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
@@ -405,7 +398,6 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
       decoration: BoxDecoration(
         color: colors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

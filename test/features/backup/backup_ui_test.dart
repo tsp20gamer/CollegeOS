@@ -58,7 +58,10 @@ void main() {
           child: const CollegeOsApp(enableStartupAnimation: false),
         ),
       );
-      await _pumpUntilFound(tester, find.text('Your day, calmly organized.'));
+      await _pumpUntilFound(
+        tester,
+        find.byKey(const Key('home_dashboard_ready')),
+      );
       await tester.tap(find.byKey(const Key('open_settings_button')));
       await tester.pump(const Duration(milliseconds: 300));
       await _pumpUntilFound(tester, find.text('College Information'));
@@ -128,7 +131,13 @@ void main() {
       await _pumpUntilFound(tester, find.text('Replace current data?'));
       expect(find.text('Replace current data?'), findsOneWidget);
       await tester.tap(find.byKey(const Key('confirm_restore_backup')));
-      await _pumpUntilFound(tester, find.text('Backup College'));
+      // Home no longer shows the college banner, so the restored name is no
+      // longer a Home probe: wait for Home to be ready and let the stored
+      // settings below prove the restore replaced the data.
+      await _pumpUntilFound(
+        tester,
+        find.byKey(const Key('home_dashboard_ready')),
+      );
       expect(
         (await target.settingsDao.getSettings()).collegeName,
         'Backup College',

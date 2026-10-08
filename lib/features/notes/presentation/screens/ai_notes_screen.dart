@@ -312,7 +312,6 @@ class _AiNotesScreenState extends ConsumerState<AiNotesScreen> {
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.violet.withValues(alpha: 0.2)),
           ),
           child: MarkdownBody(
             data: result.answer,
@@ -425,16 +424,9 @@ class _AiNotesScreenState extends ConsumerState<AiNotesScreen> {
                   margin: const EdgeInsets.only(bottom: 2),
                   decoration: BoxDecoration(
                     color: isLoading
-                        ? AppColors.violet.withValues(alpha: 0.6)
-                        : AppColors.violet,
+                        ? AppColors.cobalt.withValues(alpha: 0.6)
+                        : AppColors.cobalt,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.violet.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
                   child: IconButton(
                     onPressed: isLoading
@@ -519,9 +511,6 @@ class _SourceItemCard extends ConsumerWidget {
                 alpha: 0.3,
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,7 +520,7 @@ class _SourceItemCard extends ConsumerWidget {
                     const Icon(
                       Icons.picture_as_pdf,
                       size: 16,
-                      color: AppColors.violet,
+                      color: AppColors.cobalt,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
@@ -550,13 +539,13 @@ class _SourceItemCard extends ConsumerWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.violet.withValues(alpha: 0.1),
+                        color: AppColors.cobalt.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         'Page ${source.pageNumber}',
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: AppColors.violet,
+                          color: AppColors.cobalt,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

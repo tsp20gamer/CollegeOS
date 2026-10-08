@@ -215,6 +215,9 @@ abstract final class AttendanceAwareNextClassService {
           endTime: session.endTime,
           room: session.subject.room,
           note: session.note,
+          // Reminder intent lives on the timetable entry, which this projected
+          // session does not carry; the class list reads the stored entry.
+          reminderMinutesBefore: null,
         ),
         subject: session.subject,
       );

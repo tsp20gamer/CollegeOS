@@ -1,10 +1,10 @@
 import 'package:college_os/core/routing/route_names.dart';
 import 'package:college_os/core/theme/color_tokens.dart';
 import 'package:college_os/core/theme/animation_tokens.dart';
-import 'package:college_os/core/theme/effects.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/notes/presentation/widgets/note_editor_sheet.dart';
+import 'package:college_os/features/notifications/domain/class_reminder_preset.dart';
 import 'package:college_os/features/subjects/application/subject_providers.dart';
 import 'package:college_os/features/subjects/domain/subject_repository.dart';
 import 'package:college_os/features/semesters/domain/semester_repository.dart';
@@ -18,6 +18,7 @@ import 'package:college_os/shared/widgets/app_scaffold.dart';
 import 'package:college_os/shared/widgets/empty_state.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
 import 'package:college_os/shared/widgets/loading_state.dart';
+import 'package:college_os/shared/widgets/premium_surface.dart';
 import 'package:college_os/shared/widgets/status_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +34,12 @@ class TimetableScreen extends ConsumerStatefulWidget {
 class _TimetableScreenState extends ConsumerState<TimetableScreen> {
   late int _selectedWeekday;
 
+  /// 1 when the student moved to a later day, -1 when they moved back.
+  ///
+  /// The pill glides in that direction, and the day's content enters from
+  /// the same side, so the two movements read as one gesture.
+  int _daySlideDirection = 1;
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +47,25 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
     _selectedWeekday = timetableWeekdays.contains(today)
         ? today
         : DateTime.monday;
+  }
+
+  void _selectWeekday(int day) {
+    if (day == _selectedWeekday) return;
+    setState(() {
+      _daySlideDirection = day > _selectedWeekday ? 1 : -1;
+      _selectedWeekday = day;
+    });
+  }
+
+  Widget _dayContentTransition(Widget child, Animation<double> animation) {
+    final offset = Tween<Offset>(
+      begin: Offset(AppMotion.dayContentSlide * _daySlideDirection, 0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: animation, curve: AppCurves.standard));
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(position: offset, child: child),
+    );
   }
 
   @override
@@ -174,88 +200,109 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
             .where((item) => item.entry.weekday == _selectedWeekday)
             .toList(growable: false)
           ..sort((a, b) => a.entry.startTime.compareTo(b.entry.startTime));
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _DaySelector(
-          selected: _selectedWeekday,
-          schedule: schedule,
-          onSelected: (day) => setState(() => _selectedWeekday = day),
-        ),
+        _DaySelector(selected: _selectedWeekday, onSelected: _selectWeekday),
         if (schedule.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
           _NextClassCard(result: next),
         ],
         const SizedBox(height: AppSpacing.lg),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                timetableDayNames[_selectedWeekday]!,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-            Text(
-              '${selected.length} ${selected.length == 1 ? 'class' : 'classes'}',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        if (selected.isEmpty)
-          EmptyState(
-            icon: Icons.event_available_rounded,
-            title: 'No classes on ${timetableDayNames[_selectedWeekday]}',
-            message:
-                'This day is clear. Add a class whenever your schedule changes.',
-            action: FilledButton.icon(
-              onPressed: () => _showEntryForm(
-                semesterId: semesterId,
-                semesterStart: semester.startDate,
-                semesterEnd: semester.endDate,
-                subjects: subjects,
-                entries: entries,
-                initialWeekday: _selectedWeekday,
-              ),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add class'),
-            ),
-          )
-        else
-          Column(
-            children: [
-              for (var index = 0; index < selected.length; index++) ...[
-                _ClassCard(
-                  scheduledClass: selected[index],
-                  isCurrent: next.currentClasses.any(
-                    (item) => item.entry.id == selected[index].entry.id,
-                  ),
-                  onEdit: () => _showEntryForm(
-                    semesterId: semesterId,
-                    semesterStart: semester.startDate,
-                    semesterEnd: semester.endDate,
-                    subjects: subjects,
-                    entries: entries,
-                    initialWeekday: selected[index].entry.weekday,
-                    entry: selected[index].entry,
-                  ),
-                  onDuplicate: () => _duplicateEntry(
-                    semesterId: semesterId,
-                    semesterStart: semester.startDate,
-                    semesterEnd: semester.endDate,
-                    subjects: subjects,
-                    entries: entries,
-                    source: selected[index].entry,
-                  ),
-                  onDelete: () => _deleteEntry(selected[index], semester),
-                ),
-                if (index != selected.length - 1)
-                  const SizedBox(height: AppSpacing.sm),
-              ],
-            ],
+        // The heading and the day's classes travel together, so choosing a
+        // day reads as one content change rather than a text swap.
+        AnimatedSwitcher(
+          duration: reduceMotion ? Duration.zero : AppDurations.dayContent,
+          switchInCurve: AppCurves.standard,
+          switchOutCurve: AppCurves.standard,
+          layoutBuilder: (currentChild, previousChildren) => Stack(
+            alignment: Alignment.topCenter,
+            children: [...previousChildren, ?currentChild],
           ),
+          transitionBuilder: _dayContentTransition,
+          child: KeyedSubtree(
+            key: ValueKey<int>(_selectedWeekday),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        timetableDayNames[_selectedWeekday]!,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    Text(
+                      '${selected.length} ${selected.length == 1 ? 'class' : 'classes'}',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (selected.isEmpty)
+                  EmptyState(
+                    icon: Icons.event_available_rounded,
+                    title:
+                        'No classes on ${timetableDayNames[_selectedWeekday]}',
+                    message:
+                        'This day is clear. Add a class whenever your schedule changes.',
+                    action: FilledButton.icon(
+                      onPressed: () => _showEntryForm(
+                        semesterId: semesterId,
+                        semesterStart: semester.startDate,
+                        semesterEnd: semester.endDate,
+                        subjects: subjects,
+                        entries: entries,
+                        initialWeekday: _selectedWeekday,
+                      ),
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add class'),
+                    ),
+                  )
+                else
+                  Column(
+                    children: [
+                      for (var index = 0; index < selected.length; index++) ...[
+                        _ClassCard(
+                          scheduledClass: selected[index],
+                          isCurrent: next.currentClasses.any(
+                            (item) =>
+                                item.entry.id == selected[index].entry.id,
+                          ),
+                          onEdit: () => _showEntryForm(
+                            semesterId: semesterId,
+                            semesterStart: semester.startDate,
+                            semesterEnd: semester.endDate,
+                            subjects: subjects,
+                            entries: entries,
+                            initialWeekday: selected[index].entry.weekday,
+                            entry: selected[index].entry,
+                          ),
+                          onDuplicate: () => _duplicateEntry(
+                            semesterId: semesterId,
+                            semesterStart: semester.startDate,
+                            semesterEnd: semester.endDate,
+                            subjects: subjects,
+                            entries: entries,
+                            source: selected[index].entry,
+                          ),
+                          onDelete: () =>
+                              _deleteEntry(selected[index], semester),
+                        ),
+                        if (index != selected.length - 1)
+                          const SizedBox(height: AppSpacing.sm),
+                      ],
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -365,78 +412,102 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
 }
 
 class _DaySelector extends StatelessWidget {
-  const _DaySelector({
-    required this.selected,
-    required this.schedule,
-    required this.onSelected,
-  });
+  const _DaySelector({required this.selected, required this.onSelected});
 
   final int selected;
-  final List<ScheduledClass> schedule;
   final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final today = DateTime.now().weekday;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final days = timetableWeekdays;
+    final slot = 1 / days.length;
+    final index = days.indexOf(selected).clamp(0, days.length - 1);
+    // One pill for the whole strip. It glides between equal-width day slots
+    // instead of every day painting its own background, so a day change reads
+    // as a single movement and no label ever shifts.
+    final alignment = days.length == 1 ? 0.0 : -1 + 2 * index / (days.length - 1);
+    final pillDuration = reduceMotion ? Duration.zero : AppDurations.dayPillGlide;
+    final labelStyle = theme.textTheme.labelLarge ?? const TextStyle();
     return Semantics(
       label: 'Timetable days',
-      child: Row(
-        children: [
-          for (final day in timetableWeekdays)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: InkWell(
-                  key: Key('timetable_day_$day'),
-                  onTap: () => onSelected(day),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  child: AnimatedContainer(
-                    duration: reduceMotion ? Duration.zero : AppDurations.fast,
-                    curve: AppCurves.standard,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.xxs),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: AnimatedAlign(
+                key: const Key('timetable_day_pill'),
+                duration: pillDuration,
+                curve: AppCurves.emphasized,
+                alignment: Alignment(alignment, 0),
+                child: FractionallySizedBox(
+                  widthFactor: slot,
+                  child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.sm,
+                      horizontal: AppSpacing.xxxs,
                     ),
-                    decoration: BoxDecoration(
-                      color: selected == day
-                          ? colors.primaryContainer
-                          : colors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: day == today
-                          ? Border.all(color: colors.primary)
-                          : null,
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          timetableDayShortNames[day]!,
-                          style: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(
-                                color: selected == day
-                                    ? colors.onPrimaryContainer
-                                    : colors.onSurfaceVariant,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        const SizedBox(height: AppSpacing.xxs),
-                        Text(
-                          '${schedule.where((item) => item.entry.weekday == day).length}',
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                color: selected == day
-                                    ? colors.onPrimaryContainer
-                                    : colors.onSurfaceVariant,
-                              ),
-                        ),
-                      ],
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.primary,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-        ],
+            Row(
+              children: [
+                for (final day in days)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xxxs,
+                      ),
+                      child: InkWell(
+                        key: Key('timetable_day_$day'),
+                        onTap: () => onSelected(day),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.xs,
+                          ),
+                          child: AnimatedDefaultTextStyle(
+                            duration: pillDuration,
+                            curve: AppCurves.standard,
+                            style: selected == day
+                                ? labelStyle.copyWith(
+                                    color: colors.onPrimary,
+                                    fontWeight: FontWeight.w800,
+                                  )
+                                : labelStyle.copyWith(
+                                    color: colors.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                timetableDayShortNames[day]!,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -449,7 +520,8 @@ class _NextClassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final current = result.currentClass;
     final next = result.nextClass;
     final ScheduledClass? item = current ?? next;
@@ -463,16 +535,13 @@ class _NextClassCard extends StatelessWidget {
         : result.daysUntilNext == 1
         ? 'First class tomorrow'
         : 'Next scheduled class';
-    return Container(
+    // Surface contrast instead of a tinted, outlined block: the accent lives
+    // in the icon, and the text keeps the theme's normal colours.
+    return PremiumSurface(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: semantic.infoContainer,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: semantic.info.withValues(alpha: 0.22)),
-      ),
       child: Row(
         children: [
-          Icon(Icons.near_me_rounded, color: semantic.onInfoContainer),
+          Icon(Icons.near_me_rounded, color: colors.primary),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -480,8 +549,7 @@ class _NextClassCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: semantic.onInfoContainer,
+                  style: theme.textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -490,8 +558,8 @@ class _NextClassCard extends StatelessWidget {
                   '${item.subject.name}  •  ${_formatTime(context, item.entry.startTime)}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: semantic.onInfoContainer,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -526,7 +594,6 @@ class _ClassCard extends StatelessWidget {
     final room = item.entry.room.isNotEmpty
         ? item.entry.room
         : item.subject.room;
-    final accent = Color(item.subject.displayColor);
     return Card(
       color: isCurrent ? colors.primaryContainer.withValues(alpha: .32) : null,
       child: InkWell(
@@ -542,20 +609,6 @@ class _ClassCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                key: Key('timetable_subject_accent_${item.entry.id}'),
-                width: 4,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  boxShadow: AppGlows.subjectAccent(
-                    accent,
-                    brightness: Theme.of(context).brightness,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
               SizedBox(
                 width: 78,
                 child: Column(
@@ -615,6 +668,33 @@ class _ClassCard extends StatelessWidget {
                         color: colors.onSurfaceVariant,
                       ),
                     ),
+                    if (item.entry.reminderMinutesBefore case final lead?) ...[
+                      const SizedBox(height: AppSpacing.xxs),
+                      Row(
+                        key: Key('timetable_class_reminder_${item.entry.id}'),
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.notifications_active_rounded,
+                            size: 14,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: AppSpacing.xxxs),
+                          Flexible(
+                            child: Text(
+                              formatClassReminderLead(lead),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: colors.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

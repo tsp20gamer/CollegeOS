@@ -1,7 +1,6 @@
 import 'package:college_os/core/theme/card_styles.dart';
 import 'package:college_os/core/theme/color_tokens.dart';
 import 'package:college_os/core/theme/dimensions.dart';
-import 'package:college_os/core/theme/effects.dart';
 import 'package:college_os/core/theme/page_transitions.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
@@ -35,21 +34,22 @@ abstract final class AppTheme {
           ? AppColors.darkSurfaceHigh
           : AppColors.lightSurfaceHigh,
       surfaceContainerHighest: isDark
-          ? const Color(0xFF2B2D36)
-          : const Color(0xFFE1E5F0),
-      primary: AppColors.violet,
+          ? const Color(0xFF252830)
+          : const Color(0xFFE5E7EB),
+      primary: AppColors.cobalt,
       onPrimary: Colors.white,
       primaryContainer: isDark
-          ? const Color(0xFF2B2757)
-          : const Color(0xFFE8E5FF),
+          ? const Color(0xFF1E3A5F)
+          : const Color(0xFFDBEAFE),
       onPrimaryContainer: isDark
-          ? const Color(0xFFE9E6FF)
-          : const Color(0xFF211A62),
-      secondary: AppColors.blue,
-      outline: isDark ? baseColors.outline : const Color(0xFF737B8B),
+          ? const Color(0xFFBFDBFE)
+          : const Color(0xFF1E3A5F),
+      secondary: AppColors.cobalt,
+      // Quiet outlines — rely on surface contrast, not heavy borders.
+      outline: isDark ? const Color(0xFF2E3138) : const Color(0xFFD1D5DB),
       outlineVariant: isDark
-          ? baseColors.outlineVariant
-          : const Color(0xFFD1D6E1),
+          ? const Color(0xFF252830)
+          : const Color(0xFFE5E7EB),
     );
     final textTheme = AppTypography.textTheme(colors.onSurface);
 
@@ -59,10 +59,13 @@ abstract final class AppTheme {
       colorScheme: colors,
       scaffoldBackgroundColor: colors.surface,
       textTheme: textTheme,
-      cardTheme: AppCardStyles.theme(colors),
+      cardTheme: AppCardStyles.theme(colors, isDark: isDark),
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
-      extensions: [isDark ? AppSemanticColors.dark : AppSemanticColors.light],
+      extensions: [
+        isDark ? AppSemanticColors.dark : AppSemanticColors.light,
+        isDark ? FeatureColors.dark : FeatureColors.light,
+      ],
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {TargetPlatform.android: CollegePageTransitionsBuilder()},
       ),
@@ -75,13 +78,15 @@ abstract final class AppTheme {
         systemOverlayStyle: AppSystemUiStyle.forBrightness(brightness),
         titleTextStyle: textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w800,
-          shadows: AppGlows.text(strength: isDark ? .72 : .38),
+          // No glow — clean, product-quality typography.
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 72,
         elevation: 0,
-        backgroundColor: colors.surfaceContainerLow,
+        backgroundColor: isDark
+            ? AppColors.darkSurfaceLow
+            : AppColors.lightSurfaceLowest,
         indicatorColor: colors.primaryContainer,
         indicatorShape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -126,13 +131,19 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          side: BorderSide(color: colors.outline),
+          side: BorderSide(
+            color: isDark
+                ? colors.outline
+                : colors.outline.withValues(alpha: .7),
+          ),
           textStyle: textTheme.labelLarge,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colors.surfaceContainerLowest,
+        fillColor: isDark
+            ? AppColors.darkSurfaceLow
+            : AppColors.lightSurfaceLowest,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.md,
@@ -143,7 +154,9 @@ abstract final class AppTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: BorderSide(color: colors.outlineVariant),
+          borderSide: BorderSide(
+            color: isDark ? colors.outlineVariant : colors.outlineVariant,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -175,17 +188,21 @@ abstract final class AppTheme {
         focusElevation: AppElevation.raised,
         hoverElevation: AppElevation.raised,
         highlightElevation: AppElevation.raised,
-        backgroundColor: colors.primaryContainer,
-        foregroundColor: colors.onPrimaryContainer,
+        backgroundColor: colors.primary,
+        foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: colors.surfaceContainerLow,
+        backgroundColor: isDark
+            ? AppColors.darkSurfaceLow
+            : AppColors.lightSurfaceLowest,
         surfaceTintColor: Colors.transparent,
-        modalBackgroundColor: colors.surfaceContainerLow,
-        modalBarrierColor: colors.scrim.withValues(alpha: 0.42),
+        modalBackgroundColor: isDark
+            ? AppColors.darkSurfaceLow
+            : AppColors.lightSurfaceLowest,
+        modalBarrierColor: Colors.black.withValues(alpha: isDark ? .60 : .40),
         showDragHandle: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
@@ -195,7 +212,9 @@ abstract final class AppTheme {
       ),
       dialogTheme: DialogThemeData(
         elevation: AppElevation.floating,
-        backgroundColor: colors.surfaceContainerLow,
+        backgroundColor: isDark
+            ? AppColors.darkSurfaceLow
+            : AppColors.lightSurfaceLowest,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -203,8 +222,9 @@ abstract final class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: colors.surfaceContainerHigh,
-        selectedColor: colors.secondaryContainer,
-        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.55)),
+        selectedColor: colors.primaryContainer,
+        // No border — surface contrast defines chip boundary.
+        side: BorderSide.none,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
@@ -228,7 +248,7 @@ abstract final class AppTheme {
                 : colors.onSurfaceVariant,
           ),
           side: WidgetStatePropertyAll(
-            BorderSide(color: colors.outlineVariant.withValues(alpha: .55)),
+            BorderSide(color: colors.outlineVariant),
           ),
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(
@@ -252,8 +272,8 @@ abstract final class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: isDark
-            ? colors.surfaceContainerHighest
-            : const Color(0xFF242733),
+            ? const Color(0xFF252830)
+            : const Color(0xFF1F2937),
         contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -273,7 +293,9 @@ abstract final class AppTheme {
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: colors.outlineVariant.withValues(alpha: 0.65),
+        // Barely-there separators: rows are grouped by a whisper of a line, not
+        // an outline. Dark is white/5, light an extremely subtle neutral.
+        color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
         space: 1,
       ),
     );

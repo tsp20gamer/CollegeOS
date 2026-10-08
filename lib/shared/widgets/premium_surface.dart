@@ -22,26 +22,62 @@ class PremiumSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    // Dark: no border — the card color (#161920) contrasts naturally with
+    // the scaffold background (#0F1115).
+    // Light: subtle hairline to separate white card from #F8F9FA background.
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.md),
-      side: BorderSide(
-        color: borderColor ?? colors.outlineVariant.withValues(alpha: 0.38),
-      ),
+      side: borderColor != null
+          ? BorderSide(color: borderColor!)
+          : isDark
+          ? BorderSide.none
+          : BorderSide(color: const Color(0xFF000000).withValues(alpha: .06)),
     );
     final content = Padding(padding: padding, child: child);
     return Semantics(
       container: true,
       button: onTap != null,
       label: semanticLabel,
-      child: Material(
-        color: color ?? colors.surfaceContainerLow,
-        shape: shape,
-        clipBehavior: Clip.antiAlias,
-        child: onTap == null
-            ? content
-            : InkWell(onTap: onTap, customBorder: shape, child: content),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          boxShadow: _depthShadows(context),
+        ),
+        child: Material(
+          color: color ?? colors.surfaceContainerLow,
+          shape: shape,
+          clipBehavior: Clip.antiAlias,
+          child: onTap == null
+              ? content
+              : InkWell(onTap: onTap, customBorder: shape, child: content),
+        ),
       ),
     );
+  }
+
+  /// Minimal depth: a single neutral shadow for light mode, slightly deeper
+  /// for dark mode to separate card layers cleanly.
+  List<BoxShadow> _depthShadows(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (isDark) {
+      return [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: .20),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ];
+    }
+    // Light mode: soft shadow matching the ~0 4px 20px rgba(0,0,0,0.04) spec.
+    return [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: .04),
+        blurRadius: 20,
+        offset: const Offset(0, 4),
+      ),
+    ];
   }
 }

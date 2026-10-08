@@ -7,6 +7,11 @@ typedef TimetableEntry = ({
   int endTime,
   String room,
   String note,
+  /// How long before [startTime] this class's reminder fires.
+  ///
+  /// `null` means the class has no reminder. The lead time applies to every
+  /// occurrence of the class, and `0` reminds at the class start.
+  int? reminderMinutesBefore,
 });
 
 typedef NewTimetableEntry = ({
@@ -17,6 +22,7 @@ typedef NewTimetableEntry = ({
   int endTime,
   String room,
   String note,
+  int? reminderMinutesBefore,
 });
 
 abstract interface class TimetableRepository {

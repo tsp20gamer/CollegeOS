@@ -29,6 +29,7 @@ void main() {
       endTime: 610,
       room: '2009',
       note: '',
+      reminderMinutesBefore: null,
     );
     const csv =
         'Weekday,Start Time,End Time,Subject Name,Subject Code,Lecturer,Location,Notes\n'
