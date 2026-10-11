@@ -2,6 +2,7 @@ import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/core/database/database_enums.dart';
 import 'package:college_os/features/backup/application/backup_providers.dart';
 import 'package:college_os/features/notifications/application/notification_providers.dart';
+import 'package:college_os/features/notifications/domain/class_reminder_preset.dart';
 import 'package:college_os/features/settings/data/attendance_csv_exporter.dart';
 import 'package:college_os/features/settings/data/local_college_data_service.dart';
 import 'package:college_os/features/settings/domain/settings_repository.dart';
@@ -58,7 +59,12 @@ final class CollegeInformationController extends AsyncNotifier<void> {
         onboardingCompleted: current.onboardingCompleted,
         notificationsEnabled: current.notificationsEnabled,
         automaticLocalBackup: current.automaticLocalBackup,
+        classRemindersEnabled: current.classRemindersEnabled,
+        classReminderMinutesBefore: current.classReminderMinutesBefore,
       ));
+      if (current.defaultAttendanceTarget != defaultAttendanceTarget) {
+        await _retargetSubjects(ref, defaultAttendanceTarget);
+      }
     });
     return !state.hasError;
   }
@@ -86,11 +92,43 @@ final class SettingsPreferenceController extends AsyncNotifier<void> {
       onboardingCompleted: current.onboardingCompleted,
       notificationsEnabled: current.notificationsEnabled,
       automaticLocalBackup: current.automaticLocalBackup,
+      classRemindersEnabled: current.classRemindersEnabled,
+      classReminderMinutesBefore: current.classReminderMinutesBefore,
     ),
   );
 
-  Future<bool> setDefaultAttendanceTarget(double target) {
-    if (target <= 0 || target > 1) return Future.value(false);
+  /// Whether the student wants reminders for timetable classes.
+  ///
+  /// The reactive class-reminder projection is what actually cancels or
+  /// schedules alarms; this only records the intent.
+  Future<bool> setClassRemindersEnabled(bool enabled) => _save(
+    (current) => (
+      studentName: current.studentName,
+      collegeName: current.collegeName,
+      course: current.course,
+      branch: current.branch,
+      academicYearStartDate: current.academicYearStartDate,
+      academicYearEndDate: current.academicYearEndDate,
+      defaultAttendanceTarget: current.defaultAttendanceTarget,
+      themeMode: current.themeMode,
+      onboardingCompleted: current.onboardingCompleted,
+      notificationsEnabled: current.notificationsEnabled,
+      automaticLocalBackup: current.automaticLocalBackup,
+      classRemindersEnabled: enabled,
+      classReminderMinutesBefore: current.classReminderMinutesBefore,
+    ),
+  );
+
+  /// Lead time, in minutes before a class start, offered to classes that have
+  /// no reminder of their own.
+  ///
+  /// Values outside the range the database accepts are refused rather than
+  /// clamped, so the stored setting always matches what the picker showed.
+  Future<bool> setClassReminderMinutesBefore(int minutesBefore) {
+    if (minutesBefore < minClassReminderLeadMinutes ||
+        minutesBefore > maxClassReminderLeadMinutes) {
+      return Future.value(false);
+    }
     return _save(
       (current) => (
         studentName: current.studentName,
@@ -99,13 +137,40 @@ final class SettingsPreferenceController extends AsyncNotifier<void> {
         branch: current.branch,
         academicYearStartDate: current.academicYearStartDate,
         academicYearEndDate: current.academicYearEndDate,
-        defaultAttendanceTarget: target,
+        defaultAttendanceTarget: current.defaultAttendanceTarget,
         themeMode: current.themeMode,
         onboardingCompleted: current.onboardingCompleted,
         notificationsEnabled: current.notificationsEnabled,
         automaticLocalBackup: current.automaticLocalBackup,
+        classRemindersEnabled: current.classRemindersEnabled,
+        classReminderMinutesBefore: minutesBefore,
       ),
     );
+  }
+
+  Future<bool> setDefaultAttendanceTarget(double target) async {
+    if (target <= 0 || target > 1) return Future.value(false);
+    final current = await ref.read(settingsRepositoryProvider).get();
+    final saved = await _save(
+      (existing) => (
+        studentName: existing.studentName,
+        collegeName: existing.collegeName,
+        course: existing.course,
+        branch: existing.branch,
+        academicYearStartDate: existing.academicYearStartDate,
+        academicYearEndDate: existing.academicYearEndDate,
+        defaultAttendanceTarget: target,
+        themeMode: existing.themeMode,
+        onboardingCompleted: existing.onboardingCompleted,
+        notificationsEnabled: existing.notificationsEnabled,
+        automaticLocalBackup: existing.automaticLocalBackup,
+        classRemindersEnabled: existing.classRemindersEnabled,
+        classReminderMinutesBefore: existing.classReminderMinutesBefore,
+      ),
+    );
+    if (!saved || current.defaultAttendanceTarget == target) return saved;
+    await _retargetSubjects(ref, target);
+    return saved;
   }
 
   Future<bool> _save(
@@ -198,8 +263,19 @@ final class AutomaticLocalBackupController extends AsyncNotifier<void> {
         onboardingCompleted: current.onboardingCompleted,
         notificationsEnabled: current.notificationsEnabled,
         automaticLocalBackup: enabled,
+        classRemindersEnabled: current.classRemindersEnabled,
+        classReminderMinutesBefore: current.classReminderMinutesBefore,
       ));
     });
     return !state.hasError;
   }
 }
+
+/// Re-targets every existing subject after the default attendance target
+/// changes.
+///
+/// Attendance, the planner and analytics all read a subject's own stored
+/// target, so the new default has to reach subjects that already exist or the
+/// screens keep reporting the old goal.
+Future<void> _retargetSubjects(Ref ref, double target) =>
+    ref.read(subjectRepositoryProvider).setAllAttendanceTargets(target);

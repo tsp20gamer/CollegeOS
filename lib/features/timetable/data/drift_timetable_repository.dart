@@ -1,5 +1,6 @@
 import 'package:college_os/core/database/app_database.dart';
 import 'package:college_os/core/database/daos/timetable_dao.dart';
+import 'package:college_os/features/notifications/domain/class_reminder_preset.dart';
 import 'package:college_os/features/timetable/domain/timetable_repository.dart';
 import 'package:drift/drift.dart';
 
@@ -84,6 +85,29 @@ final class DriftTimetableRepository implements TimetableRepository {
   @override
   Future<void> delete(int id, {DateTime? effectiveFrom}) async =>
       _dao.endEntry(id, effectiveFrom ?? DateTime.now());
+
+  @override
+  Future<int> applyReminderToAll(
+    int semesterId,
+    int minutesBefore, {
+    DateTime? effectiveOn,
+  }) {
+    if (minutesBefore < minClassReminderLeadMinutes ||
+        minutesBefore > maxClassReminderLeadMinutes) {
+      throw ArgumentError.value(
+        minutesBefore,
+        'minutesBefore',
+        'A class reminder lead time must be between '
+            '$minClassReminderLeadMinutes and $maxClassReminderLeadMinutes '
+            'minutes.',
+      );
+    }
+    return _dao.setReminderForSemester(
+      semesterId,
+      minutesBefore,
+      effectiveOn: effectiveOn ?? DateTime.now(),
+    );
+  }
 
   TimetableEntry _map(TimetableEntryRow row) => (
     id: row.id,

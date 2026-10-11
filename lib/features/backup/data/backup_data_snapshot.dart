@@ -78,6 +78,8 @@ final class BackupDataSnapshot {
       'onboardingCompleted': settings.onboardingCompleted,
       'notificationsEnabled': settings.notificationsEnabled,
       'automaticLocalBackup': settings.automaticLocalBackup,
+      'classRemindersEnabled': settings.classRemindersEnabled,
+      'classReminderMinutesBefore': settings.classReminderMinutesBefore,
     },
     'semesters': [
       for (final row in semesters)
@@ -310,6 +312,19 @@ final class BackupDataSnapshot {
       onboardingCompleted: _boolean(settingsMap, 'onboardingCompleted'),
       notificationsEnabled: _boolean(settingsMap, 'notificationsEnabled'),
       automaticLocalBackup: _boolean(settingsMap, 'automaticLocalBackup'),
+      // The class notifier was added in schema v15; older archives restore the
+      // same state an in-place upgrade produces: classes keep reminding as they
+      // did before, with a 10-minute default for classes added later.
+      classRemindersEnabled: _optionalBoolean(
+        settingsMap,
+        'classRemindersEnabled',
+        orElse: true,
+      ),
+      classReminderMinutesBefore: _optionalInteger(
+        settingsMap,
+        'classReminderMinutesBefore',
+        orElse: defaultClassReminderMinutesBefore,
+      ),
     );
     final semesters = _list(root, 'semesters')
         .map((value) {
@@ -604,6 +619,11 @@ final class BackupDataSnapshot {
       settings.defaultAttendanceTarget > 0 &&
           settings.defaultAttendanceTarget <= 1,
       'Default attendance target is invalid.',
+    );
+    _require(
+      settings.classReminderMinutesBefore >= minClassReminderLeadMinutes &&
+          settings.classReminderMinutesBefore <= maxClassReminderLeadMinutes,
+      'The class reminder lead time is invalid.',
     );
     _uniquePositive(semesters.map((row) => row.id), 'semester');
     _uniquePositive(subjects.map((row) => row.id), 'subject');
@@ -989,6 +1009,24 @@ bool _boolean(Map<String, dynamic> map, String key) {
   }
   return value;
 }
+
+/// Reads a boolean that schemas before v15 did not write.
+///
+/// A missing key means the archive predates the setting, so [orElse] supplies
+/// the value an in-place schema upgrade would have stored.
+bool _optionalBoolean(
+  Map<String, dynamic> map,
+  String key, {
+  required bool orElse,
+}) => map.containsKey(key) ? _boolean(map, key) : orElse;
+
+/// Reads an integer that schemas before v15 did not write, defaulting to the
+/// value an in-place schema upgrade would have stored.
+int _optionalInteger(
+  Map<String, dynamic> map,
+  String key, {
+  required int orElse,
+}) => map.containsKey(key) ? _integer(map, key) : orElse;
 
 DateTime _localDate(Map<String, dynamic> map, String key) {
   final value = _string(map, key);

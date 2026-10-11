@@ -26,7 +26,7 @@ abstract final class AppLayout {
   /// The bar is laid out flush with the physical bottom edge and paints behind
   /// the system inset itself, so its total footprint on screen is this value
   /// plus [MediaQueryData.padding]'s bottom inset.
-  static const double navigationBarHeight = 58;
+  static const double navigationBarHeight = 64;
 
   /// Bottom padding that keeps scrolling content clear of whatever occupies the
   /// bottom of the screen.

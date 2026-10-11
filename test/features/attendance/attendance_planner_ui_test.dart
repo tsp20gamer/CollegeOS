@@ -374,6 +374,8 @@ final CollegeSettings _settings = (
   onboardingCompleted: true,
   notificationsEnabled: false,
   automaticLocalBackup: false,
+  classRemindersEnabled: true,
+  classReminderMinutesBefore: 10,
 );
 
 // The classroom scenario: Maths at 9:00 and Physics at 10:00 every Monday.

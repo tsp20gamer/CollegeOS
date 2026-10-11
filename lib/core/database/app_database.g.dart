@@ -8233,6 +8233,33 @@ class $AppSettingsTable extends AppSettings
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _classRemindersEnabledMeta =
+      const VerificationMeta('classRemindersEnabled');
+  @override
+  late final GeneratedColumn<bool> classRemindersEnabled =
+      GeneratedColumn<bool>(
+        'class_reminders_enabled',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("class_reminders_enabled" IN (0, 1))',
+        ),
+        defaultValue: const Constant(true),
+      );
+  static const VerificationMeta _classReminderMinutesBeforeMeta =
+      const VerificationMeta('classReminderMinutesBefore');
+  @override
+  late final GeneratedColumn<int> classReminderMinutesBefore =
+      GeneratedColumn<int>(
+        'class_reminder_minutes_before',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(10),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -8247,6 +8274,8 @@ class $AppSettingsTable extends AppSettings
     onboardingCompleted,
     notificationsEnabled,
     automaticLocalBackup,
+    classRemindersEnabled,
+    classReminderMinutesBefore,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8329,6 +8358,24 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('class_reminders_enabled')) {
+      context.handle(
+        _classRemindersEnabledMeta,
+        classRemindersEnabled.isAcceptableOrUnknown(
+          data['class_reminders_enabled']!,
+          _classRemindersEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('class_reminder_minutes_before')) {
+      context.handle(
+        _classReminderMinutesBeforeMeta,
+        classReminderMinutesBefore.isAcceptableOrUnknown(
+          data['class_reminder_minutes_before']!,
+          _classReminderMinutesBeforeMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -8394,6 +8441,14 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.bool,
         data['${effectivePrefix}automatic_local_backup'],
       )!,
+      classRemindersEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}class_reminders_enabled'],
+      )!,
+      classReminderMinutesBefore: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}class_reminder_minutes_before'],
+      )!,
     );
   }
 
@@ -8429,6 +8484,23 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
   final bool onboardingCompleted;
   final bool notificationsEnabled;
   final bool automaticLocalBackup;
+
+  /// Whether the student wants reminders for timetable classes at all.
+  ///
+  /// Independent of [notificationsEnabled]: the global switch pauses every
+  /// reminder type, while this one pauses only classes. Both must be on before
+  /// a class alarm is handed to Android.
+  final bool classRemindersEnabled;
+
+  /// Lead time, in minutes before a class start, offered to every class that
+  /// has no reminder of its own.
+  ///
+  /// Mirrored by the `class_reminder_minutes_before` CHECK constraint below and
+  /// by `minClassReminderLeadMinutes`/`maxClassReminderLeadMinutes`, so the
+  /// database, the Settings picker and a class's own reminder agree on exactly
+  /// one range. Declared last so a migration that only adds these columns
+  /// produces the same table SQL as a fresh create.
+  final int classReminderMinutesBefore;
   const AppSettingsRow({
     required this.id,
     required this.studentName,
@@ -8442,6 +8514,8 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     required this.onboardingCompleted,
     required this.notificationsEnabled,
     required this.automaticLocalBackup,
+    required this.classRemindersEnabled,
+    required this.classReminderMinutesBefore,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8476,6 +8550,10 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     map['onboarding_completed'] = Variable<bool>(onboardingCompleted);
     map['notifications_enabled'] = Variable<bool>(notificationsEnabled);
     map['automatic_local_backup'] = Variable<bool>(automaticLocalBackup);
+    map['class_reminders_enabled'] = Variable<bool>(classRemindersEnabled);
+    map['class_reminder_minutes_before'] = Variable<int>(
+      classReminderMinutesBefore,
+    );
     return map;
   }
 
@@ -8497,6 +8575,8 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       onboardingCompleted: Value(onboardingCompleted),
       notificationsEnabled: Value(notificationsEnabled),
       automaticLocalBackup: Value(automaticLocalBackup),
+      classRemindersEnabled: Value(classRemindersEnabled),
+      classReminderMinutesBefore: Value(classReminderMinutesBefore),
     );
   }
 
@@ -8532,6 +8612,12 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       automaticLocalBackup: serializer.fromJson<bool>(
         json['automaticLocalBackup'],
       ),
+      classRemindersEnabled: serializer.fromJson<bool>(
+        json['classRemindersEnabled'],
+      ),
+      classReminderMinutesBefore: serializer.fromJson<int>(
+        json['classReminderMinutesBefore'],
+      ),
     );
   }
   @override
@@ -8556,6 +8642,10 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       'onboardingCompleted': serializer.toJson<bool>(onboardingCompleted),
       'notificationsEnabled': serializer.toJson<bool>(notificationsEnabled),
       'automaticLocalBackup': serializer.toJson<bool>(automaticLocalBackup),
+      'classRemindersEnabled': serializer.toJson<bool>(classRemindersEnabled),
+      'classReminderMinutesBefore': serializer.toJson<int>(
+        classReminderMinutesBefore,
+      ),
     };
   }
 
@@ -8572,6 +8662,8 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     bool? onboardingCompleted,
     bool? notificationsEnabled,
     bool? automaticLocalBackup,
+    bool? classRemindersEnabled,
+    int? classReminderMinutesBefore,
   }) => AppSettingsRow(
     id: id ?? this.id,
     studentName: studentName ?? this.studentName,
@@ -8590,6 +8682,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
     notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     automaticLocalBackup: automaticLocalBackup ?? this.automaticLocalBackup,
+    classRemindersEnabled: classRemindersEnabled ?? this.classRemindersEnabled,
+    classReminderMinutesBefore:
+        classReminderMinutesBefore ?? this.classReminderMinutesBefore,
   );
   AppSettingsRow copyWithCompanion(AppSettingsCompanion data) {
     return AppSettingsRow(
@@ -8621,6 +8716,12 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       automaticLocalBackup: data.automaticLocalBackup.present
           ? data.automaticLocalBackup.value
           : this.automaticLocalBackup,
+      classRemindersEnabled: data.classRemindersEnabled.present
+          ? data.classRemindersEnabled.value
+          : this.classRemindersEnabled,
+      classReminderMinutesBefore: data.classReminderMinutesBefore.present
+          ? data.classReminderMinutesBefore.value
+          : this.classReminderMinutesBefore,
     );
   }
 
@@ -8638,7 +8739,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
           ..write('themeMode: $themeMode, ')
           ..write('onboardingCompleted: $onboardingCompleted, ')
           ..write('notificationsEnabled: $notificationsEnabled, ')
-          ..write('automaticLocalBackup: $automaticLocalBackup')
+          ..write('automaticLocalBackup: $automaticLocalBackup, ')
+          ..write('classRemindersEnabled: $classRemindersEnabled, ')
+          ..write('classReminderMinutesBefore: $classReminderMinutesBefore')
           ..write(')'))
         .toString();
   }
@@ -8657,6 +8760,8 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     onboardingCompleted,
     notificationsEnabled,
     automaticLocalBackup,
+    classRemindersEnabled,
+    classReminderMinutesBefore,
   );
   @override
   bool operator ==(Object other) =>
@@ -8673,7 +8778,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
           other.themeMode == this.themeMode &&
           other.onboardingCompleted == this.onboardingCompleted &&
           other.notificationsEnabled == this.notificationsEnabled &&
-          other.automaticLocalBackup == this.automaticLocalBackup);
+          other.automaticLocalBackup == this.automaticLocalBackup &&
+          other.classRemindersEnabled == this.classRemindersEnabled &&
+          other.classReminderMinutesBefore == this.classReminderMinutesBefore);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
@@ -8689,6 +8796,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
   final Value<bool> onboardingCompleted;
   final Value<bool> notificationsEnabled;
   final Value<bool> automaticLocalBackup;
+  final Value<bool> classRemindersEnabled;
+  final Value<int> classReminderMinutesBefore;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.studentName = const Value.absent(),
@@ -8702,6 +8811,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     this.onboardingCompleted = const Value.absent(),
     this.notificationsEnabled = const Value.absent(),
     this.automaticLocalBackup = const Value.absent(),
+    this.classRemindersEnabled = const Value.absent(),
+    this.classReminderMinutesBefore = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -8716,6 +8827,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     this.onboardingCompleted = const Value.absent(),
     this.notificationsEnabled = const Value.absent(),
     this.automaticLocalBackup = const Value.absent(),
+    this.classRemindersEnabled = const Value.absent(),
+    this.classReminderMinutesBefore = const Value.absent(),
   });
   static Insertable<AppSettingsRow> custom({
     Expression<int>? id,
@@ -8730,6 +8843,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     Expression<bool>? onboardingCompleted,
     Expression<bool>? notificationsEnabled,
     Expression<bool>? automaticLocalBackup,
+    Expression<bool>? classRemindersEnabled,
+    Expression<int>? classReminderMinutesBefore,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -8750,6 +8865,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
         'notifications_enabled': notificationsEnabled,
       if (automaticLocalBackup != null)
         'automatic_local_backup': automaticLocalBackup,
+      if (classRemindersEnabled != null)
+        'class_reminders_enabled': classRemindersEnabled,
+      if (classReminderMinutesBefore != null)
+        'class_reminder_minutes_before': classReminderMinutesBefore,
     });
   }
 
@@ -8766,6 +8885,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     Value<bool>? onboardingCompleted,
     Value<bool>? notificationsEnabled,
     Value<bool>? automaticLocalBackup,
+    Value<bool>? classRemindersEnabled,
+    Value<int>? classReminderMinutesBefore,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -8782,6 +8903,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       automaticLocalBackup: automaticLocalBackup ?? this.automaticLocalBackup,
+      classRemindersEnabled:
+          classRemindersEnabled ?? this.classRemindersEnabled,
+      classReminderMinutesBefore:
+          classReminderMinutesBefore ?? this.classReminderMinutesBefore,
     );
   }
 
@@ -8838,6 +8963,16 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
         automaticLocalBackup.value,
       );
     }
+    if (classRemindersEnabled.present) {
+      map['class_reminders_enabled'] = Variable<bool>(
+        classRemindersEnabled.value,
+      );
+    }
+    if (classReminderMinutesBefore.present) {
+      map['class_reminder_minutes_before'] = Variable<int>(
+        classReminderMinutesBefore.value,
+      );
+    }
     return map;
   }
 
@@ -8855,7 +8990,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
           ..write('themeMode: $themeMode, ')
           ..write('onboardingCompleted: $onboardingCompleted, ')
           ..write('notificationsEnabled: $notificationsEnabled, ')
-          ..write('automaticLocalBackup: $automaticLocalBackup')
+          ..write('automaticLocalBackup: $automaticLocalBackup, ')
+          ..write('classRemindersEnabled: $classRemindersEnabled, ')
+          ..write('classReminderMinutesBefore: $classReminderMinutesBefore')
           ..write(')'))
         .toString();
   }
@@ -16857,6 +16994,8 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<bool> onboardingCompleted,
       Value<bool> notificationsEnabled,
       Value<bool> automaticLocalBackup,
+      Value<bool> classRemindersEnabled,
+      Value<int> classReminderMinutesBefore,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -16872,6 +17011,8 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<bool> onboardingCompleted,
       Value<bool> notificationsEnabled,
       Value<bool> automaticLocalBackup,
+      Value<bool> classRemindersEnabled,
+      Value<int> classReminderMinutesBefore,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -16945,6 +17086,16 @@ class $$AppSettingsTableFilterComposer
     column: $table.automaticLocalBackup,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<bool> get classRemindersEnabled => $composableBuilder(
+    column: $table.classRemindersEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get classReminderMinutesBefore => $composableBuilder(
+    column: $table.classReminderMinutesBefore,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$AppSettingsTableOrderingComposer
@@ -17015,6 +17166,16 @@ class $$AppSettingsTableOrderingComposer
     column: $table.automaticLocalBackup,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get classRemindersEnabled => $composableBuilder(
+    column: $table.classRemindersEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get classReminderMinutesBefore => $composableBuilder(
+    column: $table.classReminderMinutesBefore,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -17079,6 +17240,16 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.automaticLocalBackup,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get classRemindersEnabled => $composableBuilder(
+    column: $table.classRemindersEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get classReminderMinutesBefore => $composableBuilder(
+    column: $table.classReminderMinutesBefore,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -17124,6 +17295,8 @@ class $$AppSettingsTableTableManager
                 Value<bool> onboardingCompleted = const Value.absent(),
                 Value<bool> notificationsEnabled = const Value.absent(),
                 Value<bool> automaticLocalBackup = const Value.absent(),
+                Value<bool> classRemindersEnabled = const Value.absent(),
+                Value<int> classReminderMinutesBefore = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 studentName: studentName,
@@ -17137,6 +17310,8 @@ class $$AppSettingsTableTableManager
                 onboardingCompleted: onboardingCompleted,
                 notificationsEnabled: notificationsEnabled,
                 automaticLocalBackup: automaticLocalBackup,
+                classRemindersEnabled: classRemindersEnabled,
+                classReminderMinutesBefore: classReminderMinutesBefore,
               ),
           createCompanionCallback:
               ({
@@ -17152,6 +17327,8 @@ class $$AppSettingsTableTableManager
                 Value<bool> onboardingCompleted = const Value.absent(),
                 Value<bool> notificationsEnabled = const Value.absent(),
                 Value<bool> automaticLocalBackup = const Value.absent(),
+                Value<bool> classRemindersEnabled = const Value.absent(),
+                Value<int> classReminderMinutesBefore = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 studentName: studentName,
@@ -17165,6 +17342,8 @@ class $$AppSettingsTableTableManager
                 onboardingCompleted: onboardingCompleted,
                 notificationsEnabled: notificationsEnabled,
                 automaticLocalBackup: automaticLocalBackup,
+                classRemindersEnabled: classRemindersEnabled,
+                classReminderMinutesBefore: classReminderMinutesBefore,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

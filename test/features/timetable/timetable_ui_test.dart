@@ -86,9 +86,17 @@ void main() {
             .text,
         'A-101',
       );
-      // Every class carries a reminder option next to its schedule.
-      await tester.ensureVisible(find.byKey(const Key('timetable_reminder_field')));
+      // Every class carries a reminder option next to its schedule, and a new
+      // class starts from the student's class-notifier reminder time.
+      await tester.ensureVisible(
+        find.byKey(const Key('timetable_reminder_field')),
+      );
       await tester.pumpAndSettle();
+      expect(
+        find.text('10 min before'),
+        findsOneWidget,
+        reason: 'a new class inherits the class notifier time',
+      );
       await tester.tap(find.byKey(const Key('timetable_reminder_field')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('15 min before').last);
@@ -100,7 +108,8 @@ void main() {
         find.byKey(const Key('save_timetable_entry_button')),
       );
       expect(
-        (await database.select(database.timetableEntries).get()).single
+        (await database.select(database.timetableEntries).get())
+            .single
             .reminderMinutesBefore,
         15,
       );
@@ -160,9 +169,7 @@ void main() {
       // Choosing another day glides the pill: it is between the two slots
       // mid-flight and lands centred on the chosen day.
       final pillStart = tester.getCenter(pillBox());
-      final target = tester.getCenter(
-        find.byKey(const Key('timetable_day_4')),
-      );
+      final target = tester.getCenter(find.byKey(const Key('timetable_day_4')));
       await tester.tap(find.byKey(const Key('timetable_day_4')));
       // The first pump rebuilds with the new target and starts the glide; the
       // second advances into it so the pill is measured in motion.
@@ -242,14 +249,21 @@ void main() {
 
       await _openAddForm(tester);
       // The custom setter accepts any lead time, not just the presets.
-      await tester.ensureVisible(find.byKey(const Key('timetable_reminder_field')));
+      await tester.ensureVisible(
+        find.byKey(const Key('timetable_reminder_field')),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('timetable_reminder_field')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Custom\u2026').last);
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('timetable_reminder_preview')), findsOneWidget);
-      await tester.tap(find.byKey(const Key('timetable_reminder_minutes_field')));
+      expect(
+        find.byKey(const Key('timetable_reminder_preview')),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(const Key('timetable_reminder_minutes_field')),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('45').last);
       await tester.pumpAndSettle();
@@ -257,7 +271,7 @@ void main() {
         find.byKey(const Key('timetable_reminder_preview')),
         findsOneWidget,
       );
-      await tester.tap(find.byKey(const Key('save_custom_reminder_button')));
+      await tester.tap(find.byKey(const Key('timetable_reminder_save_button')));
       await tester.pumpAndSettle();
       expect(find.text('45 min before a 9:00 AM class'), findsOneWidget);
       await _saveSheet(tester);

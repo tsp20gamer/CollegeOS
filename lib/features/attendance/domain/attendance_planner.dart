@@ -1,6 +1,7 @@
 import 'package:college_os/core/database/database_enums.dart';
 import 'package:college_os/features/attendance/domain/attendance_engine.dart';
 import 'package:college_os/features/semesters/domain/semester_repository.dart';
+import 'package:college_os/features/settings/domain/settings_repository.dart';
 import 'package:college_os/features/subjects/domain/subject_repository.dart';
 
 import 'attendance_calculator.dart';
@@ -280,7 +281,9 @@ abstract final class AttendancePlannerService {
 
 /// Keeps a caller-supplied target inside the calculator's accepted range.
 double _usableTarget(double target) =>
-    !target.isFinite || target <= 0 || target > 1 ? .75 : target;
+    !target.isFinite || target <= 0 || target > 1
+    ? kDefaultAttendanceTarget
+    : target;
 
 DateTime _dateOnly(DateTime value) =>
     DateTime(value.year, value.month, value.day);

@@ -92,7 +92,10 @@ void main() {
     expect(barRect.right, screen.width - AppSpacing.md);
     expect(barRect.bottom, screen.height - AppSpacing.sm);
     expect(barRect.top, greaterThan(0));
-    expect(barRect.height, greaterThanOrEqualTo(AppLayout.navigationBarHeight));
+    // The dock's content height is pinned: 64 px, one small step above the
+    // original 58 px and still taller than twice its corner radius.
+    expect(AppLayout.navigationBarHeight, 64);
+    expect(barRect.height, AppLayout.navigationBarHeight);
     // One smooth floating surface, not a pill clamped by the dock's height.
     expect(_dockRadius(tester), AppRadius.xl);
     expect(_dockRadius(tester) * 2, lessThan(barRect.height));

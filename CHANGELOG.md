@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Fixed the attendance target so the one the student chooses is the goal every readout reports: changing the default attendance target now re-targets the subjects that already exist instead of only the ones created afterwards, so Attendance, the planner and Analytics stop showing the old 75% while Settings says 90%. The default-target dialog explains that it applies to every subject, and a single subject can still be given its own target when it is edited.
+- Replaced the planner's hardcoded 75% fallbacks with one shared default so the target is resolved from the stored setting in exactly one place.
+- Made the floating dock's content 64 px tall (was 58) so its icon, label and dot slot sit a touch roomier; the margins, radius, glass, blur, selection animation and hide-on-scroll behavior are unchanged.
+
+- Added a **Class notifier** to Settings: its own switch pauses class reminders without touching task and exam reminders, and a reminder time (presets or any lead time up to seven days) is offered to every class that has no reminder of its own.
+- Added "Apply to all classes", which writes the class-notifier time onto every current and future class in the active semester after confirming that per-class times will be replaced; ended classes and other semesters are never rewritten, and no timetable history is versioned because a lead time changes what Android announces, not what a class meant on a past date.
+- Added a new class starting from the class-notifier time, so configuring class reminders once covers the whole timetable, and turned the custom lead-time picker into one shared sheet used by both the class form and Settings.
+- Added schema v15 (`app_settings.class_reminders_enabled`, default on, and `app_settings.class_reminder_minutes_before`, default `10`, `0..10080`) with a tested, data-preserving migration; every existing install backfills to enabled with a ten-minute lead time, so classes that already reminded keep reminding. Backup format 1 carries both fields and defaults them for schema-v14 and earlier archives.
+- Removed the temporary notification diagnostics panel from Settings after device verification, along with its provider, model, capability interface, Android battery shortcut and panel-only tests; the Android permission and reminder-channel bridge that delivery depends on is unchanged, and the test notification and Android settings actions remain.
+- Gave every timetable class a reminder: choose off, a preset lead time, or a custom lead time in hours and minutes before the class, visible as a bell and its lead time on the class row.
+- Projected each class reminder as one holiday-aware alarm for that class's next occurrence, rebuilt whenever CollegeOS runs, so holidays, college-closed days, cancelled classes, one-day exceptions, archived subjects and semester breaks are all respected.
+- Kept class notification IDs in their own band above task, exam and attendance IDs, and left stale class alarms to the class channel so startup reconciliation can never wipe them.
+- Animated the Timetable day selector: one cobalt pill now glides between day slots and the chosen day's heading and class list cross-fade and slide in from the direction of travel, with reduced motion collapsing both.
+- Added schema v14 (`timetable_entries.reminder_minutes_before`, `0..10080` or none) with a tested, data-preserving migration; the v6 timetable recreation is now pinned to its historical shape so later columns cannot leak into earlier schema versions. Backup format 1 carries the field and defaults it to none for older archives.
+
 - Turned the bottom navigation back into a floating dock: the strip keeps a 16 px margin from the screen edges and 12 px above the system inset, and paints a 24-sigma backdrop blur under a white 8 % fill (75 % on light) with one soft shadow and a hairline rim at radius 28.
 - Replaced the sliding selection capsule with the mockup's minimal active state: the chosen destination shows a cobalt icon, a cobalt label and a 4 px cobalt dot, with the dot's slot reserved so no label ever moves.
 - Animated only the newly selected icon: a 240 ms 1.0 → 1.10 → 1.04 pop with a 2.5 px lift, an outline-to-filled cross-fade, and a dot that scales in over 150 ms. Reduced motion collapses all of it and leaves the glass itself unchanged.

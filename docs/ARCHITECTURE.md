@@ -148,12 +148,11 @@ is explicitly retained in `res/raw/keep.xml`, because the notification plugin
 resolves its name dynamically and the release resource shrinker cannot infer
 that reference from Dart code.
 
-During device verification, Settings exposes a deliberately temporary local
-diagnostics panel. It reports the persisted CollegeOS preference separately from
-Android permission, reminder-channel importance, pending OS projections, local
-timezone, Android API, and battery-optimization status. The panel does not log,
-upload, or persist diagnostics and can be removed without changing the stable
-notification scheduling contract.
+The temporary diagnostics panel used during device verification has been
+removed. Settings keeps the notification check sheet with the test action and the
+Android notification-settings shortcut, and `AndroidNotificationPlatform` keeps
+the narrow native permission and reminder-channel query it needs to decide
+whether reminders can actually be delivered on this device.
 
 Riverpod code generation is intentionally omitted at first to reduce generators and dependencies. Drift remains the only required code generator. Reconsider only if hand-written provider maintenance becomes materially worse.
 
@@ -162,7 +161,10 @@ Riverpod code generation is intentionally omitted at first to reduce generators 
 The bottom navigation is a floating translucent dock. It keeps a 16 px margin
 from the left and right screen edges and 12 px above the system inset, and paints
 a 24 sigma backdrop blur under a white 8 % fill on the dark theme (75 % on light)
-with one soft shadow and a hairline rim, at radius 28. All five destinations keep
+with one soft shadow and a hairline rim, at radius 28. Its content strip is
+64 px tall (`AppLayout.navigationBarHeight`), which keeps the dock clear of a
+pill radius while giving the icon, label and dot slot a little more room. All
+five destinations keep
 their icon and label at every width: labels are clamped to a 1.3 text scale factor
 and scaled down to fit their slot instead of being truncated or hidden. Selection
 paints no capsule: the chosen destination gets the cobalt icon, a cobalt label and
@@ -186,6 +188,14 @@ Settings is deliberately not a destination. Each tab header exposes it through
 over the shell so it keeps a back button. `AppScaffold` also supplies a back
 affordance to every pushed screen, and wraps its header actions so a compact
 phone with several actions at a large text scale wraps instead of overflowing.
+
+The Timetable day bar keeps one strip one surface step above the canvas and one
+cobalt pill. The pill glides between the equal-width Mon–Sat slots over 260 ms on
+an emphasized curve while each label animates its colour and weight, and the
+chosen day's heading and class list cross-fade and slide 2% of their width from
+the direction of travel over 220 ms. Reduced motion collapses both to zero
+duration, and no day paints a background of its own, so the pill is the only
+thing that moves and no label ever shifts.
 
 Use `GoRouter` with an onboarding redirect and a `StatefulShellRoute.indexedStack` for persistent tab state.
 
@@ -297,12 +307,14 @@ Legacy `attendance_sessions` and `daily_attendance_records` remain isolated for 
 
 ### Notification projection
 
-- SQLite stores only reminder intent (`reminder_at`) and the global enabled preference. Android pending notifications are disposable projections.
-- Task and exam notification IDs occupy disjoint deterministic ranges derived from the local record ID, preventing collisions and duplicates without another mapping table.
-- Creation/edit commands persist first, then schedule or cancel the matching projection. Completion and deletion always cancel it. Scheduling failure never rolls back or loses the task/exam itself.
+- SQLite stores only reminder intent (`reminder_at` for tasks and exams, `timetable_entries.reminder_minutes_before` for classes) and the two gating preferences: the global `notifications_enabled` master and the class-only `class_reminders_enabled` with its default lead time `class_reminder_minutes_before`. Android pending notifications are disposable projections.
+- Task, exam, attendance and class reminder notification IDs occupy four disjoint deterministic ranges derived from the local record ID: tasks are positive, exams the same id negated, attendance is reserved as zero, and class reminders start at `classReminderNotificationIdBase`. No mapping table is needed and no two records can collide.
+- A class reminder is a lead time rather than an instant, so `ClassReminderPlan` projects exactly one alarm per class: its next eligible occurrence, computed from the same day model attendance uses. Holidays, college-closed days, cancelled classes, one-day exceptions, archived subjects and semester breaks are therefore skipped without a second calendar, and `0` reminds at the class start.
+- Creation/edit commands persist first, then schedule or cancel the matching projection. Completion and deletion always cancel it. Scheduling failure never rolls back or loses the task, exam or saved class itself.
 - App startup initializes timezone data and reconciles all future reminder intent, cancelling stale CollegeOS IDs. Reconciliation also covers app updates, restore, timezone changes observed on launch, and schedules lost by the OS.
+- The class namespace is owned by its own serialized sync: the desired projection is recomputed from the stored timetable, the calendar and the clock, stale class alarms are cancelled, changed lead times are replaced and unchanged ones are left alone. Both the class-notifier switch and the global master gate that projection, so turning class reminders off empties the namespace and cancels every class alarm while tasks and exams keep working. `TimetableDao.setReminderForSemester` backs "Apply to all classes": it writes only the lead time, on rows that are still current or future, without versioning timetable history, because a lead time changes what Android announces rather than what a class record meant on a past date. Startup reconciliation deliberately skips class payloads so it can never wipe them before that sync runs, and the projection provider reports `null` ("leave the namespace alone") while its inputs are still loading instead of treating a slow read as "no reminders".
 - On Android 12 and newer, CollegeOS offers the system-managed precise-alarm access when notifications are enabled or the first reminder is created. Scheduling uses `exactAllowWhileIdle` when that access is available and safely falls back to `inexactAllowWhileIdle` otherwise. Runtime notification permission is still requested only in context. No permanent background service is used.
-- Payloads contain only a typed local route (`task:<id>` or `exam:<id>`). Taps route to the relevant Tasks or Exams screen, which remains recoverable if the record was removed.
+- Payloads contain only a typed local route (`task:<id>`, `exam:<id>` or `classReminder:<id>`). Taps route to the relevant Tasks, Exams or Timetable screen, which remains recoverable if the record was removed.
 
 ## 9. Error handling and observability
 

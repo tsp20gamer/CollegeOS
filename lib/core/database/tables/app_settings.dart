@@ -24,6 +24,25 @@ class AppSettings extends Table {
   BoolColumn get automaticLocalBackup =>
       boolean().withDefault(const Constant(true))();
 
+  /// Whether the student wants reminders for timetable classes at all.
+  ///
+  /// Independent of [notificationsEnabled]: the global switch pauses every
+  /// reminder type, while this one pauses only classes. Both must be on before
+  /// a class alarm is handed to Android.
+  BoolColumn get classRemindersEnabled =>
+      boolean().withDefault(const Constant(true))();
+
+  /// Lead time, in minutes before a class start, offered to every class that
+  /// has no reminder of its own.
+  ///
+  /// Mirrored by the `class_reminder_minutes_before` CHECK constraint below and
+  /// by `minClassReminderLeadMinutes`/`maxClassReminderLeadMinutes`, so the
+  /// database, the Settings picker and a class's own reminder agree on exactly
+  /// one range. Declared last so a migration that only adds these columns
+  /// produces the same table SQL as a fresh create.
+  IntColumn get classReminderMinutesBefore =>
+      integer().withDefault(const Constant(10))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 
@@ -33,5 +52,6 @@ class AppSettings extends Table {
     'CHECK (default_attendance_target > 0 '
         'AND default_attendance_target <= 1)',
     "CHECK (theme_mode IN ('system', 'light', 'dark'))",
+    'CHECK (class_reminder_minutes_before BETWEEN 0 AND 10080)',
   ];
 }

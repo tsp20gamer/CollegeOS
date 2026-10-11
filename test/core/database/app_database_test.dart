@@ -276,6 +276,8 @@ void main() {
       final defaults = await repository.get();
       expect(defaults.defaultAttendanceTarget, 0.75);
       expect(defaults.automaticLocalBackup, isTrue);
+      expect(defaults.classRemindersEnabled, isTrue);
+      expect(defaults.classReminderMinutesBefore, 10);
 
       await repository.save((
         studentName: 'Test Student',
@@ -289,6 +291,8 @@ void main() {
         onboardingCompleted: true,
         notificationsEnabled: true,
         automaticLocalBackup: false,
+        classRemindersEnabled: false,
+        classReminderMinutesBefore: 25,
       ));
       final settings = await repository.get();
       expect(settings.studentName, 'Test Student');
@@ -296,6 +300,8 @@ void main() {
       expect(settings.themeMode, CollegeThemeMode.dark);
       expect(settings.onboardingCompleted, isTrue);
       expect(settings.automaticLocalBackup, isFalse);
+      expect(settings.classRemindersEnabled, isFalse);
+      expect(settings.classReminderMinutesBefore, 25);
       expect(await database.select(database.appSettings).get(), hasLength(1));
     });
   });

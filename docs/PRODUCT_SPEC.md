@@ -90,7 +90,7 @@ Each destination preserves its navigation stack and scroll position when switchi
 
 - Create, edit, archive, and delete a subject within a semester.
 - Store name, optional short code, color token, instructor, room, credits, and attendance target.
-- Initialize target from the app default (75%) but allow a per-subject override.
+- Initialize the target from the app default, and re-target every existing subject when that default changes, so Attendance, the planner and Analytics all compare against the target the student chose. A per-subject override is still allowed.
 - Subject deletion requires explicit confirmation and explains its cascading impact.
 
 ### 6.4 Attendance
@@ -133,17 +133,21 @@ Subject percentages remain class-based: `present / (present + absent)`. Unmarked
 
 ### 6.9 Local notifications
 
-- Support reminders for tasks and exams without a network connection.
+- Support reminders for tasks, exams, and timetable classes without a network connection.
 - Persist reminder intent in SQLite; operating-system notification schedules are a rebuildable projection.
-- Ask for notification permission in context and keep the app fully usable if denied.
+- Treat a class reminder as a lead time before every occurrence of that class, not a one-off instant: presets plus any custom lead time from the class start up to seven days earlier.
+- Project one alarm for each class's next occurrence and respect the academic calendar while doing it: holidays, college-closed days, cancelled classes, one-day exceptions, archived subjects, and semester breaks never remind about a class that will not happen.
+- Settings exposes a **Class notifier**: a switch that pauses class reminders on its own (independently of the global notifications switch, which keeps controlling tasks and exams) and a reminder time offered to every class that has no reminder of its own. Below them, "Apply to all classes" writes that time onto every current and future class in the active semester after confirming that individually set per-class reminders will be replaced.
+- A new class starts from the class notifier's reminder time, so asking for class reminders once configures the whole timetable. Classes whose effectiveness has already ended, and other semesters, are never rewritten.
+- Ask for notification permission in context and keep the app fully usable if denied. While the global notifications switch is off, the class notifier section says so and offers to turn it on rather than silently doing nothing.
 - Use device timezone data and reschedule after restore, relevant data edits, timezone changes detected on app launch, and application updates.
 - Use inexact while-idle scheduling by default to avoid unnecessary exact-alarm privilege. If exact reminders are later offered, request `SCHEDULE_EXACT_ALARM` transparently and degrade gracefully when denied.
-- Notification taps deep-link to the related task or exam.
+- Notification taps deep-link to the related task, exam, or timetable.
 - Past, completed, deleted, or disabled items must not leave stale notifications.
 
 ### 6.10 Settings
 
-- Edit student/college labels, default attendance target, theme, week start, notification preferences, and date/time display preferences.
+- Edit student/college labels, default attendance target, theme, week start, notification preferences (including the class notifier), and date/time display preferences.
 - Show application and database schema version for support.
 - Provide Backup & Restore and a destructive local reset behind explicit confirmation.
 - No analytics or privacy toggles are needed because no telemetry exists.

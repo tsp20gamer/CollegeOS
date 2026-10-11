@@ -31,4 +31,10 @@ abstract interface class SubjectRepository {
   Future<int> create(NewSubject subject);
   Future<void> update(Subject subject);
   Future<void> setArchived(int id, {required bool archived});
+
+  /// Re-targets every subject, in every semester, to [target].
+  ///
+  /// Changing the default attendance target has to reach the subjects that
+  /// already exist: attendance and analytics read each subject's own target.
+  Future<void> setAllAttendanceTargets(double target);
 }

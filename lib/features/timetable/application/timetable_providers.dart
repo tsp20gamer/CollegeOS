@@ -150,6 +150,26 @@ final class TimetableCommandController extends AsyncNotifier<void> {
         .delete(id, effectiveFrom: effectiveFrom),
   );
 
+  /// Applies one reminder time to every class in the active semester, returning
+  /// how many classes were updated, or `null` when there is no active semester
+  /// or the update failed.
+  ///
+  /// The reactive class-reminder projection picks the new lead times up on its
+  /// own, so this only records intent and asks for permission when a reminder
+  /// will actually be delivered.
+  Future<int?> applyReminderToAll(int minutesBefore) async {
+    final semester = ref.read(activeSemesterProvider).value;
+    if (semester == null) return null;
+    var updated = 0;
+    final success = await _run(() async {
+      await _ensureReminderDelivery(minutesBefore);
+      updated = await ref
+          .read(timetableRepositoryProvider)
+          .applyReminderToAll(semester.id, minutesBefore);
+    });
+    return success ? updated : null;
+  }
+
   Future<bool> _run(Future<void> Function() action) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(action);

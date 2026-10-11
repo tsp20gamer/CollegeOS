@@ -7,6 +7,7 @@ typedef TimetableEntry = ({
   int endTime,
   String room,
   String note,
+
   /// How long before [startTime] this class's reminder fires.
   ///
   /// `null` means the class has no reminder. The lead time applies to every
@@ -34,4 +35,15 @@ abstract interface class TimetableRepository {
   Future<int> createOneDay(NewTimetableEntry entry, DateTime date);
   Future<void> update(TimetableEntry entry, {DateTime? effectiveFrom});
   Future<void> delete(int id, {DateTime? effectiveFrom});
+
+  /// Applies one reminder lead time to every class in [semesterId] that is still
+  /// current or starts later, returning how many classes were updated.
+  ///
+  /// This replaces each class's own reminder; it never rewrites the class itself,
+  /// so durations, rooms, subjects and effective dates are preserved.
+  Future<int> applyReminderToAll(
+    int semesterId,
+    int minutesBefore, {
+    DateTime? effectiveOn,
+  });
 }

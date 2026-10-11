@@ -44,6 +44,10 @@ final class DriftOnboardingRepository implements OnboardingRepository {
           onboardingCompleted: const Value(true),
           notificationsEnabled: Value(currentSettings.notificationsEnabled),
           automaticLocalBackup: Value(currentSettings.automaticLocalBackup),
+          classRemindersEnabled: Value(currentSettings.classRemindersEnabled),
+          classReminderMinutesBefore: Value(
+            currentSettings.classReminderMinutesBefore,
+          ),
         ),
       );
     });

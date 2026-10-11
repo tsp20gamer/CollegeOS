@@ -5,12 +5,15 @@ import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/backup/application/backup_providers.dart';
 import 'package:college_os/features/notifications/application/notification_providers.dart';
+import 'package:college_os/features/notifications/domain/class_reminder_preset.dart';
+import 'package:college_os/features/notifications/presentation/class_reminder_time_sheet.dart';
 import 'package:college_os/features/home_widget/application/home_widget_providers.dart';
 import 'package:college_os/features/home_widget/data/college_home_widget_service.dart';
 import 'package:college_os/features/semesters/application/semester_providers.dart';
 import 'package:college_os/features/semesters/domain/semester_repository.dart';
 import 'package:college_os/features/settings/application/settings_providers.dart';
 import 'package:college_os/features/settings/domain/settings_repository.dart';
+import 'package:college_os/features/timetable/application/timetable_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -27,6 +30,11 @@ class SettingsScreen extends ConsumerWidget {
         ref.watch(settingsDataControllerProvider).isLoading ||
         ref.watch(backupControllerProvider).isLoading;
     final value = settings.value;
+    // The active semester's classes, which "Apply to all classes" would rewrite.
+    final classes = ref.watch(timetableEntriesProvider).value ?? const [];
+    final notificationOperation = ref.watch(
+      notificationPermissionControllerProvider,
+    );
     final activeSemester = semesters.value
         ?.where((semester) => semester.isActive)
         .firstOrNull;
@@ -89,7 +97,7 @@ class SettingsScreen extends ConsumerWidget {
                       title: 'Default Attendance Target',
                       subtitle: value == null
                           ? 'Loading…'
-                          : '${(value.defaultAttendanceTarget * 100).toStringAsFixed(0)}% • Used for new subjects',
+                          : '${(value.defaultAttendanceTarget * 100).toStringAsFixed(0)}% • Used for every subject',
                       trailing: value == null
                           ? null
                           : Text(
@@ -203,6 +211,111 @@ class SettingsScreen extends ConsumerWidget {
                       appVersion: appVersion,
                       onTap: () => _showAppInfo(context, appVersion.value),
                     ),
+                  ],
+                ),
+                _Section(
+                  title: 'Class notifier',
+                  children: [
+                    if (value == null)
+                      const ListTile(
+                        leading: CircularProgressIndicator(),
+                        title: Text('Class reminders'),
+                      )
+                    else ...[
+                      ListTile(
+                        key: const Key('class_notifier_tile'),
+                        dense: true,
+                        minTileHeight: 62,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                        ),
+                        leading: const _SettingsIcon(Icons.alarm_on_rounded),
+                        title: const Text(
+                          'Class reminders',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          value.classRemindersEnabled
+                              ? 'On • ${formatClassReminderLead(value.classReminderMinutesBefore)} every class'
+                              : 'Off • Your timetable classes stay silent',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Switch.adaptive(
+                          key: const Key('class_notifier_switch'),
+                          value: value.classRemindersEnabled,
+                          onChanged: (enabled) =>
+                              _setClassNotifier(context, ref, enabled),
+                        ),
+                      ),
+                      _SettingsTile(
+                        key: const Key('class_reminder_time_tile'),
+                        icon: Icons.schedule_rounded,
+                        title: 'Reminder time',
+                        subtitle: value.classRemindersEnabled
+                            ? 'Reminds you ${formatClassReminderLead(value.classReminderMinutesBefore)}'
+                            : 'Used whenever class reminders are on',
+                        trailing: Text(
+                          formatClassReminderLead(
+                            value.classReminderMinutesBefore,
+                          ),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        onTap: () => _editClassReminderTime(
+                          context,
+                          ref,
+                          value.classReminderMinutesBefore,
+                        ),
+                      ),
+                      _SettingsTile(
+                        key: const Key('class_notifier_apply_all_tile'),
+                        icon: Icons.playlist_add_check_rounded,
+                        title: 'Apply to all classes',
+                        subtitle: classes.isEmpty
+                            ? 'Add classes to your timetable first'
+                            : 'Use this time for ${classes.length} ${classes.length == 1 ? 'class' : 'classes'} in ${activeSemester?.name ?? 'this semester'}',
+                        onTap: classes.isEmpty
+                            ? null
+                            : () => _applyReminderToAllClasses(
+                                context,
+                                ref,
+                                minutesBefore: value.classReminderMinutesBefore,
+                              ),
+                      ),
+                      if (!value.notificationsEnabled)
+                        ListTile(
+                          key: const Key(
+                            'class_notifier_notifications_off_notice',
+                          ),
+                          dense: true,
+                          minTileHeight: 62,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                          ),
+                          leading: const _SettingsIcon(
+                            Icons.info_outline_rounded,
+                          ),
+                          title: const Text(
+                            'Notifications are off',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: const Text(
+                            'Class reminders stay paused until notifications are on.',
+                          ),
+                          trailing: TextButton(
+                            key: const Key(
+                              'class_notifier_turn_on_notifications',
+                            ),
+                            onPressed: notificationOperation.isLoading
+                                ? null
+                                : () => _setNotifications(context, ref, true),
+                            child: const Text('Turn on'),
+                          ),
+                        ),
+                    ],
                   ],
                 ),
                 _AdvancedSettings(
@@ -603,7 +716,9 @@ class SettingsScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'This applies to new subjects. Existing subject targets are unchanged.',
+                'This becomes the target for every subject, including the ones '
+                'you already added. A single subject can still be given its own '
+                'target when you edit it.',
               ),
               const SizedBox(height: AppSpacing.md),
               TextFormField(
@@ -673,6 +788,123 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Records the class-notifier preference.
+  ///
+  /// Turning it on only asks Android for delivery permission when the global
+  /// notifications master is already on; otherwise the section shows the notice
+  /// explaining why nothing would arrive yet.
+  Future<void> _setClassNotifier(
+    BuildContext context,
+    WidgetRef ref,
+    bool enabled,
+  ) async {
+    final success = await ref
+        .read(settingsPreferenceControllerProvider.notifier)
+        .setClassRemindersEnabled(enabled);
+    if (!context.mounted) return;
+    if (!success) {
+      _message(context, 'Could not update class reminders.');
+      return;
+    }
+    final masterEnabled = ref
+        .read(collegeSettingsProvider)
+        .value
+        ?.notificationsEnabled;
+    if (!enabled || masterEnabled != true) return;
+    await ref.read(notificationPermissionControllerProvider.notifier).enable();
+  }
+
+  Future<void> _editClassReminderTime(
+    BuildContext context,
+    WidgetRef ref,
+    int minutesBefore,
+  ) async {
+    final chosen = await showClassReminderTimeSheet(
+      context,
+      initialMinutesBefore: minutesBefore,
+      keyPrefix: 'class_notifier',
+      title: 'Reminder time',
+      description:
+          'Choose how long before each class CollegeOS should remind you.',
+      confirmLabel: 'Save time',
+    );
+    if (chosen == null || !context.mounted) return;
+    final success = await ref
+        .read(settingsPreferenceControllerProvider.notifier)
+        .setClassReminderMinutesBefore(chosen);
+    if (!context.mounted) return;
+    _message(
+      context,
+      success
+          ? 'Reminder time saved. Apply it to your classes to use it now.'
+          : 'Could not save the reminder time.',
+    );
+  }
+
+  /// Replaces every class's reminder with the class-notifier time.
+  ///
+  /// The confirmation names the consequence, because this overwrites any
+  /// reminder time the student set on a single class.
+  Future<void> _applyReminderToAllClasses(
+    BuildContext context,
+    WidgetRef ref, {
+    required int minutesBefore,
+  }) async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Apply to all classes',
+                style: Theme.of(
+                  sheetContext,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Every class in the active semester will remind you '
+                '${formatClassReminderLead(minutesBefore)}. Reminder times you '
+                'set on individual classes will be replaced.',
+                style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              FilledButton(
+                key: const Key('confirm_apply_class_reminders'),
+                onPressed: () => Navigator.pop(sheetContext, true),
+                child: const Text('Apply to all classes'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final updated = await ref
+        .read(timetableCommandProvider.notifier)
+        .applyReminderToAll(minutesBefore);
+    if (!context.mounted) return;
+    _message(context, switch (updated) {
+      null => 'Could not update your classes.',
+      0 => 'No classes to update.',
+      1 => 'Reminder time applied to 1 class.',
+      final count => 'Reminder time applied to $count classes.',
+    });
   }
 
   Future<void> _addHomeWidget(BuildContext context, WidgetRef ref) async {

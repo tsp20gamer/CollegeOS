@@ -8,6 +8,7 @@ import 'package:college_os/features/attendance/domain/attendance_planner.dart';
 import 'package:college_os/features/attendance/presentation/widgets/attendance_summary_widgets.dart';
 import 'package:college_os/features/semesters/domain/semester_repository.dart';
 import 'package:college_os/features/settings/application/settings_providers.dart';
+import 'package:college_os/features/settings/domain/settings_repository.dart';
 import 'package:college_os/features/subjects/application/subject_providers.dart';
 import 'package:college_os/shared/widgets/empty_state.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
@@ -49,10 +50,13 @@ class _AttendancePlannerScreenState
     final AsyncValue<AttendanceEngineSnapshot?> snapshot = skipDays
         ? ref.watch(attendanceEngineProvider)
         : const AsyncData(null);
-    final overallTarget = !skipDays
-        ? .75
-        : ref.watch(collegeSettingsProvider).value?.defaultAttendanceTarget ??
-              .75;
+    // The overall goal is the stored default target, so the planner agrees with
+    // every other attendance readout; the constant is only the last resort when
+    // no settings row is available yet.
+    final overallTarget = skipDays
+        ? ref.watch(collegeSettingsProvider).value?.defaultAttendanceTarget ??
+              kDefaultAttendanceTarget
+        : kDefaultAttendanceTarget;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Attendance Planner')),

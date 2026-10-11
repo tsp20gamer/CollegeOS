@@ -132,6 +132,32 @@ void main() {
     expect(platform.scheduled, isEmpty);
   });
 
+  test('the class-notifier switch silences classes on its own', () async {
+    final platform = _FakePlatform();
+    // Notifications are on globally; only the class notifier is off, so nothing
+    // about classes may reach Android.
+    final coordinator = NotificationCoordinator(
+      platform: platform,
+      tasks: _FakeTasks(const []),
+      exams: _FakeExams(const []),
+      settings: _FakeSettings(enabled: true, classRemindersEnabled: false),
+      now: () => now,
+    );
+    final reminder = _classReminder(id: 1, minutesBefore: 10);
+    final id = notificationId(NotificationEntityType.classReminder, 1);
+
+    await coordinator.syncClassReminders([reminder]);
+    expect(platform.scheduled, isEmpty);
+
+    // An alarm that is already pending is cancelled rather than left behind.
+    platform.pendingItems.add((id: id, payload: 'classReminder:1'));
+    await coordinator.syncClassReminders([reminder]);
+    expect(platform.pendingItems, isEmpty);
+    expect(platform.cancelled, [
+      (type: NotificationEntityType.classReminder, id: 1),
+    ]);
+  });
+
   test('startup reconcile leaves class alarms to the class channel', () async {
     final classId = notificationId(NotificationEntityType.classReminder, 3);
     final platform = _FakePlatform()
@@ -410,7 +436,7 @@ final class _FakePlatform implements NotificationPlatform {
 }
 
 final class _FakeSettings implements SettingsRepository {
-  _FakeSettings({required bool enabled})
+  _FakeSettings({required bool enabled, bool classRemindersEnabled = true})
     : _value = (
         studentName: 'Test Student',
         collegeName: 'College',
@@ -423,6 +449,8 @@ final class _FakeSettings implements SettingsRepository {
         onboardingCompleted: true,
         notificationsEnabled: enabled,
         automaticLocalBackup: true,
+        classRemindersEnabled: classRemindersEnabled,
+        classReminderMinutesBefore: 10,
       );
 
   CollegeSettings _value;
@@ -484,9 +512,12 @@ CollegeOsNotification _classReminder({
   entityId: id,
   title: 'Class $id',
   body: 'Starts soon',
-  scheduledAt: DateTime.utc(2026, 8, 13, 11).add(
-    Duration(minutes: minutesBefore),
-  ),
+  scheduledAt: DateTime.utc(
+    2026,
+    8,
+    13,
+    11,
+  ).add(Duration(minutes: minutesBefore)),
 );
 
 CollegeTask _task({

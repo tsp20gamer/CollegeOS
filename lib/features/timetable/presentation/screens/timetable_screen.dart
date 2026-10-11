@@ -9,6 +9,7 @@ import 'package:college_os/features/subjects/application/subject_providers.dart'
 import 'package:college_os/features/subjects/domain/subject_repository.dart';
 import 'package:college_os/features/semesters/domain/semester_repository.dart';
 import 'package:college_os/features/settings/application/settings_providers.dart';
+import 'package:college_os/features/settings/domain/settings_repository.dart';
 import 'package:college_os/features/timetable/application/timetable_providers.dart';
 import 'package:college_os/features/timetable/domain/timetable_repository.dart';
 import 'package:college_os/features/timetable/domain/timetable_services.dart';
@@ -77,7 +78,7 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
     final nextAsync = ref.watch(nextClassProvider);
     final defaultAttendanceTarget =
         ref.watch(collegeSettingsProvider).value?.defaultAttendanceTarget ??
-        .75;
+        kDefaultAttendanceTarget;
     final activeSubjects =
         subjectsAsync.value
             ?.where((subject) => !subject.isArchived)
@@ -271,8 +272,7 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
                         _ClassCard(
                           scheduledClass: selected[index],
                           isCurrent: next.currentClasses.any(
-                            (item) =>
-                                item.entry.id == selected[index].entry.id,
+                            (item) => item.entry.id == selected[index].entry.id,
                           ),
                           onEdit: () => _showEntryForm(
                             semesterId: semesterId,
@@ -429,8 +429,12 @@ class _DaySelector extends StatelessWidget {
     // One pill for the whole strip. It glides between equal-width day slots
     // instead of every day painting its own background, so a day change reads
     // as a single movement and no label ever shifts.
-    final alignment = days.length == 1 ? 0.0 : -1 + 2 * index / (days.length - 1);
-    final pillDuration = reduceMotion ? Duration.zero : AppDurations.dayPillGlide;
+    final alignment = days.length == 1
+        ? 0.0
+        : -1 + 2 * index / (days.length - 1);
+    final pillDuration = reduceMotion
+        ? Duration.zero
+        : AppDurations.dayPillGlide;
     final labelStyle = theme.textTheme.labelLarge ?? const TextStyle();
     return Semantics(
       label: 'Timetable days',

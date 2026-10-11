@@ -128,9 +128,14 @@ final class NotificationCoordinator {
   /// whenever the timetable, calendar or clock changes.
   Future<void> syncClassReminders(List<CollegeOsNotification> reminders) {
     final operation = _classQueue.then((_) async {
-      final enabled = (await _settings.get()).notificationsEnabled;
+      final settings = await _settings.get();
+      // Two independent switches gate class reminders: the global notification
+      // master and the student's class-notifier preference.
+      final enabled =
+          settings.notificationsEnabled && settings.classRemindersEnabled;
       final desired = <int, CollegeOsNotification>{
-        for (final reminder in enabled ? reminders : const <CollegeOsNotification>[])
+        for (final reminder
+            in enabled ? reminders : const <CollegeOsNotification>[])
           notificationId(reminder.type, reminder.entityId): reminder,
       };
       final stillPending = <int>{};
@@ -293,6 +298,8 @@ final class NotificationCoordinator {
       onboardingCompleted: current.onboardingCompleted,
       notificationsEnabled: enabled,
       automaticLocalBackup: current.automaticLocalBackup,
+      classRemindersEnabled: current.classRemindersEnabled,
+      classReminderMinutesBefore: current.classReminderMinutesBefore,
     ));
   }
 

@@ -61,6 +61,10 @@ final class DriftSubjectRepository implements SubjectRepository {
     if (changed == 0) throw StateError('Subject $id does not exist.');
   }
 
+  @override
+  Future<void> setAllAttendanceTargets(double target) =>
+      _dao.setAllAttendanceTargets(target);
+
   Subject _map(SubjectRow row) => (
     id: row.id,
     semesterId: row.semesterId,

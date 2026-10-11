@@ -2,7 +2,7 @@
 
 ## 1. Implemented persistence contract
 
-CollegeOS uses one Drift-managed SQLite database as its local source of truth. Schema version `1` established the base tables, schema version `2` added task due time, schema version `3` added automatic-local-backup preference, schema version `4` added exam reminder intent, schema version `5` added legacy calendar-day attendance, schema version `6` added linked timetable-driven class attendance, calendar overrides, academic-year bounds, and effective timetable dates, schema version `7` added date-range academic calendar events, and schema version `8` adds the student's local display name. There is no remote database, network synchronization, account identifier, analytics store, or advertising data.
+CollegeOS uses one Drift-managed SQLite database as its local source of truth. Schema version `1` established the base tables, schema version `2` added task due time, schema version `3` added automatic-local-backup preference, schema version `4` added exam reminder intent, schema version `5` added legacy calendar-day attendance, schema version `6` added linked timetable-driven class attendance, calendar overrides, academic-year bounds, and effective timetable dates, schema version `7` added date-range academic calendar events, schema version `8` adds the student's local display name, schema version `14` adds an optional per-class reminder lead time (`timetable_entries.reminder_minutes_before`, minutes before the class start, `0..10080`, `NULL` for none), and schema version `15` adds the class-notifier preferences (`app_settings.class_reminders_enabled`, default on, and `app_settings.class_reminder_minutes_before`, default `10`, `0..10080`). There is no remote database, network synchronization, account identifier, analytics store, or advertising data.
 
 The production database is stored as `database/college_os.sqlite` inside the application's private support directory. Native database work runs on a background isolate. Every connection enables SQLite foreign keys and write-ahead logging.
 
@@ -60,7 +60,7 @@ Indexes: one partial unique active-semester index and `(academic_year, semester_
 | `semester_id` | INTEGER FK | Semester delete cascades |
 | `name` | TEXT | Trimmed non-empty value |
 | `short_code`, `professor`, `room` | TEXT | Empty string when not supplied |
-| `attendance_target` | REAL | Default `0.75`; greater than zero and at most one |
+| `attendance_target` | REAL | Default `0.75`; greater than zero and at most one. Rewritten for every subject when the default attendance target changes |
 | `display_color` | INTEGER | Unsigned 32-bit ARGB value |
 | `is_archived` | INTEGER/BOOL | Default false |
 | `created_at`, `updated_at` | INTEGER | UTC milliseconds |
@@ -77,6 +77,8 @@ Indexes: `(semester_id, is_archived, name)`. A composite unique key on `(id, sem
 | `start_time` | INTEGER | Minute `0..1439` |
 | `end_time` | INTEGER | Minute `1..1440`, later than start |
 | `room`, `note` | TEXT | Empty string when not supplied |
+| `effective_from`, `effective_until` | INTEGER | Optional epoch-day range a schedule version applies to |
+| `reminder_minutes_before` | INTEGER | Optional lead time before `start_time`, `0..10080`; `NULL` means the class has no reminder |
 
 Indexes: `(semester_id, weekday, start_time)` and `subject_id`. Overlaps remain an application-level warning because real schedules can intentionally overlap.
 
@@ -172,11 +174,13 @@ Exactly one row exists with `id = 1`.
 | `student_name` | TEXT | Local display name; empty for upgraded installs until edited |
 | `college_name`, `course`, `branch` | TEXT | Empty string when not supplied |
 | `academic_year_start_date`, `academic_year_end_date` | INTEGER nullable | Epoch-day academic bounds; required by completed current setup |
-| `default_attendance_target` | REAL | Default `0.75`; greater than zero and at most one |
+| `default_attendance_target` | REAL | Default `0.75`; greater than zero and at most one. Changing it writes the new value onto every subject's `attendance_target`, since attendance, the planner and analytics compare against the subject's stored target |
 | `theme_mode` | TEXT enum | `system`, `light`, `dark`; default system |
 | `onboarding_completed` | INTEGER/BOOL | Default false |
 | `notifications_enabled` | INTEGER/BOOL | Default false; separate from OS permission |
 | `automatic_local_backup` | INTEGER/BOOL | Default true; controls private on-device recovery snapshots |
+| `class_reminders_enabled` | INTEGER/BOOL | Default true; pauses only class reminders, independently of `notifications_enabled` |
+| `class_reminder_minutes_before` | INTEGER | Default `10`; lead time `0..10080` offered to classes without their own reminder |
 
 The row is inserted during schema creation and updated with an upsert, so settings cannot accidentally multiply.
 
@@ -190,7 +194,7 @@ Cross-record operations use transactions. In schema v1 this includes active-seme
 
 ## 5. Migration policy
 
-Schema version `1` has no predecessor migration. Schema version `2` adds nullable `tasks.due_time`; version `3` adds `app_settings.automatic_local_backup`; version `4` adds nullable `exams.reminder_at`; version `5` creates `daily_attendance_records`; version `6` introduces linked class attendance, calendar overrides, academic-year bounds, and effective timetable dates; version `7` adds date-range academic calendar events; version `8` adds non-null `app_settings.student_name` with an empty-string default. The v6 migration preserves compatibility tables and conservatively copies records when relationships can be inferred. The v7 migration only creates the new table and index. The v8 migration adds one defaulted column, preserving every existing record and using the generic Home greeting until the student enters a name. Full rules are in `ATTENDANCE_ARCHITECTURE.md`. Immutable exported snapshots are stored under `drift_schemas/college_os/`. The database applies only explicitly registered upgrades and never silently drops or recreates user data.
+Schema version `1` has no predecessor migration. Schema version `2` adds nullable `tasks.due_time`; version `3` adds `app_settings.automatic_local_backup`; version `4` adds nullable `exams.reminder_at`; version `5` creates `daily_attendance_records`; version `6` introduces linked class attendance, calendar overrides, academic-year bounds, and effective timetable dates; version `7` adds date-range academic calendar events; version `8` adds non-null `app_settings.student_name` with an empty-string default; version `9` and `10` add subject notes and files; versions `11`–`13` add the PDF search index and its resumable page cursor; version `14` recreates `timetable_entries` with the optional `reminder_minutes_before` column, preserving every row and defaulting every existing class to no reminder; version `15` recreates `app_settings` with the two class-notifier columns, whose defaults backfill the single existing row as enabled with a ten-minute lead time, so classes that already remind keep reminding. The recreation is what keeps the new `CHECK (class_reminder_minutes_before BETWEEN 0 AND 10080)` identical to a fresh v15 create. The v6 migration preserves compatibility tables and conservatively copies records when relationships can be inferred. The v7 migration only creates the new table and index. The v8 migration adds one defaulted column, preserving every existing record and using the generic Home greeting until the student enters a name. Full rules are in `ATTENDANCE_ARCHITECTURE.md`. Immutable exported snapshots are stored under `drift_schemas/college_os/`. The database applies only explicitly registered upgrades and never silently drops or recreates user data.
 
 For every future schema change:
 
@@ -198,6 +202,8 @@ For every future schema change:
 2. Add an explicit step-by-step Drift migration from every supported prior version.
 3. Run `dart run drift_dev make-migrations` and commit the new schema JSON without editing older snapshots.
 4. Add fixture-based migration and data-integrity tests.
+
+Historical recreations use `TableMigration`, which builds the temporary table from the *current* Dart definition. That makes a recreation a moving target: any column added later would silently appear in the older schema version it belongs to, and drift's verifier rejects that. The v6 timetable recreation is therefore written as pinned SQL for its own historical shape, and only the current version recreates the table with the current definition. Any further column added to `timetable_entries` follows the same rule: the v6 step keeps its frozen shape, and the new version recreates or alters the table itself.
 5. Run `PRAGMA integrity_check` and `PRAGMA foreign_key_check` after migration and restore.
 6. Evaluate backup format compatibility separately; a database version change does not automatically require a backup format change.
 7. Never use `deleteEverything`, uninstall/reinstall, or fallback database recreation as an upgrade path.

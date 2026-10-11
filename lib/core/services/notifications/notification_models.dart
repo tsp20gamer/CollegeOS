@@ -28,9 +28,10 @@ int notificationId(NotificationEntityType type, int entityId) {
     throw ArgumentError.value(entityId, 'entityId');
   }
   return switch (type) {
-    NotificationEntityType.attendance => entityId == 1
-        ? 0 // Tasks are positive and exams negative; zero is reserved.
-        : throw ArgumentError.value(entityId, 'entityId'),
+    NotificationEntityType.attendance =>
+      entityId == 1
+          ? 0 // Tasks are positive and exams negative; zero is reserved.
+          : throw ArgumentError.value(entityId, 'entityId'),
     NotificationEntityType.task => entityId,
     NotificationEntityType.exam => -entityId,
     NotificationEntityType.classReminder =>

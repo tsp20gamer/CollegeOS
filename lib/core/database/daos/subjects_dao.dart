@@ -41,6 +41,18 @@ class SubjectsDao extends DatabaseAccessor<AppDatabase>
         ),
       );
 
+  /// Applies [target] to every subject in every semester.
+  ///
+  /// The default attendance target is the goal each attendance readout
+  /// compares against, so changing it re-targets the subjects that already
+  /// exist rather than only the ones created afterwards.
+  Future<int> setAllAttendanceTargets(double target) => update(subjects).write(
+    SubjectsCompanion(
+      attendanceTarget: Value(target),
+      updatedAt: Value(DateTime.now().toUtc()),
+    ),
+  );
+
   Future<int> deleteById(int id) =>
       (delete(subjects)..where((row) => row.id.equals(id))).go();
 }

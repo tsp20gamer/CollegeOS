@@ -237,28 +237,30 @@ void main() {
     expect(stored.effectiveUntil, date);
   });
 
-  test('stores a class reminder and carries it across schedule versions', () async {
-    final id = await repository.create((
-      semesterId: semesterId,
-      subjectId: subjectId,
-      weekday: DateTime.monday,
-      startTime: 9 * 60,
-      endTime: 10 * 60,
-      room: 'A-101',
-      note: '',
-      reminderMinutesBefore: 45,
-    ));
-    expect(
-      (await repository.watchForSemester(semesterId).first).single
-          .reminderMinutesBefore,
-      45,
-      reason: 'a custom 45-minute lead time round-trips',
-    );
+  test(
+    'stores a class reminder and carries it across schedule versions',
+    () async {
+      final id = await repository.create((
+        semesterId: semesterId,
+        subjectId: subjectId,
+        weekday: DateTime.monday,
+        startTime: 9 * 60,
+        endTime: 10 * 60,
+        room: 'A-101',
+        note: '',
+        reminderMinutesBefore: 45,
+      ));
+      expect(
+        (await repository.watchForSemester(semesterId).first)
+            .single
+            .reminderMinutesBefore,
+        45,
+        reason: 'a custom 45-minute lead time round-trips',
+      );
 
-    // A schedule change from a later date creates a new version of the class,
-    // which must carry the reminder forward instead of dropping it.
-    await repository.update(
-      (
+      // A schedule change from a later date creates a new version of the class,
+      // which must carry the reminder forward instead of dropping it.
+      await repository.update((
         id: id,
         semesterId: semesterId,
         subjectId: subjectId,
@@ -268,25 +270,22 @@ void main() {
         room: 'B-204',
         note: '',
         reminderMinutesBefore: 45,
-      ),
-      effectiveFrom: DateTime(2026, 10, 1),
-    );
-    final versions = await database.timetableDao
-        .watchForSemester(semesterId)
-        .first;
-    expect(versions, hasLength(2));
-    expect(
-      versions.map((row) => row.reminderMinutesBefore),
-      everyElement(45),
-      reason: 'both the historical and the current version keep the reminder',
-    );
+      ), effectiveFrom: DateTime(2026, 10, 1));
+      final versions = await database.timetableDao
+          .watchForSemester(semesterId)
+          .first;
+      expect(versions, hasLength(2));
+      expect(
+        versions.map((row) => row.reminderMinutesBefore),
+        everyElement(45),
+        reason: 'both the historical and the current version keep the reminder',
+      );
 
-    // Clearing the reminder is a normal value, not a special case.
-    final current = versions.singleWhere(
-      (row) => row.effectiveFrom == DateTime(2026, 10, 1),
-    );
-    await repository.update(
-      (
+      // Clearing the reminder is a normal value, not a special case.
+      final current = versions.singleWhere(
+        (row) => row.effectiveFrom == DateTime(2026, 10, 1),
+      );
+      await repository.update((
         id: current.id,
         semesterId: current.semesterId,
         subjectId: current.subjectId,
@@ -296,32 +295,144 @@ void main() {
         room: current.room,
         note: current.note,
         reminderMinutesBefore: null,
-      ),
-      effectiveFrom: DateTime(2026, 10, 5),
-    );
-    expect(
-      (await repository
-              .watchForSemester(semesterId, effectiveOn: DateTime(2026, 10, 6))
-              .first)
-          .single
-          .reminderMinutesBefore,
-      equals(null),
-    );
+      ), effectiveFrom: DateTime(2026, 10, 5));
+      expect(
+        (await repository
+                .watchForSemester(
+                  semesterId,
+                  effectiveOn: DateTime(2026, 10, 6),
+                )
+                .first)
+            .single
+            .reminderMinutesBefore,
+        equals(null),
+      );
 
-    // The database enforces the same range the form does.
-    expect(
-      () => repository.create((
+      // The database enforces the same range the form does.
+      expect(
+        () => repository.create((
+          semesterId: semesterId,
+          subjectId: subjectId,
+          weekday: DateTime.tuesday,
+          startTime: 9 * 60,
+          endTime: 10 * 60,
+          room: '',
+          note: '',
+          reminderMinutesBefore: 20000,
+        )),
+        throwsA(anything),
+        reason: 'a lead time beyond seven days is rejected by the schema',
+      );
+    },
+  );
+
+  test(
+    'applying one reminder time rewrites current and future classes only',
+    () async {
+      final blank = await repository.create((
+        semesterId: semesterId,
+        subjectId: subjectId,
+        weekday: DateTime.monday,
+        startTime: 9 * 60,
+        endTime: 10 * 60,
+        room: 'A-101',
+        note: 'Lecture',
+        reminderMinutesBefore: null,
+      ));
+      final withOwn = await repository.create((
         semesterId: semesterId,
         subjectId: subjectId,
         weekday: DateTime.tuesday,
+        startTime: 11 * 60,
+        endTime: 12 * 60,
+        room: 'B-204',
+        note: 'Lab',
+        reminderMinutesBefore: 5,
+      ));
+      // A class whose effectiveness already ended cannot remind anyone again.
+      final ended = await database.timetableDao.insertEntry(
+        TimetableEntriesCompanion.insert(
+          semesterId: semesterId,
+          subjectId: subjectId,
+          weekday: DateTime.friday,
+          startTime: 15 * 60,
+          endTime: 16 * 60,
+          reminderMinutesBefore: const Value(45),
+          effectiveFrom: Value(DateTime(2026, 8, 1)),
+          effectiveUntil: Value(DateTime(2026, 9, 30)),
+        ),
+      );
+      // A second semester keeps its own reminders.
+      final otherSemesterId = await database.semestersDao.insertSemester(
+        SemestersCompanion.insert(
+          name: 'Semester 2',
+          semesterNumber: 2,
+          academicYear: '2026-2027',
+          startDate: DateTime(2027, 1, 5),
+          endDate: DateTime(2027, 5, 30),
+        ),
+      );
+      final otherSubjectId = await database.subjectsDao.insertSubject(
+        SubjectsCompanion.insert(
+          semesterId: otherSemesterId,
+          name: 'Networks',
+          displayColor: 0xFF0EA5E9,
+        ),
+      );
+      final other = await repository.create((
+        semesterId: otherSemesterId,
+        subjectId: otherSubjectId,
+        weekday: DateTime.monday,
         startTime: 9 * 60,
         endTime: 10 * 60,
         room: '',
         note: '',
-        reminderMinutesBefore: 20000,
-      )),
-      throwsA(anything),
-      reason: 'a lead time beyond seven days is rejected by the schema',
-    );
-  });
+        reminderMinutesBefore: 5,
+      ));
+
+      final before = (await database.select(database.timetableEntries).get())
+          .firstWhere((row) => row.id == withOwn);
+      final updated = await repository.applyReminderToAll(semesterId, 30);
+
+      expect(updated, 2, reason: 'the ended class is left out of the rewrite');
+      final rows = {
+        for (final row
+            in await database.select(database.timetableEntries).get())
+          row.id: row,
+      };
+      expect(rows[blank]!.reminderMinutesBefore, 30);
+      expect(rows[withOwn]!.reminderMinutesBefore, 30);
+      expect(
+        rows[ended]!.reminderMinutesBefore,
+        45,
+        reason: 'a class that already ended keeps its own reminder',
+      );
+      expect(
+        rows[other]!.reminderMinutesBefore,
+        5,
+        reason: 'another semester is never touched',
+      );
+
+      // Only the reminder changed: the class itself is preserved exactly.
+      final after = rows[withOwn]!;
+      expect(after.subjectId, before.subjectId);
+      expect(after.weekday, before.weekday);
+      expect(after.startTime, before.startTime);
+      expect(after.endTime, before.endTime);
+      expect(after.room, before.room);
+      expect(after.note, before.note);
+      expect(after.effectiveFrom, before.effectiveFrom);
+      expect(after.effectiveUntil, before.effectiveUntil);
+    },
+  );
+
+  test(
+    'applying a reminder refuses a lead time the schema would reject',
+    () async {
+      expect(
+        () => repository.applyReminderToAll(semesterId, 7 * 24 * 60 + 1),
+        throwsArgumentError,
+      );
+    },
+  );
 }

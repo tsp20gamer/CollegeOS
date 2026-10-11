@@ -29,6 +29,8 @@ final class DriftSettingsRepository implements SettingsRepository {
       onboardingCompleted: Value(settings.onboardingCompleted),
       notificationsEnabled: Value(settings.notificationsEnabled),
       automaticLocalBackup: Value(settings.automaticLocalBackup),
+      classRemindersEnabled: Value(settings.classRemindersEnabled),
+      classReminderMinutesBefore: Value(settings.classReminderMinutesBefore),
     ),
   );
 
@@ -44,5 +46,7 @@ final class DriftSettingsRepository implements SettingsRepository {
     onboardingCompleted: row.onboardingCompleted,
     notificationsEnabled: row.notificationsEnabled,
     automaticLocalBackup: row.automaticLocalBackup,
+    classRemindersEnabled: row.classRemindersEnabled,
+    classReminderMinutesBefore: row.classReminderMinutesBefore,
   );
 }

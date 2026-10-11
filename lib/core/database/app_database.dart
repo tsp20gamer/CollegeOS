@@ -255,6 +255,33 @@ SET effective_from = (
           );
         }
       }
+      if (from < CollegeOsSchemaVersions.classNotifier &&
+          to >= CollegeOsSchemaVersions.classNotifier) {
+        // The class-notifier switch and its default lead time arrive together.
+        // Both are defaulted, so every existing settings row backfills to
+        // enabled with a 10-minute lead time, exactly as a fresh v15 install
+        // would: nothing that already works stops firing. The table is
+        // recreated rather than appended to because the new lead time carries a
+        // CHECK constraint, and recreating keeps it identical to a fresh
+        // create.
+        final columns = await customSelect(
+          'PRAGMA table_info(app_settings)',
+        ).get();
+        final hasClassReminders = columns.any(
+          (row) => row.read<String>('name') == 'class_reminders_enabled',
+        );
+        if (!hasClassReminders) {
+          await migrator.alterTable(
+            TableMigration(
+              appSettings,
+              newColumns: [
+                appSettings.classRemindersEnabled,
+                appSettings.classReminderMinutesBefore,
+              ],
+            ),
+          );
+        }
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

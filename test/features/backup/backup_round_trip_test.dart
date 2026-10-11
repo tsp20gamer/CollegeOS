@@ -55,7 +55,10 @@ void main() {
       );
       await service.restore(prepared, '1.0.0+1');
 
-      expect((await store.capture()).toJson(), expected);
+      final restored = await store.capture();
+      expect(restored.toJson(), expected);
+      expect(restored.settings.classRemindersEnabled, isFalse);
+      expect(restored.settings.classReminderMinutesBefore, 25);
       expect(await database.passesIntegrityCheck(), isTrue);
       expect(await database.passesForeignKeyCheck(), isTrue);
       expect(emergency.saved, isA<ExportedBackup>());
@@ -269,13 +272,81 @@ void main() {
     expect(prepared.data.timetable.single.reminderMinutesBefore, null);
   });
 
+  test(
+    'schema-v14 backups default the class notifier to on at ten minutes',
+    () async {
+      final backup = await service.create('1.0.0+1');
+      final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+      final data =
+          jsonDecode(utf8.decode(archive.find('data.json')!.content))
+              as Map<String, dynamic>;
+      final settings = data['settings'] as Map<String, dynamic>;
+      expect(
+        settings['classRemindersEnabled'],
+        isFalse,
+        reason: 'the class notifier is part of the archive',
+      );
+      settings
+        ..remove('classRemindersEnabled')
+        ..remove('classReminderMinutesBefore');
+      final legacy = _replaceDataAndHash(
+        backup.bytes,
+        data,
+        databaseSchemaVersion: 14,
+      );
+
+      final prepared = service.inspect(
+        bytes: legacy,
+        sourceName: 'schema_v14.collegeos',
+      );
+
+      expect(
+        prepared.data.settings.classRemindersEnabled,
+        isTrue,
+        reason: 'an older backup restores the state an in-place upgrade gives',
+      );
+      expect(prepared.data.settings.classReminderMinutesBefore, 10);
+      expect(
+        prepared.data.timetable.single.reminderMinutesBefore,
+        45,
+        reason: 'per-class reminders already stored in a v14 archive survive',
+      );
+    },
+  );
+
+  test('rejects a class notifier lead time outside the schema range', () async {
+    final backup = await service.create('1.0.0+1');
+    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final data =
+        jsonDecode(utf8.decode(archive.find('data.json')!.content))
+            as Map<String, dynamic>;
+    (data['settings'] as Map<String, dynamic>)['classReminderMinutesBefore'] =
+        99999;
+    final changed = _replaceDataAndHash(backup.bytes, data);
+
+    expect(
+      () => service.inspect(
+        bytes: changed,
+        sourceName: 'class_notifier.collegeos',
+      ),
+      throwsA(
+        isA<BackupException>().having(
+          (error) => error.code,
+          'code',
+          'invalid_relationships',
+        ),
+      ),
+    );
+  });
+
   test('rejects a class reminder lead time outside the schema range', () async {
     final backup = await service.create('1.0.0+1');
     final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
     final data =
         jsonDecode(utf8.decode(archive.find('data.json')!.content))
             as Map<String, dynamic>;
-    (data['timetable'] as List<dynamic>).single['reminderMinutesBefore'] = 99999;
+    (data['timetable'] as List<dynamic>).single['reminderMinutesBefore'] =
+        99999;
     final changed = _replaceDataAndHash(backup.bytes, data);
 
     expect(
@@ -381,6 +452,10 @@ Future<void> _seedCompleteDatabase(AppDatabase database) async {
           onboardingCompleted: Value(true),
           notificationsEnabled: Value(true),
           automaticLocalBackup: Value(true),
+          // Non-default on purpose: the round trip has to carry these values
+          // rather than let their column defaults hide a missing field.
+          classRemindersEnabled: Value(false),
+          classReminderMinutesBefore: Value(25),
         ),
       );
   await database

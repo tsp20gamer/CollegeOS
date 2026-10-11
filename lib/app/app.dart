@@ -155,7 +155,9 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
     }
   }
 
-  Future<void> _syncClassReminders(List<CollegeOsNotification> reminders) async {
+  Future<void> _syncClassReminders(
+    List<CollegeOsNotification> reminders,
+  ) async {
     try {
       await ref
           .read(notificationCoordinatorProvider)

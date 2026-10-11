@@ -6,6 +6,13 @@
 const int minClassReminderLeadMinutes = 0;
 const int maxClassReminderLeadMinutes = 7 * 24 * 60;
 
+/// Lead time a class gets when the student has not chosen one, in minutes.
+///
+/// Mirrored by the `class_reminder_minutes_before` default on `app_settings`
+/// and by the class-notifier setting, so a fresh install, an upgraded install
+/// and a restored backup all start from the same reminder time.
+const int defaultClassReminderMinutesBefore = 10;
+
 /// How far ahead CollegeOS looks for a class's next occurrence.
 ///
 /// A weekly class always has an occurrence inside two weeks unless the semester
