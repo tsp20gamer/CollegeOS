@@ -24,6 +24,13 @@ class SubjectsDao extends DatabaseAccessor<AppDatabase>
     return query.watch();
   }
 
+  /// Every subject in every semester, archived ones included.
+  ///
+  /// The default attendance target applies to the whole local set, so the
+  /// screens that report it have to see the subjects other semesters hold too.
+  Stream<List<SubjectRow>> watchAll() =>
+      (select(subjects)..orderBy([(row) => OrderingTerm.asc(row.id)])).watch();
+
   Future<SubjectRow?> findById(int id) =>
       (select(subjects)..where((row) => row.id.equals(id))).getSingleOrNull();
 
@@ -45,7 +52,9 @@ class SubjectsDao extends DatabaseAccessor<AppDatabase>
   ///
   /// The default attendance target is the goal each attendance readout
   /// compares against, so changing it re-targets the subjects that already
-  /// exist rather than only the ones created afterwards.
+  /// exist rather than only the ones created afterwards. A subject created or
+  /// imported before a change keeps its older value until this runs; Settings
+  /// names those subjects and offers the student this repair.
   Future<int> setAllAttendanceTargets(double target) => update(subjects).write(
     SubjectsCompanion(
       attendanceTarget: Value(target),

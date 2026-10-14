@@ -1,7 +1,11 @@
 # CollegeOS changelog
 
-## Unreleased
+## 1.11.0+32 — 11 October 2026
 
+- Fixed the floating dock appearing over an open note or document: PDFs now open above the shell on the root navigator, the way Settings does, so a file is read full-screen instead of with the dock floating over the page's last lines.
+- Added a page scrubber to the document viewer's right edge: a visible groove with a cobalt thumb that follows a drag or a tap anywhere on the rail, names the page in a bubble while scrubbing, and steps a page at a time from slider semantics.
+
+- Settings now names the subjects that still compare against a target other than the stored default — the ones an import or an earlier build left behind while Settings already reported the new goal — and brings every one of them onto the default in a single confirmed action. It never rewrites a target silently, so a subject a student deliberately gave its own target stays as it is until they ask.
 - Fixed the attendance target so the one the student chooses is the goal every readout reports: changing the default attendance target now re-targets the subjects that already exist instead of only the ones created afterwards, so Attendance, the planner and Analytics stop showing the old 75% while Settings says 90%. The default-target dialog explains that it applies to every subject, and a single subject can still be given its own target when it is edited.
 - Replaced the planner's hardcoded 75% fallbacks with one shared default so the target is resolved from the stored setting in exactly one place.
 - Made the floating dock's content 64 px tall (was 58) so its icon, label and dot slot sit a touch roomier; the margins, radius, glass, blur, selection animation and hide-on-scroll behavior are unchanged.
@@ -14,6 +18,7 @@
 - Gave every timetable class a reminder: choose off, a preset lead time, or a custom lead time in hours and minutes before the class, visible as a bell and its lead time on the class row.
 - Projected each class reminder as one holiday-aware alarm for that class's next occurrence, rebuilt whenever CollegeOS runs, so holidays, college-closed days, cancelled classes, one-day exceptions, archived subjects and semester breaks are all respected.
 - Kept class notification IDs in their own band above task, exam and attendance IDs, and left stale class alarms to the class channel so startup reconciliation can never wipe them.
+- Made the Timetable day selector's selected-day marker an exact cobalt circle that closes around the day label instead of a wide capsule, so the chosen day reads at a glance on the light strip and on the dark one; the strip grew a few pixels to give the circle room, and the glide, label animation and reduced-motion behaviour are unchanged.
 - Animated the Timetable day selector: one cobalt pill now glides between day slots and the chosen day's heading and class list cross-fade and slide in from the direction of travel, with reduced motion collapsing both.
 - Added schema v14 (`timetable_entries.reminder_minutes_before`, `0..10080` or none) with a tested, data-preserving migration; the v6 timetable recreation is now pinned to its historical shape so later columns cannot leak into earlier schema versions. Backup format 1 carries the field and defaults it to none for older archives.
 

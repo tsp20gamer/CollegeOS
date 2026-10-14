@@ -497,14 +497,11 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => PdfViewerScreen(
-                        file: file,
-                        initialPageNumber: result.pageNumber,
-                        initialSearchQuery: _query,
-                      ),
-                    ),
+                  PdfViewerScreen.open(
+                    context,
+                    file: file,
+                    initialPageNumber: result.pageNumber,
+                    initialSearchQuery: _query,
                   );
                 },
                 child: Padding(
@@ -579,14 +576,11 @@ class _AiSourceRow extends StatelessWidget {
       onTap: file == null
           ? null
           : () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => PdfViewerScreen(
-                    file: file!,
-                    initialPageNumber: source.pageNumber,
-                    initialSearchQuery: query,
-                  ),
-                ),
+              PdfViewerScreen.open(
+                context,
+                file: file!,
+                initialPageNumber: source.pageNumber,
+                initialSearchQuery: query,
               );
             },
       child: Padding(

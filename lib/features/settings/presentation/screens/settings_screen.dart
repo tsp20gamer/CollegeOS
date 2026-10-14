@@ -12,6 +12,7 @@ import 'package:college_os/features/home_widget/data/college_home_widget_service
 import 'package:college_os/features/semesters/application/semester_providers.dart';
 import 'package:college_os/features/semesters/domain/semester_repository.dart';
 import 'package:college_os/features/settings/application/settings_providers.dart';
+import 'package:college_os/features/settings/domain/attendance_target_mismatch.dart';
 import 'package:college_os/features/settings/domain/settings_repository.dart';
 import 'package:college_os/features/timetable/application/timetable_providers.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(collegeSettingsProvider);
+    final targetMismatch = ref.watch(attendanceTargetMismatchProvider);
     final semesters = ref.watch(semestersProvider);
     final appVersion = ref.watch(appVersionProvider);
     final busy =
@@ -115,6 +117,36 @@ class SettingsScreen extends ConsumerWidget {
                               value.defaultAttendanceTarget,
                             ),
                     ),
+                    if (targetMismatch.hasMismatch)
+                      ListTile(
+                        key: const Key('attendance_target_mismatch_notice'),
+                        dense: true,
+                        minTileHeight: 62,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                        ),
+                        leading: const _SettingsIcon(
+                          Icons.info_outline_rounded,
+                        ),
+                        title: const Text(
+                          'Subjects with another target',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          '${targetMismatch.summary}. They keep comparing '
+                          'against their own target until you apply the '
+                          'default.',
+                        ),
+                        trailing: TextButton(
+                          key: const Key('apply_default_target_to_subjects'),
+                          onPressed: () => _applyDefaultTargetToSubjects(
+                            context,
+                            ref,
+                            targetMismatch,
+                          ),
+                          child: Text(targetMismatch.actionLabel),
+                        ),
+                      ),
                     _SettingsTile(
                       key: const Key('theme_settings_tile'),
                       icon: Icons.contrast_rounded,
@@ -765,6 +797,68 @@ class SettingsScreen extends ConsumerWidget {
     await ref
         .read(settingsPreferenceControllerProvider.notifier)
         .setDefaultAttendanceTarget(target);
+  }
+
+  /// Brings the subjects that still hold an older value onto the stored
+  /// default, after naming which targets the student is about to replace.
+  Future<void> _applyDefaultTargetToSubjects(
+    BuildContext context,
+    WidgetRef ref,
+    AttendanceTargetMismatch mismatch,
+  ) async {
+    final target = formatAttendanceTarget(mismatch.defaultTarget);
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Apply $target to every subject',
+                style: Theme.of(
+                  sheetContext,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '${mismatch.summary}. Targets you set on individual subjects '
+                'will be replaced.',
+                style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              FilledButton(
+                key: const Key('confirm_apply_default_target'),
+                onPressed: () => Navigator.pop(sheetContext, true),
+                child: Text('Use $target for all'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final applied = await ref
+        .read(settingsPreferenceControllerProvider.notifier)
+        .applyDefaultTargetToSubjects();
+    if (!context.mounted) return;
+    _message(
+      context,
+      applied
+          ? 'Every subject now compares against $target.'
+          : 'Could not update the subjects. Your data is unchanged.',
+    );
   }
 
   Future<void> _setNotifications(

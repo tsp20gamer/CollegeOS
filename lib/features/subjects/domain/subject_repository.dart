@@ -27,6 +27,10 @@ abstract interface class SubjectRepository {
     int semesterId, {
     bool includeArchived = false,
   });
+
+  /// Every subject in every semester, archived ones included.
+  Stream<List<Subject>> watchAll();
+
   Future<Subject?> findById(int id);
   Future<int> create(NewSubject subject);
   Future<void> update(Subject subject);

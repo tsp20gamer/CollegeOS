@@ -426,9 +426,11 @@ class _DaySelector extends StatelessWidget {
     final days = timetableWeekdays;
     final slot = 1 / days.length;
     final index = days.indexOf(selected).clamp(0, days.length - 1);
-    // One pill for the whole strip. It glides between equal-width day slots
-    // instead of every day painting its own background, so a day change reads
-    // as a single movement and no label ever shifts.
+    // One circular marker for the whole strip. It glides between equal-width
+    // day slots instead of every day painting its own background, so a day
+    // change reads as a single movement and no label ever shifts. The circle
+    // wraps the day's label, so the selection stays legible at a glance in
+    // both themes rather than relying on a wide, low-contrast capsule.
     final alignment = days.length == 1
         ? 0.0
         : -1 + 2 * index / (days.length - 1);
@@ -454,14 +456,14 @@ class _DaySelector extends StatelessWidget {
                 alignment: Alignment(alignment, 0),
                 child: FractionallySizedBox(
                   widthFactor: slot,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xxxs,
-                    ),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colors.primary,
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.primary,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
                   ),
@@ -481,8 +483,10 @@ class _DaySelector extends StatelessWidget {
                         onTap: () => onSelected(day),
                         borderRadius: BorderRadius.circular(AppRadius.pill),
                         child: Padding(
+                          // The label's breathing room is what sets the circle's
+                          // diameter: the marker wraps the word, never clips it.
                           padding: const EdgeInsets.symmetric(
-                            vertical: AppSpacing.xs,
+                            vertical: AppSpacing.sm,
                           ),
                           child: AnimatedDefaultTextStyle(
                             duration: pillDuration,

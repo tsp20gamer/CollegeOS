@@ -17,6 +17,10 @@ final class DriftSubjectRepository implements SubjectRepository {
       .map((rows) => rows.map(_map).toList(growable: false));
 
   @override
+  Stream<List<Subject>> watchAll() =>
+      _dao.watchAll().map((rows) => rows.map(_map).toList(growable: false));
+
+  @override
   Future<Subject?> findById(int id) async {
     final row = await _dao.findById(id);
     return row == null ? null : _map(row);

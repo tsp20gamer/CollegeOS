@@ -5,11 +5,29 @@ import 'package:college_os/features/notifications/application/notification_provi
 import 'package:college_os/features/notifications/domain/class_reminder_preset.dart';
 import 'package:college_os/features/settings/data/attendance_csv_exporter.dart';
 import 'package:college_os/features/settings/data/local_college_data_service.dart';
+import 'package:college_os/features/settings/domain/attendance_target_mismatch.dart';
 import 'package:college_os/features/settings/domain/settings_repository.dart';
+import 'package:college_os/features/subjects/application/subject_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final collegeSettingsProvider = StreamProvider<CollegeSettings>((ref) {
   return ref.watch(settingsRepositoryProvider).watch();
+});
+
+/// The subjects that still compare against a target other than the default.
+///
+/// Reports nothing until both the stored setting and the subjects are known, so
+/// the Settings screen never claims a gap while it is still loading.
+final attendanceTargetMismatchProvider = Provider<AttendanceTargetMismatch>((
+  ref,
+) {
+  final settings = ref.watch(collegeSettingsProvider).value;
+  final subjects = ref.watch(allSubjectsProvider).value;
+  final target = settings?.defaultAttendanceTarget ?? kDefaultAttendanceTarget;
+  if (settings == null || subjects == null) {
+    return AttendanceTargetMismatch(defaultTarget: target, subjects: const []);
+  }
+  return AttendanceTargetMismatch(defaultTarget: target, subjects: subjects);
 });
 
 final localCollegeDataServiceProvider = Provider<LocalCollegeDataService>(
@@ -146,6 +164,22 @@ final class SettingsPreferenceController extends AsyncNotifier<void> {
         classReminderMinutesBefore: minutesBefore,
       ),
     );
+  }
+
+  /// Brings every subject onto the stored default target.
+  ///
+  /// [setDefaultAttendanceTarget] already re-targets subjects when the default
+  /// changes, so this covers the subjects created or imported before that
+  /// change: Attendance and Analytics read each subject's own target, and a
+  /// subject that still holds the older value would keep reporting it forever.
+  /// The student asks for this explicitly, because it replaces targets they may
+  /// have set on single subjects.
+  Future<bool> applyDefaultTargetToSubjects() async {
+    final defaultTarget = (await ref.read(settingsRepositoryProvider).get())
+        .defaultAttendanceTarget;
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _retargetSubjects(ref, defaultTarget));
+    return !state.hasError;
   }
 
   Future<bool> setDefaultAttendanceTarget(double target) async {

@@ -305,11 +305,7 @@ class _MaterialRow extends ConsumerWidget {
       // platform.
       onTap: () {
         if (file.fileExtension.toLowerCase() == 'pdf') {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (context) => PdfViewerScreen(file: file),
-            ),
-          );
+          PdfViewerScreen.open(context, file: file);
         } else {
           ref.read(subjectFileCommandProvider.notifier).openOrShareFile(file);
         }

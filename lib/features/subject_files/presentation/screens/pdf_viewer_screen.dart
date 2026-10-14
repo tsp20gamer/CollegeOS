@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:college_os/features/subject_files/domain/subject_file.dart';
 import 'package:college_os/core/database/database_providers.dart';
+import 'package:college_os/features/subject_files/presentation/widgets/pdf_page_scrubber.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
 import 'package:college_os/shared/widgets/loading_state.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +21,29 @@ class PdfViewerScreen extends ConsumerStatefulWidget {
   final int? initialPageNumber;
   final String? initialSearchQuery;
 
+  /// Opens [file] above the shell.
+  ///
+  /// A document is read full-screen, so it is pushed on the root navigator: the
+  /// floating dock belongs to the tab shell and would otherwise sit on top of
+  /// the page the student opened, hiding its last lines and its page footer.
+  /// Settings opens above the shell for the same reason.
+  static Future<void> open(
+    BuildContext context, {
+    required SubjectFile file,
+    int? initialPageNumber,
+    String? initialSearchQuery,
+  }) {
+    return Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute<void>(
+        builder: (context) => PdfViewerScreen(
+          file: file,
+          initialPageNumber: initialPageNumber,
+          initialSearchQuery: initialSearchQuery,
+        ),
+      ),
+    );
+  }
+
   @override
   ConsumerState<PdfViewerScreen> createState() => _PdfViewerScreenState();
 }
@@ -34,6 +58,11 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
   String? _error;
   bool _showSearchToolbar = false;
   bool _isSearchInitiated = false;
+
+  /// Pages in the open document, and the page on screen. Both come from the
+  /// viewer's own callbacks and drive the right-edge page scrubber.
+  int _pageCount = 0;
+  int _currentPage = 1;
 
   @override
   void initState() {
@@ -93,6 +122,17 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
       _isSearchInitiated = false;
       _pdfTextSearchResult.removeListener(_onSearchProgress);
     });
+  }
+
+  /// Turns to [page] from the scrubber.
+  ///
+  /// The page is held here as well as in the viewer so the thumb lands under
+  /// the finger immediately instead of waiting for the viewer's own callback.
+  void _goToPage(int page) {
+    final target = page.clamp(1, _pageCount == 0 ? page : _pageCount);
+    if (target == _currentPage) return;
+    setState(() => _currentPage = target);
+    _pdfViewerController.jumpToPage(target);
   }
 
   @override
@@ -226,26 +266,56 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
       );
     }
 
-    return SfPdfViewer.file(
-      _localFile!,
-      controller: _pdfViewerController,
-      canShowScrollHead: false,
-      currentSearchTextHighlightColor: colors.primary.withValues(alpha: 0.4),
-      otherSearchTextHighlightColor: colors.primary.withValues(alpha: 0.15),
-      onDocumentLoaded: (details) {
-        if (widget.initialPageNumber != null) {
-          _pdfViewerController.jumpToPage(widget.initialPageNumber!);
-        }
-        if (widget.initialSearchQuery != null &&
-            widget.initialSearchQuery!.isNotEmpty) {
-          // Add a slight delay so the view renders before searching
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (mounted) {
-              _executeSearch(widget.initialSearchQuery!);
-            }
-          });
-        }
-      },
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: SfPdfViewer.file(
+            _localFile!,
+            controller: _pdfViewerController,
+            canShowScrollHead: false,
+            currentSearchTextHighlightColor: colors.primary.withValues(
+              alpha: 0.4,
+            ),
+            otherSearchTextHighlightColor: colors.primary.withValues(
+              alpha: 0.15,
+            ),
+            onDocumentLoaded: (details) {
+              final pageCount = details.document.pages.count;
+              final initialPage = widget.initialPageNumber;
+              setState(() {
+                _pageCount = pageCount;
+                _currentPage = (initialPage ?? _pdfViewerController.pageNumber)
+                    .clamp(1, pageCount);
+              });
+              if (initialPage != null) {
+                _pdfViewerController.jumpToPage(_currentPage);
+              }
+              if (widget.initialSearchQuery != null &&
+                  widget.initialSearchQuery!.isNotEmpty) {
+                // Add a slight delay so the view renders before searching
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  if (mounted) {
+                    _executeSearch(widget.initialSearchQuery!);
+                  }
+                });
+              }
+            },
+            onPageChanged: (details) {
+              setState(() => _currentPage = details.newPageNumber);
+            },
+          ),
+        ),
+        // The whole right edge is the document's scroller: it stays put instead
+        // of fading, so the student can always see where they are in the file
+        // and drag straight to another page.
+        Positioned.fill(
+          child: PdfPageScrubber(
+            pageCount: _pageCount,
+            currentPage: _currentPage,
+            onPageSelected: _goToPage,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -183,6 +183,17 @@ derives content clearance from the resolved padding. A route pushed above the
 shell sees only the system inset, which is what makes the same helper correct
 both inside and outside the shell.
 
+A document is read full-screen. Every PDF opens through `PdfViewerScreen.open`,
+which pushes on the root navigator so the floating dock cannot end up over the
+page the student opened — the same reason Settings is a top-level route. The
+viewer's right edge then carries the document's scroller: a 4 px groove with a
+cobalt thumb that stays visible instead of fading out, is centred under the
+finger while dragging, names the page in a bubble, and steps a page at a time
+from slider semantics. Syncfusion's viewer owns its own scrolling and exposes no
+pixel extent, so the rail is honest about what it can measure: it maps the
+document's pages to the thumb's travel, and a tap or a drag anywhere on the rail
+turns to that page.
+
 Settings is deliberately not a destination. Each tab header exposes it through
 `AppScaffold.showSettingsAction`, and `/settings` is a top-level route that pushes
 over the shell so it keeps a back button. `AppScaffold` also supplies a back
@@ -190,12 +201,16 @@ affordance to every pushed screen, and wraps its header actions so a compact
 phone with several actions at a large text scale wraps instead of overflowing.
 
 The Timetable day bar keeps one strip one surface step above the canvas and one
-cobalt pill. The pill glides between the equal-width Mon–Sat slots over 260 ms on
-an emphasized curve while each label animates its colour and weight, and the
-chosen day's heading and class list cross-fade and slide 2% of their width from
-the direction of travel over 220 ms. Reduced motion collapses both to zero
-duration, and no day paints a background of its own, so the pill is the only
-thing that moves and no label ever shifts.
+cobalt circle on the selected day. The circle takes its diameter from the day
+label's own line height plus its breathing room, so it always closes around the
+word it marks and the selection stays legible on both the light and the dark
+strip — a wide capsule at the strip's own contrast disappeared into the surface.
+It glides between the equal-width Mon–Sat slots over 260 ms on an emphasized
+curve while each label animates its colour and weight, and the chosen day's
+heading and class list cross-fade and slide 2% of their width from the direction
+of travel over 220 ms. Reduced motion collapses both to zero duration, and no day
+paints a background of its own, so the circle is the only thing that moves and no
+label ever shifts.
 
 Use `GoRouter` with an onboarding redirect and a `StatefulShellRoute.indexedStack` for persistent tab state.
 

@@ -261,11 +261,7 @@ class _SubjectNotesScreenState extends ConsumerState<SubjectNotesScreen> {
                   accent: accent,
                   onOpen: () {
                     if (file.fileExtension.toLowerCase() == 'pdf') {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => PdfViewerScreen(file: file),
-                        ),
-                      );
+                      PdfViewerScreen.open(context, file: file);
                     } else {
                       ref
                           .read(subjectFileCommandProvider.notifier)

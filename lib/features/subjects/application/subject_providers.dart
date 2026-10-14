@@ -20,6 +20,14 @@ final activeSemesterSubjectsProvider = StreamProvider<List<Subject>>((ref) {
       .watchForSemester(activeSemester.id, includeArchived: true);
 });
 
+/// Every subject in every semester, archived ones included.
+///
+/// Used where the whole local set matters, such as the stored default
+/// attendance target applying to subjects outside the active semester.
+final allSubjectsProvider = StreamProvider<List<Subject>>((ref) {
+  return ref.watch(subjectRepositoryProvider).watchAll();
+});
+
 final subjectCommandProvider =
     AsyncNotifierProvider<SubjectCommandController, void>(
       SubjectCommandController.new,

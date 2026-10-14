@@ -6,7 +6,7 @@ import 'package:college_os/core/services/notifications/notification_platform.dar
 import 'package:college_os/core/theme/animation_tokens.dart';
 import 'package:college_os/core/theme/app_theme.dart';
 import 'package:college_os/core/theme/color_tokens.dart';
-import 'package:college_os/core/theme/radius.dart';
+import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/notifications/application/notification_providers.dart';
 import 'package:college_os/features/onboarding/data/drift_onboarding_repository.dart';
 import 'package:college_os/features/onboarding/domain/college_setup.dart';
@@ -124,8 +124,8 @@ void main() {
         findsNothing,
         reason: 'class rows no longer carry a colour rail',
       );
-      // The selector holds exactly one pill, it is cobalt and borderless, and
-      // no day paints a background of its own.
+      // The selector holds exactly one marker — a cobalt circle that wraps the
+      // selected day — and no day paints a background of its own.
       AnimatedAlign dayPill() => tester.widget<AnimatedAlign>(
         find.byKey(const Key('timetable_day_pill')),
       );
@@ -133,15 +133,12 @@ void main() {
         of: find.byKey(const Key('timetable_day_pill')),
         matching: find.byType(FractionallySizedBox),
       );
+      Finder dayPillCircle() => find.descendant(
+        of: find.byKey(const Key('timetable_day_pill')),
+        matching: find.byType(DecoratedBox),
+      );
       BoxDecoration dayPillDecoration() =>
-          tester
-                  .widget<DecoratedBox>(
-                    find.descendant(
-                      of: find.byKey(const Key('timetable_day_pill')),
-                      matching: find.byType(DecoratedBox),
-                    ),
-                  )
-                  .decoration
+          tester.widget<DecoratedBox>(dayPillCircle()).decoration
               as BoxDecoration;
       expect(find.byKey(const Key('timetable_day_pill')), findsOneWidget);
       expect(dayPill().duration, AppDurations.dayPillGlide);
@@ -151,12 +148,38 @@ void main() {
         reason: 'Monday is the first slot',
       );
       expect(dayPillDecoration().color, const Color(0xFF2563EB));
-      expect(
-        dayPillDecoration().borderRadius,
-        BorderRadius.circular(AppRadius.pill),
-      );
+      expect(dayPillDecoration().shape, BoxShape.circle);
+      expect(dayPillDecoration().borderRadius, isNull);
       expect(dayPillDecoration().border, isNull);
       expect(dayPillDecoration().boxShadow, isNull);
+      // The circle is centred on its slot, and it is big enough to wrap the
+      // label it marks: the selection has to read without help from the
+      // strip's own contrast, which is what a wide low-contrast capsule failed
+      // to do in dark mode.
+      final circleSize = tester.getSize(dayPillCircle());
+      final mondaySlot = find.byKey(const Key('timetable_day_1'));
+      final mondayLabel = find.descendant(
+        of: mondaySlot,
+        matching: find.byType(Text),
+      );
+      expect(
+        circleSize.width,
+        circleSize.height,
+        reason: 'the marker is a circle, not a capsule',
+      );
+      expect(
+        (tester.getCenter(dayPillCircle()).dx - tester.getCenter(mondaySlot).dx)
+            .abs(),
+        lessThan(1),
+        reason: 'the circle sits on the selected day',
+      );
+      expect(
+        circleSize.height,
+        greaterThanOrEqualTo(
+          tester.getSize(mondayLabel).height + 2 * AppSpacing.xs,
+        ),
+        reason: 'the circle leaves breathing room around the day label',
+      );
       expect(
         find.descendant(
           of: find.byKey(const Key('timetable_day_2')),
@@ -240,6 +263,7 @@ void main() {
         reason: 'the strip must stay one step above the light canvas',
       );
       expect(dayPillDecoration().color, AppColors.cobalt);
+      expect(dayPillDecoration().shape, BoxShape.circle);
       expect(dayPillDecoration().boxShadow, isNull);
       expect(dayPillDecoration().border, isNull);
 

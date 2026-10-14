@@ -60,6 +60,8 @@ attendancePercentage = present / heldClasses * 100
 
 Unmarked, cancelled, holiday, and college-closed sessions are excluded. The integer-scaled `AttendanceCalculator` remains the sole implementation for percentage boundaries, safe bunks, and classes required; no percentage is persisted.
 
+Each subject carries its own target. The default attendance target in Settings is written onto every subject whenever it changes, and Settings also names the subjects that still hold an older value — an import or an earlier build can leave them behind while the stored setting has already moved on — and offers one confirmed action that brings them onto the stored default. Nothing re-targets a subject silently, so a subject a student deliberately set apart survives.
+
 The attendance forecast is also a pure projection. It runs the same exact calculator twice—once with one future present class and once with one future absent class. A subject is “fragile” only when it is currently on target but one more absence would put it below target. Forecasts never create sessions or predict that a class was actually held.
 
 The Attendance Planner extends this projection to user-selected counts of future attended and missed classes. It calls the same integer-scaled `AttendanceCalculator`, never writes a database record, and resets when the planner screen is closed. Planner results therefore cannot be confused with real attendance.

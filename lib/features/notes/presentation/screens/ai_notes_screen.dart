@@ -495,13 +495,10 @@ class _SourceItemCard extends ConsumerWidget {
           onTap: file == null
               ? null
               : () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => PdfViewerScreen(
-                        file: file,
-                        initialPageNumber: source.pageNumber,
-                      ),
-                    ),
+                  PdfViewerScreen.open(
+                    context,
+                    file: file,
+                    initialPageNumber: source.pageNumber,
                   );
                 },
           child: Container(
