@@ -51,6 +51,9 @@ dependencies:
   sqlite3_flutter_libs: ^0.6.0+eol
   flutter_markdown: ^0.7.7+1
   flutter_foreground_task: ^11.0.3
+  http: ^1.6.0
+  dio: ^5.11.1
+  open_filex: ^4.7.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

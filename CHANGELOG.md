@@ -2,6 +2,10 @@
 
 ## 1.11.0+32 — 11 October 2026
 
+- Added an in-app updater: the app reads the published `version.json` once per launch (silently) and from Settings on demand, and a newer release is offered in a dialog that shows the changelog, downloads the APK with live progress and a Cancel, and hands it to Android's own installer. Nothing is downloaded until the student taps Update, a failed download changes nothing, and the installed data is never touched by the update itself.
+- Added a tag-driven release pipeline (`.github/workflows/release.yml`): pushing `v*.*.*` checks the tag against `pubspec.yaml`, restores the gitignored `env.json` asset and the release keystore from repository secrets, runs analyze and the full test suite, builds and publishes the release APK, then rewrites `version.json` on `main` so the update goes live.
+- Declared `REQUEST_INSTALL_PACKAGES` and the installer's package-visibility query, and removed the storage/media permissions `open_filex` injects, so the updater can hand over an APK without the app requesting photo or storage access.
+
 - Fixed the floating dock appearing over an open note or document: PDFs now open above the shell on the root navigator, the way Settings does, so a file is read full-screen instead of with the dock floating over the page's last lines.
 - Added a page scrubber to the document viewer's right edge: a visible groove with a cobalt thumb that follows a drag or a tap anywhere on the rail, names the page in a bubble while scrubbing, and steps a page at a time from slider semantics.
 

@@ -271,6 +271,9 @@ The versions below were resolved locally on 12 August 2026 with Flutter 3.44.9 /
 | `timezone` | `^0.11.1` | Timezone-aware scheduling |
 | `flutter_timezone` | `^5.1.0` | Device IANA timezone discovery |
 | `intl` | `^0.20.3` | Locale-aware date, time, number formatting |
+| `http` | `^1.6.0` | Reads the published release manifest for the update check |
+| `dio` | `^5.11.1` | Streams the release APK download with progress and cancellation |
+| `open_filex` | `^4.7.0` | Hands the downloaded APK to Android's package installer |
 
 Flutter itself supplies Material 3. No third-party UI kit, font downloader, chart library, object mapper, or model generator is planned. Progress rings and bars are simple reusable Flutter widgets.
 
@@ -295,7 +298,7 @@ Before accepting the set, verify the resolved `drift`, `drift_dev`, `sqlite3`, a
 - `compileSdk`: at least 35 for local notifications; use the stable SDK level generated/supported by Flutter after Phase 0. The machine has API 37 installed but still needs toolchain validation.
 - Target the current stable Android API supported by Flutter at implementation time.
 - Enable core-library desugaring and Java/Kotlin 17 bytecode for scheduled notifications.
-- Add only notification permissions/receivers actually used. Do not add `INTERNET` to the release manifest.
+- Declare only the permissions the app actually uses: `INTERNET` (the opt-in AI query and the release check), `REQUEST_INSTALL_PACKAGES` (handing a downloaded update to Android's installer), the notification, exact-alarm and boot receivers, and the data-sync foreground service. `open_filex` contributes storage and media read permissions; all four are removed with `tools:node="remove"` because the updater only opens an APK from the app's own cache through that plugin's FileProvider.
 - Prefer scoped storage and Android system pick/share flows. Do not request broad storage permissions.
 - Use app-internal support storage for the live database and temp storage for staged backups.
 - Store automatic recovery archives in application-private support storage, with no background service or broad storage permission. Drift changes are coalesced in-process and app pause/detach supplies the lifecycle checkpoint.
@@ -349,7 +352,7 @@ For every implementation slice:
 5. Run relevant unit/widget/database tests; run the full suite before milestone completion.
 6. Run Android integration tests for platform work.
 7. Build a debug APK regularly and a release APK at release milestones.
-8. Inspect the release manifest to confirm there is no internet permission or unapproved SDK.
+8. Inspect the merged release manifest to confirm it carries only the permissions listed in §7 — no storage or media reads, no analytics, tracker or cloud SDK — and that the published `version.json` names the version the APK reports.
 
 ## 11. Reports and guidance
 
@@ -391,5 +394,13 @@ For every implementation slice:
 - “At risk” includes subjects already below target and fragile subjects that are currently on target but would fall below after one more absence.
 - Academic-calendar impact previews project the existing versioned timetable across the selected date range and report how many class days/classes a holiday or closure will hide.
 - Holiday, vacation, and study-leave presets reuse the existing `holiday` event type; exam periods remain informational. Existing calendar-event rows, schema version 7, and backup format 1 remain unchanged.
+
+## 14. Release channel and in-app updates
+
+- A release is a **tag**, not a manual upload. Pushing `v<major>.<minor>.<patch>` runs `.github/workflows/release.yml`, which checks the tag out, restores the gitignored `env.json` asset and the release keystore from repository secrets, runs `flutter analyze` and `flutter test`, builds the release APK, publishes it as a GitHub Release, and rewrites `version.json` on `main` so installed builds can find it. The tag must equal the `version:` name in `pubspec.yaml`; the workflow fails before building otherwise, because the app compares version names and an APK whose name disagrees with the manifest would keep offering itself as an update.
+- `version.json` at the repository root is the channel's whole contract: `latest_version`, `apk_url`, `changelog` and `force_update`. It is read from `main`, so a release goes live the moment the workflow commits it, and a release APK must be signed with the keystore installed builds already trust or Android rejects the upgrade.
+- The check reads a public file and nothing else — no user data, identifiers, accounts, analytics or trackers. The APK is fetched only after the student taps Update, and Android's own installer performs the upgrade, so no local database is replaced silently.
+- The app never blocks on the channel. `UpdateService` runs once per launch from Home after the first frame, stays entirely silent about failures, and only an explicit Check for Updates in Settings reports "up to date" or "could not check". An unreadable or older manifest is treated as no update, never as a downgrade.
+- None of this changes the schema, a migration, or the backup format: the updater reads no stored data and writes none.
 
 Implementation commands are defined in `ROADMAP.md`. Flutter 3.44.9 and the Android toolchain are now installed; Phase 1 and Phase 2 persistence commands run locally.

@@ -25,16 +25,35 @@ import 'package:college_os/shared/widgets/premium_surface.dart';
 import 'package:college_os/shared/widgets/status_badge.dart';
 import 'package:college_os/shared/widgets/gradient_progress.dart';
 import 'package:college_os/shared/widgets/section_header.dart';
+import 'package:college_os/update_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // One release check per launch, after the first frame so the dashboard is
+    // painted first. The check is silent unless a newer build exists, so it can
+    // never turn opening the app into a wall of dialogs — and it needs no
+    // network to leave the rest of the screen working.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      UpdateService.checkForUpdate(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final now = ref.watch(localMinuteProvider).value ?? DateTime.now();
     final settings = ref.watch(collegeSettingsProvider);
     final semester = ref.watch(activeSemesterProvider);

@@ -15,6 +15,7 @@ import 'package:college_os/features/settings/application/settings_providers.dart
 import 'package:college_os/features/settings/domain/attendance_target_mismatch.dart';
 import 'package:college_os/features/settings/domain/settings_repository.dart';
 import 'package:college_os/features/timetable/application/timetable_providers.dart';
+import 'package:college_os/update_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -242,6 +243,17 @@ class SettingsScreen extends ConsumerWidget {
                     _AppInfoTile(
                       appVersion: appVersion,
                       onTap: () => _showAppInfo(context, appVersion.value),
+                    ),
+                    _SettingsTile(
+                      key: const Key('check_for_updates_tile'),
+                      icon: Icons.system_update_alt_rounded,
+                      title: 'Check for Updates',
+                      subtitle:
+                          'See whether a newer CollegeOS build is published',
+                      onTap: () => UpdateService.checkForUpdate(
+                        context,
+                        showNoUpdateMessage: true,
+                      ),
                     ),
                   ],
                 ),

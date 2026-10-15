@@ -1,0 +1,177 @@
+# Builds the CollegeOS release APK on every `v*.*.*` tag, publishes it as a
+# GitHub Release, and points version.json at it so installed builds can offer
+# the update in-app.
+#
+# Repository secrets this workflow needs (Settings → Secrets and variables →
+# Actions):
+#   ANDROID_KEYSTORE_BASE64   base64 of the release keystore (android/collegeos-release.jks)
+#   ANDROID_STORE_PASSWORD    the keystore password
+#   ANDROID_KEY_ALIAS         the key alias inside the keystore
+#   ANDROID_KEY_PASSWORD      the key password
+#   GEMINI_API_KEY            optional; without it the release simply ships with AI search off
+#   GEMINI_API_BASE_URL       optional; only needed when a proxy takes over from the direct API
+#
+# Releasing:
+#   1. Bump `version:` in pubspec.yaml (name *and* build number).
+#   2. Commit, then tag the same name: `git tag v1.2.3 && git push origin v1.2.3`.
+#   The tag must match the pubspec version name; the workflow fails fast if it does not.
+
+name: Build CollegeOS APK & Update version.json
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Extract Tag Info
+        id: get_version
+        run: |
+          set -euo pipefail
+          RAW_TAG="${GITHUB_REF_NAME}"
+          CLEAN_VERSION="${RAW_TAG#v}"
+          if ! [[ "$CLEAN_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag $RAW_TAG is not v<major>.<minor>.<patch>."
+            exit 1
+          fi
+          echo "TAG_NAME=$RAW_TAG" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$CLEAN_VERSION" >> "$GITHUB_OUTPUT"
+          echo "APK_URL=https://github.com/${GITHUB_REPOSITORY}/releases/download/${RAW_TAG}/app-release.apk" >> "$GITHUB_OUTPUT"
+
+      # The app compares *names* ("1.11.0"), so an APK whose version name does
+      # not match the tag would keep offering itself as an update forever.
+      - name: Verify the tag matches pubspec
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          set -euo pipefail
+          PUBSPEC_VERSION=$(grep -m1 '^version:' pubspec.yaml | sed 's/^version:[[:space:]]*//' | cut -d'+' -f1)
+          if [ "$PUBSPEC_VERSION" != "$VERSION" ]; then
+            echo "::error::Tag v$VERSION does not match pubspec version $PUBSPEC_VERSION. Bump pubspec.yaml, commit, and tag that version instead."
+            exit 1
+          fi
+
+      # env.json is a declared Flutter asset and is gitignored, so a clean
+      # checkout has no copy of it and `flutter build` would fail. The real key
+      # is passed as a --dart-define below, never written into the asset.
+      - name: Provide env.json
+        run: |
+          set -euo pipefail
+          cat > env.json <<'JSON'
+          {
+            "GEMINI_API_KEY": "",
+            "GEMINI_API_BASE_URL": ""
+          }
+          JSON
+
+      # android/app/build.gradle.kts reads android/key.properties, which is
+      # gitignored; without it the Gradle build fails during configuration.
+      - name: Configure release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not set, so the release APK cannot be signed with the key installed builds already trust."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/collegeos-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$STORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=collegeos-release.jks
+          EOF
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test
+
+      - name: Build Release APK
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_BASE_URL: ${{ secrets.GEMINI_API_BASE_URL }}
+        run: |
+          set -euo pipefail
+          DEFINES=()
+          if [ -n "${GEMINI_API_KEY:-}" ]; then
+            DEFINES+=("--dart-define=GEMINI_API_KEY=$GEMINI_API_KEY")
+          fi
+          if [ -n "${GEMINI_API_BASE_URL:-}" ]; then
+            DEFINES+=("--dart-define=GEMINI_API_BASE_URL=$GEMINI_API_BASE_URL")
+          fi
+          flutter build apk --release "${DEFINES[@]}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_version.outputs.TAG_NAME }}
+          name: CollegeOS ${{ steps.get_version.outputs.TAG_NAME }}
+          draft: false
+          prerelease: false
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update version.json
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+          APK_URL: ${{ steps.get_version.outputs.APK_URL }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+
+          version = os.environ["VERSION"]
+          manifest = {
+              "latest_version": version,
+              "apk_url": os.environ["APK_URL"],
+              "changelog": f"• CollegeOS {version}\n• Performance improvements and bug fixes",
+              "force_update": False,
+          }
+          # Written through json.dump so the bullets, newlines and URL are
+          # escaped exactly as the app's decoder expects.
+          with open("version.json", "w", encoding="utf-8") as handle:
+              json.dump(manifest, handle, ensure_ascii=False, indent=2)
+              handle.write("\n")
+          PY
+
+      - name: Commit version.json
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: release ${{ steps.get_version.outputs.TAG_NAME }} - update version.json [skip ci]"
+          branch: main
+          file_pattern: 'version.json'
