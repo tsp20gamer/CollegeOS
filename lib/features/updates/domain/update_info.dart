@@ -1,3 +1,11 @@
+/// The release worker's direct download endpoint.
+///
+/// `GET` with `?download=1` answers with a redirect to the APK of the newest
+/// published GitHub release, so an installed build fetches the latest
+/// published binary even before `version.json` on `main` has been rewritten.
+const String directApkDownloadUrl =
+    'https://apicollegeos.steja3471.workers.dev/?download=1';
+
 /// Release metadata published by the release workflow in `version.json`.
 ///
 /// The manifest is the *only* thing the updater trusts, so it is read strictly:
@@ -64,6 +72,18 @@ class UpdateInfo {
 
   /// The release as the UI names it.
   String get versionLabel => 'v$latestVersion';
+
+  /// Where the APK may be downloaded from, best source first.
+  ///
+  /// The release worker at [directApkDownloadUrl] redirects straight to the
+  /// newest published APK, so it is tried first; the manifest's pinned [apkUrl]
+  /// is the version-accurate fallback for when the worker itself cannot be
+  /// reached. Equal sources are listed once.
+  List<Uri> get downloadSources {
+    final direct = Uri.parse(directApkDownloadUrl);
+    if (apkUrl == direct) return [direct];
+    return [direct, apkUrl];
+  }
 
   @override
   String toString() =>

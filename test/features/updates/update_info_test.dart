@@ -111,4 +111,35 @@ void main() {
       expect(release('1.11.1').isNewerThan('unknown'), isFalse);
     });
   });
+
+  group('downloadSources', () {
+    UpdateInfo release(String apkUrl) => UpdateInfo(
+      latestVersion: '1.11.1',
+      apkUrl: Uri.parse(apkUrl),
+      changelog: 'notes',
+      forceUpdate: false,
+    );
+
+    test('prefers the release worker, then the pinned release URL', () {
+      const pinned =
+          'https://github.com/tsp20gamer/CollegeOS/releases/download/'
+          'v1.11.1/app-release.apk';
+
+      final sources = release(pinned).downloadSources;
+
+      expect(sources, hasLength(2));
+      expect(sources.first.toString(), directApkDownloadUrl);
+      expect(
+        sources.last.toString(),
+        pinned,
+        reason: 'the pinned URL stays as the fallback',
+      );
+    });
+
+    test('lists one source when the manifest already names the worker', () {
+      final sources = release(directApkDownloadUrl).downloadSources;
+
+      expect(sources, [Uri.parse(directApkDownloadUrl)]);
+    });
+  });
 }

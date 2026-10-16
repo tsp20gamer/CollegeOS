@@ -101,12 +101,35 @@ class _UpdateDialogState extends State<UpdateDialog> {
         p.join(directory.path, 'CollegeOS-${widget.info.latestVersion}.apk'),
       );
 
-      await dio.download(
-        widget.info.apkUrl.toString(),
-        apk.path,
-        cancelToken: _cancelToken,
-        onReceiveProgress: _onProgress,
-      );
+      // Best source first: the release worker redirects straight to the newest
+      // published APK, while the manifest's pinned URL is the version-accurate
+      // fallback for when the worker itself cannot be reached.
+      final sources = widget.info.downloadSources;
+      for (var index = 0; index < sources.length; index++) {
+        try {
+          await dio.download(
+            sources[index].toString(),
+            apk.path,
+            cancelToken: _cancelToken,
+            onReceiveProgress: _onProgress,
+          );
+          break;
+        } on DioException catch (error) {
+          // A cancelled download is the student's choice; nothing retries.
+          // The last source has nowhere left to fall back to.
+          if (error.type == DioExceptionType.cancel ||
+              index == sources.length - 1) {
+            rethrow;
+          }
+          // A partial file from one source must never become the next attempt.
+          await _discard(apk);
+          if (!mounted) return;
+          setState(() {
+            _progress = 0;
+            _detail = 'Trying the pinned release link…';
+          });
+        }
+      }
 
       if (!mounted) return;
       setState(() {
