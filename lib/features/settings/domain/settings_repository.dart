@@ -30,6 +30,16 @@ typedef CollegeSettings = ({
   /// Lead time, in minutes before a class start, offered to classes that have
   /// no reminder of their own.
   int classReminderMinutesBefore,
+
+  /// Whether Sundays are treated as holidays without a stored calendar row.
+  bool sundayOff,
+
+  /// Whether the second Saturday of each month is treated as a holiday.
+  bool secondSaturdayOff,
+
+  /// Whether Republic Day, Independence Day and Gandhi Jayanti are treated as
+  /// holidays.
+  bool governmentHolidaysOff,
 });
 
 abstract interface class SettingsRepository {

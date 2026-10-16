@@ -205,6 +205,22 @@ final class AttendanceCommandController extends AsyncNotifier<void> {
         .clearDayOverride(semesterId, date),
   );
 
+  /// Makes a derived or ranged holiday a normal working day.
+  ///
+  /// Default holidays (Sundays, second Saturdays, the fixed national dates) and
+  /// stored holiday ranges are not rows to delete; an explicit `normal` day
+  /// override is what the engine reads as "classes run as scheduled", so it is
+  /// the only write that brings a class back. No attendance is modified.
+  Future<bool> markWorkingDay(int semesterId, DateTime date) => _run(
+    () => ref
+        .read(attendanceEngineRepositoryProvider)
+        .setDayOverride(
+          semesterId: semesterId,
+          date: date,
+          type: CalendarDayOverrideType.normal,
+        ),
+  );
+
   Future<bool> clearSession(int attendanceId) => _run(
     () =>
         ref.read(attendanceEngineRepositoryProvider).clearSession(attendanceId),

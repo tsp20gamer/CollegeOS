@@ -8,8 +8,9 @@
 #   ANDROID_STORE_PASSWORD    the keystore password
 #   ANDROID_KEY_ALIAS         the key alias inside the keystore
 #   ANDROID_KEY_PASSWORD      the key password
-#   GEMINI_API_KEY            optional; without it the release simply ships with AI search off
-#   GEMINI_API_BASE_URL       optional; only needed when a proxy takes over from the direct API
+#
+# No feature compiled here needs a credential: every one of them is offline, and
+# the update check reads a public version.json.
 #
 # Releasing:
 #   1. Bump `version:` in pubspec.yaml (name *and* build number).
@@ -76,19 +77,6 @@ jobs:
             exit 1
           fi
 
-      # env.json is a declared Flutter asset and is gitignored, so a clean
-      # checkout has no copy of it and `flutter build` would fail. The real key
-      # is passed as a --dart-define below, never written into the asset.
-      - name: Provide env.json
-        run: |
-          set -euo pipefail
-          cat > env.json <<'JSON'
-          {
-            "GEMINI_API_KEY": "",
-            "GEMINI_API_BASE_URL": ""
-          }
-          JSON
-
       # android/app/build.gradle.kts reads android/key.properties, which is
       # gitignored; without it the Gradle build fails during configuration.
       - name: Configure release signing
@@ -121,19 +109,7 @@ jobs:
         run: flutter test
 
       - name: Build Release APK
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_API_BASE_URL: ${{ secrets.GEMINI_API_BASE_URL }}
-        run: |
-          set -euo pipefail
-          DEFINES=()
-          if [ -n "${GEMINI_API_KEY:-}" ]; then
-            DEFINES+=("--dart-define=GEMINI_API_KEY=$GEMINI_API_KEY")
-          fi
-          if [ -n "${GEMINI_API_BASE_URL:-}" ]; then
-            DEFINES+=("--dart-define=GEMINI_API_BASE_URL=$GEMINI_API_BASE_URL")
-          fi
-          flutter build apk --release "${DEFINES[@]}"
+        run: flutter build apk --release
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

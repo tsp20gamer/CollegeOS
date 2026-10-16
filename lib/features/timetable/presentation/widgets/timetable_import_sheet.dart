@@ -81,7 +81,7 @@ class _TimetableImportSheetState extends ConsumerState<_TimetableImportSheet> {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Choose a CSV. CollegeOS matches existing subjects, previews conflicts, skips exact duplicates, and creates missing subjects only after confirmation.',
+              'Choose a CSV, an Excel workbook (.xlsx) or a Word document (.docx). CollegeOS matches existing subjects, previews conflicts, skips exact duplicates, and creates missing subjects only after confirmation.',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -112,7 +112,7 @@ class _TimetableImportSheetState extends ConsumerState<_TimetableImportSheet> {
               OutlinedButton.icon(
                 onPressed: operation.isLoading ? null : _pick,
                 icon: const Icon(Icons.file_open_outlined),
-                label: const Text('Choose another CSV'),
+                label: const Text('Choose another file'),
               ),
               const SizedBox(height: AppSpacing.xs),
               FilledButton.icon(
@@ -181,7 +181,7 @@ class _TemplateHelp extends StatelessWidget {
     child: ExpansionTile(
       leading: const Icon(Icons.table_view_outlined),
       title: const Text(
-        'CSV format',
+        'CSV, Excel or Word',
         style: TextStyle(fontWeight: FontWeight.w800),
       ),
       subtitle: const Text('Flexible column names and 12/24-hour times'),
@@ -194,6 +194,12 @@ class _TemplateHelp extends StatelessWidget {
       children: [
         const SelectableText(
           'Required: Day, Start, End, Subject\nOptional: Code, Professor, Room, Note',
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        const SelectableText(
+          'Excel: one sheet, headers in the first row.\n'
+          'Word: the timetable has to be a table (Insert → Table).\n'
+          'Legacy .xls and .doc files must be saved again as .xlsx and .docx.',
         ),
         const SizedBox(height: AppSpacing.sm),
         Align(
@@ -225,12 +231,12 @@ class _ChooseFileCard extends StatelessWidget {
       children: [
         const Icon(Icons.upload_file_rounded, size: 40),
         const SizedBox(height: AppSpacing.sm),
-        const Text('No timetable selected'),
+        const Text('No timetable chosen'),
         const SizedBox(height: AppSpacing.sm),
         FilledButton.tonal(
-          key: const Key('choose_timetable_csv'),
+          key: const Key('choose_timetable_file'),
           onPressed: onChoose,
-          child: const Text('Choose CSV'),
+          child: const Text('Choose file'),
         ),
       ],
     ),

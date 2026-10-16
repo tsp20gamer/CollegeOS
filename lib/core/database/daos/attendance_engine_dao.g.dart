@@ -14,6 +14,7 @@ mixin _$AttendanceEngineDaoMixin on DatabaseAccessor<AppDatabase> {
       attachedDatabase.calendarDayOverrides;
   $AcademicCalendarEventsTable get academicCalendarEvents =>
       attachedDatabase.academicCalendarEvents;
+  $AppSettingsTable get appSettings => attachedDatabase.appSettings;
   AttendanceEngineDaoManager get managers => AttendanceEngineDaoManager(this);
 }
 
@@ -44,4 +45,6 @@ class AttendanceEngineDaoManager {
         _db.attachedDatabase,
         _db.academicCalendarEvents,
       );
+  $$AppSettingsTableTableManager get appSettings =>
+      $$AppSettingsTableTableManager(_db.attachedDatabase, _db.appSettings);
 }

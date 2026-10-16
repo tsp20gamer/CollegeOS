@@ -179,85 +179,6 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
       return [];
     }
   }
-
-  /// Retrieves full page text for AI context using a **keyword** query built
-  /// as `word1* word2*` (FTS5 `AND`).
-  ///
-  /// For natural-language questions use [searchAiContextByExpression] with an
-  /// expression from `AiQueryBuilder` instead: requiring every word of a
-  /// sentence to appear on one page matches nothing.
-  Future<List<PdfAiContextRow>> searchForAiContext(
-    String query, {
-    int limit = 8,
-  }) async {
-    if (query.trim().isEmpty) return [];
-
-    final sanitized = query
-        .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
-        .trim();
-    if (sanitized.isEmpty) return [];
-
-    final ftsQuery = sanitized
-        .split(RegExp(r'\s+'))
-        .map((w) => '$w*')
-        .join(' ');
-
-    return _selectAiContextRows(ftsQuery, limit);
-  }
-
-  /// Runs an already-built FTS5 `MATCH` [expression] and returns the matching
-  /// pages ordered by relevance.
-  ///
-  /// [expression] is expected to come from `AiQueryBuilder.buildFtsExpression`,
-  /// which only emits sanitised `[a-z0-9]`-only terms joined by `OR`, so it can
-  /// never carry FTS5 syntax. Anything malformed still fails closed: the query
-  /// is wrapped in a `try` and returns an empty list rather than throwing into
-  /// the UI.
-  ///
-  /// This is a pure read path — it never writes to or deletes from the index.
-  Future<List<PdfAiContextRow>> searchAiContextByExpression(
-    String expression, {
-    int limit = 8,
-  }) async {
-    final trimmed = expression.trim();
-    if (trimmed.isEmpty || limit <= 0) return [];
-    return _selectAiContextRows(trimmed, limit);
-  }
-
-  /// Single read path shared by both AI context queries.
-  Future<List<PdfAiContextRow>> _selectAiContextRows(
-    String ftsQuery,
-    int limit,
-  ) async {
-    try {
-      final rows = await customSelect(
-        '''
-        SELECT
-          pdf_page_fts.file_id,
-          pdf_page_fts.page_number,
-          pdf_page_fts.page_text,
-          rank
-        FROM pdf_page_fts
-        WHERE pdf_page_fts MATCH ?
-        ORDER BY rank
-        LIMIT ?
-        ''',
-        variables: [Variable.withString(ftsQuery), Variable.withInt(limit)],
-        readsFrom: {pdfPageFts},
-      ).get();
-
-      return rows.map((row) {
-        return PdfAiContextRow(
-          fileId: int.parse(row.read<String>('file_id')),
-          pageNumber: int.parse(row.read<String>('page_number')),
-          pageText: row.read<String>('page_text'),
-          rank: row.read<double>('rank'),
-        );
-      }).toList();
-    } catch (e) {
-      return [];
-    }
-  }
 }
 
 /// Where an interrupted indexing run has to continue.
@@ -294,19 +215,5 @@ class PdfSearchResultRow {
     required this.fileId,
     required this.pageNumber,
     required this.snippet,
-  });
-}
-
-class PdfAiContextRow {
-  final int fileId;
-  final int pageNumber;
-  final String pageText;
-  final double rank;
-
-  const PdfAiContextRow({
-    required this.fileId,
-    required this.pageNumber,
-    required this.pageText,
-    required this.rank,
   });
 }

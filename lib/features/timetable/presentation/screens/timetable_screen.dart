@@ -171,16 +171,16 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
               title: 'Could not load timetable',
               message: error.toString(),
             ),
+            // The next-class card is only ever built from the attendance-aware
+            // projection. The plain schedule calculation cannot see holidays,
+            // so using it while the projection loads would briefly announce a
+            // class on a day the student has off.
             data: (schedule) => _buildSchedule(
               activeSemester,
               activeSubjects,
               entries,
               schedule,
-              nextAsync.value ??
-                  NextClassService.calculate(
-                    schedule: schedule,
-                    now: DateTime.now(),
-                  ),
+              nextAsync.value,
             ),
           );
         },
@@ -193,9 +193,16 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
     List<Subject> subjects,
     List<TimetableEntry> entries,
     List<ScheduledClass> schedule,
-    NextClassResult next,
+    NextClassResult? next,
   ) {
     final semesterId = semester.id;
+    // A weekday whose default-holiday rule is always on, so the empty state can
+    // name it instead of implying the student simply forgot to add classes.
+    final sundayOff =
+        ref.watch(collegeSettingsProvider).value?.sundayOff ?? false;
+    final weeklyOffDay = sundayOff && _selectedWeekday == DateTime.sunday
+        ? timetableDayNames[_selectedWeekday]
+        : null;
     final selected =
         schedule
             .where((item) => item.entry.weekday == _selectedWeekday)
@@ -207,7 +214,7 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _DaySelector(selected: _selectedWeekday, onSelected: _selectWeekday),
-        if (schedule.isNotEmpty) ...[
+        if (schedule.isNotEmpty && next != null) ...[
           const SizedBox(height: AppSpacing.md),
           _NextClassCard(result: next),
         ],
@@ -247,11 +254,15 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
                 const SizedBox(height: AppSpacing.sm),
                 if (selected.isEmpty)
                   EmptyState(
-                    icon: Icons.event_available_rounded,
-                    title:
-                        'No classes on ${timetableDayNames[_selectedWeekday]}',
-                    message:
-                        'This day is clear. Add a class whenever your schedule changes.',
+                    icon: weeklyOffDay == null
+                        ? Icons.event_available_rounded
+                        : Icons.beach_access_outlined,
+                    title: weeklyOffDay == null
+                        ? 'No classes on ${timetableDayNames[_selectedWeekday]}'
+                        : '$weeklyOffDay is a weekly off',
+                    message: weeklyOffDay == null
+                        ? 'This day is clear. Add a class whenever your schedule changes.'
+                        : 'Default holidays exclude $weeklyOffDay classes. Mark a single date as a working day from Attendance if classes run.',
                     action: FilledButton.icon(
                       onPressed: () => _showEntryForm(
                         semesterId: semesterId,
@@ -271,9 +282,12 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
                       for (var index = 0; index < selected.length; index++) ...[
                         _ClassCard(
                           scheduledClass: selected[index],
-                          isCurrent: next.currentClasses.any(
-                            (item) => item.entry.id == selected[index].entry.id,
-                          ),
+                          isCurrent:
+                              next?.currentClasses.any(
+                                (item) =>
+                                    item.entry.id == selected[index].entry.id,
+                              ) ??
+                              false,
                           onEdit: () => _showEntryForm(
                             semesterId: semesterId,
                             semesterStart: semester.startDate,

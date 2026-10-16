@@ -79,6 +79,9 @@ final class CollegeInformationController extends AsyncNotifier<void> {
         automaticLocalBackup: current.automaticLocalBackup,
         classRemindersEnabled: current.classRemindersEnabled,
         classReminderMinutesBefore: current.classReminderMinutesBefore,
+        sundayOff: current.sundayOff,
+        secondSaturdayOff: current.secondSaturdayOff,
+        governmentHolidaysOff: current.governmentHolidaysOff,
       ));
       if (current.defaultAttendanceTarget != defaultAttendanceTarget) {
         await _retargetSubjects(ref, defaultAttendanceTarget);
@@ -112,6 +115,9 @@ final class SettingsPreferenceController extends AsyncNotifier<void> {
       automaticLocalBackup: current.automaticLocalBackup,
       classRemindersEnabled: current.classRemindersEnabled,
       classReminderMinutesBefore: current.classReminderMinutesBefore,
+      sundayOff: current.sundayOff,
+      secondSaturdayOff: current.secondSaturdayOff,
+      governmentHolidaysOff: current.governmentHolidaysOff,
     ),
   );
 
@@ -134,6 +140,9 @@ final class SettingsPreferenceController extends AsyncNotifier<void> {
       automaticLocalBackup: current.automaticLocalBackup,
       classRemindersEnabled: enabled,
       classReminderMinutesBefore: current.classReminderMinutesBefore,
+      sundayOff: current.sundayOff,
+      secondSaturdayOff: current.secondSaturdayOff,
+      governmentHolidaysOff: current.governmentHolidaysOff,
     ),
   );
 
@@ -162,6 +171,9 @@ final class SettingsPreferenceController extends AsyncNotifier<void> {
         automaticLocalBackup: current.automaticLocalBackup,
         classRemindersEnabled: current.classRemindersEnabled,
         classReminderMinutesBefore: minutesBefore,
+        sundayOff: current.sundayOff,
+        secondSaturdayOff: current.secondSaturdayOff,
+        governmentHolidaysOff: current.governmentHolidaysOff,
       ),
     );
   }
@@ -182,6 +194,36 @@ final class SettingsPreferenceController extends AsyncNotifier<void> {
     return !state.hasError;
   }
 
+  /// Replaces the derived-holiday rules.
+  ///
+  /// These are settings, not stored calendar rows: turning a rule off returns
+  /// the affected days to their previous marked or unmarked state with no data
+  /// rewritten, exactly as deleting a holiday range does.
+  Future<bool> setDefaultHolidays({
+    required bool sundayOff,
+    required bool secondSaturdayOff,
+    required bool governmentHolidaysOff,
+  }) => _save(
+    (current) => (
+      studentName: current.studentName,
+      collegeName: current.collegeName,
+      course: current.course,
+      branch: current.branch,
+      academicYearStartDate: current.academicYearStartDate,
+      academicYearEndDate: current.academicYearEndDate,
+      defaultAttendanceTarget: current.defaultAttendanceTarget,
+      themeMode: current.themeMode,
+      onboardingCompleted: current.onboardingCompleted,
+      notificationsEnabled: current.notificationsEnabled,
+      automaticLocalBackup: current.automaticLocalBackup,
+      classRemindersEnabled: current.classRemindersEnabled,
+      classReminderMinutesBefore: current.classReminderMinutesBefore,
+      sundayOff: sundayOff,
+      secondSaturdayOff: secondSaturdayOff,
+      governmentHolidaysOff: governmentHolidaysOff,
+    ),
+  );
+
   Future<bool> setDefaultAttendanceTarget(double target) async {
     if (target <= 0 || target > 1) return Future.value(false);
     final current = await ref.read(settingsRepositoryProvider).get();
@@ -200,6 +242,9 @@ final class SettingsPreferenceController extends AsyncNotifier<void> {
         automaticLocalBackup: existing.automaticLocalBackup,
         classRemindersEnabled: existing.classRemindersEnabled,
         classReminderMinutesBefore: existing.classReminderMinutesBefore,
+        sundayOff: existing.sundayOff,
+        secondSaturdayOff: existing.secondSaturdayOff,
+        governmentHolidaysOff: existing.governmentHolidaysOff,
       ),
     );
     if (!saved || current.defaultAttendanceTarget == target) return saved;
@@ -299,6 +344,9 @@ final class AutomaticLocalBackupController extends AsyncNotifier<void> {
         automaticLocalBackup: enabled,
         classRemindersEnabled: current.classRemindersEnabled,
         classReminderMinutesBefore: current.classReminderMinutesBefore,
+        sundayOff: current.sundayOff,
+        secondSaturdayOff: current.secondSaturdayOff,
+        governmentHolidaysOff: current.governmentHolidaysOff,
       ));
     });
     return !state.hasError;

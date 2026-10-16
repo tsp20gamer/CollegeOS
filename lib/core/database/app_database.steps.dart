@@ -6320,6 +6320,607 @@ i1.GeneratedColumn<int> _column_80(String aliasedName) =>
       $customConstraints: 'NOT NULL DEFAULT 10',
       defaultValue: const i1.CustomExpression('10'),
     );
+
+final class Schema16 extends i0.VersionedSchema {
+  Schema16({required super.database}) : super(version: 16);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    semesters,
+    subjects,
+    subjectFiles,
+    pdfSearchMetadata,
+    pdfPageFts,
+    subjectFilesSubjectCreated,
+    subjectsSemesterArchivedName,
+    semestersOneActive,
+    semestersAcademicYearNumber,
+    timetableEntries,
+    attendanceSessions,
+    dailyAttendanceRecords,
+    scheduledClassAttendance,
+    calendarDayOverrides,
+    academicCalendarEvents,
+    tasks,
+    exams,
+    marks,
+    appSettings,
+    subjectNotes,
+    timetableSemesterWeekdayStart,
+    timetableSubject,
+    attendanceSubjectDatePeriod,
+    attendanceSubjectStatus,
+    dailyAttendanceStatus,
+    scheduledAttendanceDateTimetable,
+    scheduledAttendanceSubjectDate,
+    scheduledAttendanceSemesterDate,
+    calendarOverrideSemesterDate,
+    academicCalendarSemesterDates,
+    tasksSemesterCompletedDue,
+    tasksSubjectCompleted,
+    examsSemesterDateStart,
+    examsSubjectDate,
+    marksSubjectDate,
+    marksExam,
+    subjectNotesSubjectCreated,
+  ];
+  late final Shape0 semesters = Shape0(
+    source: i0.VersionedTable(
+      entityName: 'semesters',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'CHECK(length(trim(name)) > 0)',
+        'CHECK(semester_number > 0)',
+        'CHECK(length(trim(academic_year)) > 0)',
+        'CHECK(end_date >= start_date)',
+      ],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_6,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape1 subjects = Shape1(
+    source: i0.VersionedTable(
+      entityName: 'subjects',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'UNIQUE(id, semester_id)',
+        'CHECK(length(trim(name)) > 0)',
+        'CHECK(attendance_target > 0 AND attendance_target <= 1)',
+        'CHECK(display_color >= 0 AND display_color <= 4294967295)',
+      ],
+      columns: [
+        _column_0,
+        _column_9,
+        _column_1,
+        _column_10,
+        _column_11,
+        _column_12,
+        _column_13,
+        _column_14,
+        _column_15,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape18 subjectFiles = Shape18(
+    source: i0.VersionedTable(
+      entityName: 'subject_files',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'FOREIGN KEY(subject_id, semester_id)REFERENCES subjects(id, semester_id)ON DELETE CASCADE',
+        'CHECK(length(trim(file_name)) > 0)',
+        'CHECK(length(trim(relative_file_path)) > 0)',
+        'CHECK(file_size_bytes >= 0)',
+      ],
+      columns: [
+        _column_0,
+        _column_21,
+        _column_9,
+        _column_64,
+        _column_66,
+        _column_67,
+        _column_68,
+        _column_69,
+        _column_70,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape19 pdfSearchMetadata = Shape19(
+    source: i0.VersionedTable(
+      entityName: 'pdf_search_metadata',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [_column_71, _column_24, _column_72, _column_73, _column_74],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape20 pdfPageFts = Shape20(
+    source: i0.VersionedVirtualTable(
+      entityName: 'pdf_page_fts',
+      moduleAndArgs:
+          'fts5(file_id UNINDEXED, page_number UNINDEXED, page_text, tokenize=\'porter unicode61\')',
+      columns: [_column_75, _column_76, _column_77],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  final i1.Index subjectFilesSubjectCreated = i1.Index(
+    'subject_files_subject_created',
+    'CREATE INDEX subject_files_subject_created ON subject_files (subject_id, created_at)',
+  );
+  final i1.Index subjectsSemesterArchivedName = i1.Index(
+    'subjects_semester_archived_name',
+    'CREATE INDEX subjects_semester_archived_name ON subjects (semester_id, is_archived, name)',
+  );
+  final i1.Index semestersOneActive = i1.Index(
+    'semesters_one_active',
+    'CREATE UNIQUE INDEX semesters_one_active ON semesters (is_active) WHERE is_active = 1',
+  );
+  final i1.Index semestersAcademicYearNumber = i1.Index(
+    'semesters_academic_year_number',
+    'CREATE INDEX semesters_academic_year_number ON semesters (academic_year, semester_number)',
+  );
+  late final Shape21 timetableEntries = Shape21(
+    source: i0.VersionedTable(
+      entityName: 'timetable_entries',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'FOREIGN KEY(subject_id, semester_id)REFERENCES subjects(id, semester_id)ON DELETE CASCADE',
+        'CHECK(weekday BETWEEN 1 AND 7)',
+        'CHECK(start_time BETWEEN 0 AND 1439)',
+        'CHECK(end_time BETWEEN 1 AND 1440)',
+        'CHECK(end_time > start_time)',
+        'CHECK(effective_until IS NULL OR effective_from IS NULL OR effective_until >= effective_from)',
+        'CHECK(reminder_minutes_before IS NULL OR reminder_minutes_before BETWEEN 0 AND 10080)',
+      ],
+      columns: [
+        _column_0,
+        _column_9,
+        _column_16,
+        _column_17,
+        _column_18,
+        _column_19,
+        _column_12,
+        _column_20,
+        _column_56,
+        _column_57,
+        _column_78,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape3 attendanceSessions = Shape3(
+    source: i0.VersionedTable(
+      entityName: 'attendance_sessions',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'CHECK(period > 0)',
+        'CHECK(status IN (\'present\', \'absent\', \'cancelled\'))',
+      ],
+      columns: [
+        _column_0,
+        _column_21,
+        _column_22,
+        _column_23,
+        _column_24,
+        _column_20,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape10 dailyAttendanceRecords = Shape10(
+    source: i0.VersionedTable(
+      entityName: 'daily_attendance_records',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['CHECK(status IN (\'present\', \'absent\'))'],
+      columns: [
+        _column_0,
+        _column_55,
+        _column_24,
+        _column_20,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape12 scheduledClassAttendance = Shape12(
+    source: i0.VersionedTable(
+      entityName: 'scheduled_class_attendance',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'CHECK(start_time BETWEEN 0 AND 1439)',
+        'CHECK(end_time BETWEEN 1 AND 1440)',
+        'CHECK(end_time > start_time)',
+        'CHECK(attendance_status IN (\'unmarked\', \'present\', \'absent\', \'cancelled\'))',
+      ],
+      columns: [
+        _column_0,
+        _column_9,
+        _column_58,
+        _column_21,
+        _column_22,
+        _column_18,
+        _column_19,
+        _column_59,
+        _column_20,
+        _column_60,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape13 calendarDayOverrides = Shape13(
+    source: i0.VersionedTable(
+      entityName: 'calendar_day_overrides',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'CHECK(type IN (\'normal\', \'holiday\', \'collegeClosed\'))',
+      ],
+      columns: [
+        _column_0,
+        _column_9,
+        _column_22,
+        _column_28,
+        _column_20,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape15 academicCalendarEvents = Shape15(
+    source: i0.VersionedTable(
+      entityName: 'academic_calendar_events',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'CHECK(length(trim(title)) > 0)',
+        'CHECK(type IN (\'event\', \'examPeriod\', \'holiday\', \'collegeClosed\'))',
+        'CHECK(end_date >= start_date)',
+      ],
+      columns: [
+        _column_0,
+        _column_9,
+        _column_26,
+        _column_28,
+        _column_4,
+        _column_5,
+        _column_20,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape4 tasks = Shape4(
+    source: i0.VersionedTable(
+      entityName: 'tasks',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'FOREIGN KEY(subject_id, semester_id)REFERENCES subjects(id, semester_id)ON DELETE CASCADE',
+        'CHECK(length(trim(title)) > 0)',
+        'CHECK(type IN (\'general\', \'assignment\', \'study\'))',
+        'CHECK(priority IN (\'low\', \'medium\', \'high\'))',
+        'CHECK(due_time IS NULL OR due_time BETWEEN 0 AND 1439)',
+        'CHECK(due_time IS NULL OR due_date IS NOT NULL)',
+        'CHECK((is_completed = 0 AND completed_at IS NULL)OR(is_completed = 1 AND completed_at IS NOT NULL))',
+      ],
+      columns: [
+        _column_0,
+        _column_9,
+        _column_25,
+        _column_26,
+        _column_27,
+        _column_28,
+        _column_29,
+        _column_30,
+        _column_31,
+        _column_32,
+        _column_33,
+        _column_34,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape9 exams = Shape9(
+    source: i0.VersionedTable(
+      entityName: 'exams',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'UNIQUE(id, subject_id)',
+        'FOREIGN KEY(subject_id, semester_id)REFERENCES subjects(id, semester_id)ON DELETE CASCADE',
+        'CHECK(length(trim(name)) > 0)',
+        'CHECK(length(trim(exam_type)) > 0)',
+        'CHECK(start_time IS NULL OR start_time BETWEEN 0 AND 1439)',
+        'CHECK(end_time IS NULL OR end_time BETWEEN 1 AND 1440)',
+        'CHECK(start_time IS NULL OR end_time IS NULL OR end_time > start_time)',
+        'CHECK(max_marks IS NULL OR max_marks > 0)',
+        'CHECK(obtained_marks IS NULL OR obtained_marks >= 0)',
+        'CHECK(obtained_marks IS NULL OR max_marks IS NULL OR obtained_marks <= max_marks)',
+      ],
+      columns: [
+        _column_0,
+        _column_9,
+        _column_16,
+        _column_1,
+        _column_35,
+        _column_36,
+        _column_37,
+        _column_38,
+        _column_12,
+        _column_39,
+        _column_40,
+        _column_41,
+        _column_32,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape6 marks = Shape6(
+    source: i0.VersionedTable(
+      entityName: 'marks',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'FOREIGN KEY(exam_id, subject_id)REFERENCES exams(id, subject_id)ON DELETE CASCADE',
+        'CHECK(length(trim(category)) > 0)',
+        'CHECK(max_marks > 0)',
+        'CHECK(obtained_marks >= 0 AND obtained_marks <= max_marks)',
+      ],
+      columns: [
+        _column_0,
+        _column_21,
+        _column_42,
+        _column_43,
+        _column_44,
+        _column_45,
+        _column_22,
+        _column_20,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape23 appSettings = Shape23(
+    source: i0.VersionedTable(
+      entityName: 'app_settings',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'PRIMARY KEY(id)',
+        'CHECK(id = 1)',
+        'CHECK(default_attendance_target > 0 AND default_attendance_target <= 1)',
+        'CHECK(theme_mode IN (\'system\', \'light\', \'dark\'))',
+        'CHECK(class_reminder_minutes_before BETWEEN 0 AND 10080)',
+      ],
+      columns: [
+        _column_46,
+        _column_63,
+        _column_47,
+        _column_48,
+        _column_49,
+        _column_61,
+        _column_62,
+        _column_50,
+        _column_51,
+        _column_52,
+        _column_53,
+        _column_54,
+        _column_79,
+        _column_80,
+        _column_81,
+        _column_82,
+        _column_83,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape17 subjectNotes = Shape17(
+    source: i0.VersionedTable(
+      entityName: 'subject_notes',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [
+        'FOREIGN KEY(subject_id, semester_id)REFERENCES subjects(id, semester_id)ON DELETE CASCADE',
+        'CHECK(length(trim(body)) > 0)',
+      ],
+      columns: [
+        _column_0,
+        _column_21,
+        _column_9,
+        _column_64,
+        _column_65,
+        _column_7,
+        _column_8,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  final i1.Index timetableSemesterWeekdayStart = i1.Index(
+    'timetable_semester_weekday_start',
+    'CREATE INDEX timetable_semester_weekday_start ON timetable_entries (semester_id, weekday, start_time)',
+  );
+  final i1.Index timetableSubject = i1.Index(
+    'timetable_subject',
+    'CREATE INDEX timetable_subject ON timetable_entries (subject_id)',
+  );
+  final i1.Index attendanceSubjectDatePeriod = i1.Index(
+    'attendance_subject_date_period',
+    'CREATE INDEX attendance_subject_date_period ON attendance_sessions (subject_id, date, period)',
+  );
+  final i1.Index attendanceSubjectStatus = i1.Index(
+    'attendance_subject_status',
+    'CREATE INDEX attendance_subject_status ON attendance_sessions (subject_id, status)',
+  );
+  final i1.Index dailyAttendanceStatus = i1.Index(
+    'daily_attendance_status',
+    'CREATE INDEX daily_attendance_status ON daily_attendance_records (status)',
+  );
+  final i1.Index scheduledAttendanceDateTimetable = i1.Index(
+    'scheduled_attendance_date_timetable',
+    'CREATE UNIQUE INDEX scheduled_attendance_date_timetable ON scheduled_class_attendance (date, timetable_entry_id)',
+  );
+  final i1.Index scheduledAttendanceSubjectDate = i1.Index(
+    'scheduled_attendance_subject_date',
+    'CREATE INDEX scheduled_attendance_subject_date ON scheduled_class_attendance (subject_id, date)',
+  );
+  final i1.Index scheduledAttendanceSemesterDate = i1.Index(
+    'scheduled_attendance_semester_date',
+    'CREATE INDEX scheduled_attendance_semester_date ON scheduled_class_attendance (semester_id, date)',
+  );
+  final i1.Index calendarOverrideSemesterDate = i1.Index(
+    'calendar_override_semester_date',
+    'CREATE UNIQUE INDEX calendar_override_semester_date ON calendar_day_overrides (semester_id, date)',
+  );
+  final i1.Index academicCalendarSemesterDates = i1.Index(
+    'academic_calendar_semester_dates',
+    'CREATE INDEX academic_calendar_semester_dates ON academic_calendar_events (semester_id, start_date, end_date)',
+  );
+  final i1.Index tasksSemesterCompletedDue = i1.Index(
+    'tasks_semester_completed_due',
+    'CREATE INDEX tasks_semester_completed_due ON tasks (semester_id, is_completed, due_date)',
+  );
+  final i1.Index tasksSubjectCompleted = i1.Index(
+    'tasks_subject_completed',
+    'CREATE INDEX tasks_subject_completed ON tasks (subject_id, is_completed)',
+  );
+  final i1.Index examsSemesterDateStart = i1.Index(
+    'exams_semester_date_start',
+    'CREATE INDEX exams_semester_date_start ON exams (semester_id, exam_date, start_time)',
+  );
+  final i1.Index examsSubjectDate = i1.Index(
+    'exams_subject_date',
+    'CREATE INDEX exams_subject_date ON exams (subject_id, exam_date)',
+  );
+  final i1.Index marksSubjectDate = i1.Index(
+    'marks_subject_date',
+    'CREATE INDEX marks_subject_date ON marks (subject_id, date)',
+  );
+  final i1.Index marksExam = i1.Index(
+    'marks_exam',
+    'CREATE INDEX marks_exam ON marks (exam_id)',
+  );
+  final i1.Index subjectNotesSubjectCreated = i1.Index(
+    'subject_notes_subject_created',
+    'CREATE INDEX subject_notes_subject_created ON subject_notes (subject_id, created_at)',
+  );
+}
+
+class Shape23 extends i0.VersionedTable {
+  Shape23({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<int> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get studentName =>
+      columnsByName['student_name']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get collegeName =>
+      columnsByName['college_name']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get course =>
+      columnsByName['course']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get branch =>
+      columnsByName['branch']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get academicYearStartDate =>
+      columnsByName['academic_year_start_date']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get academicYearEndDate =>
+      columnsByName['academic_year_end_date']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<double> get defaultAttendanceTarget =>
+      columnsByName['default_attendance_target']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<String> get themeMode =>
+      columnsByName['theme_mode']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get onboardingCompleted =>
+      columnsByName['onboarding_completed']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get notificationsEnabled =>
+      columnsByName['notifications_enabled']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get automaticLocalBackup =>
+      columnsByName['automatic_local_backup']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get classRemindersEnabled =>
+      columnsByName['class_reminders_enabled']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get classReminderMinutesBefore =>
+      columnsByName['class_reminder_minutes_before']!
+          as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get sundayOff =>
+      columnsByName['sunday_off']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get secondSaturdayOff =>
+      columnsByName['second_saturday_off']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get governmentHolidaysOff =>
+      columnsByName['government_holidays_off']! as i1.GeneratedColumn<int>;
+}
+
+i1.GeneratedColumn<int> _column_81(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'sunday_off',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NOT NULL DEFAULT 1 CHECK (sunday_off IN (0, 1))',
+      defaultValue: const i1.CustomExpression('1'),
+    );
+i1.GeneratedColumn<int> _column_82(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'second_saturday_off',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+      $customConstraints:
+          'NOT NULL DEFAULT 1 CHECK (second_saturday_off IN (0, 1))',
+      defaultValue: const i1.CustomExpression('1'),
+    );
+i1.GeneratedColumn<int> _column_83(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'government_holidays_off',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+      $customConstraints:
+          'NOT NULL DEFAULT 1 CHECK (government_holidays_off IN (0, 1))',
+      defaultValue: const i1.CustomExpression('1'),
+    );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
@@ -6333,6 +6934,7 @@ i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema13 schema) from10To13,
   required Future<void> Function(i1.Migrator m, Schema14 schema) from13To14,
   required Future<void> Function(i1.Migrator m, Schema15 schema) from14To15,
+  required Future<void> Function(i1.Migrator m, Schema16 schema) from15To16,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -6396,6 +6998,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from14To15(migrator, schema);
         return 15;
+      case 15:
+        final schema = Schema16(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from15To16(migrator, schema);
+        return 16;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -6415,6 +7022,7 @@ i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema13 schema) from10To13,
   required Future<void> Function(i1.Migrator m, Schema14 schema) from13To14,
   required Future<void> Function(i1.Migrator m, Schema15 schema) from14To15,
+  required Future<void> Function(i1.Migrator m, Schema16 schema) from15To16,
 }) => i0.VersionedSchema.stepByStepHelper(
   step: migrationSteps(
     from1To2: from1To2,
@@ -6429,5 +7037,6 @@ i1.OnUpgrade stepByStep({
     from10To13: from10To13,
     from13To14: from13To14,
     from14To15: from14To15,
+    from15To16: from15To16,
   ),
 );

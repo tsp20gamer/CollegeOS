@@ -1,5 +1,6 @@
 import 'package:college_os/core/database/app_database.dart';
 import 'package:college_os/core/database/converters/date_time_converters.dart';
+import 'package:college_os/core/database/tables/app_settings.dart';
 import 'package:college_os/core/database/tables/calendar_day_overrides.dart';
 import 'package:college_os/core/database/tables/academic_calendar_events.dart';
 import 'package:college_os/core/database/tables/scheduled_class_attendance.dart';
@@ -16,6 +17,7 @@ final class AttendanceEngineRows {
     required this.attendance,
     required this.overrides,
     required this.calendarEvents,
+    this.settings,
   });
 
   final List<SubjectRow> subjects;
@@ -23,6 +25,12 @@ final class AttendanceEngineRows {
   final List<ScheduledClassAttendanceRow> attendance;
   final List<CalendarDayOverrideRow> overrides;
   final List<AcademicCalendarEventRow> calendarEvents;
+
+  /// The singleton settings row, carrying the derived-holiday rules.
+  ///
+  /// Nullable because a database that has never completed setup could be
+  /// missing it; the engine then falls back to no derived holidays.
+  final AppSettingsRow? settings;
 }
 
 @DriftAccessor(
@@ -32,6 +40,7 @@ final class AttendanceEngineRows {
     ScheduledClassAttendance,
     CalendarDayOverrides,
     AcademicCalendarEvents,
+    AppSettings,
   ],
 )
 class AttendanceEngineDao extends DatabaseAccessor<AppDatabase>
@@ -46,6 +55,10 @@ class AttendanceEngineDao extends DatabaseAccessor<AppDatabase>
       scheduledClassAttendance,
       calendarDayOverrides,
       academicCalendarEvents,
+      // The derived-holiday switches live in settings, so flipping one has to
+      // re-emit this snapshot: the day projection, next class and every
+      // percentage derive from it.
+      appSettings,
     },
   ).watch().asyncMap((_) => loadForSemester(semesterId));
 
@@ -65,12 +78,14 @@ class AttendanceEngineDao extends DatabaseAccessor<AppDatabase>
     final calendarEventRows = await (select(
       academicCalendarEvents,
     )..where((row) => row.semesterId.equals(semesterId))).get();
+    final settingsRow = await select(appSettings).getSingleOrNull();
     return AttendanceEngineRows(
       subjects: subjectRows,
       timetable: timetableRows,
       attendance: attendanceRows,
       overrides: overrideRows,
       calendarEvents: calendarEventRows,
+      settings: settingsRow,
     );
   }
 

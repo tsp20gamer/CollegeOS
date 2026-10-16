@@ -1,4 +1,5 @@
 import 'package:college_os/core/routing/route_names.dart';
+import 'package:college_os/core/theme/animation_tokens.dart';
 import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
@@ -34,6 +35,10 @@ const _textExtensions = {'txt', 'md', 'rtf', 'doc', 'docx', 'odt', 'csv'};
 /// subject", while [RoutePaths.notesSearch] answers "where is this topic". The
 /// two entry points deliberately stay separate rather than duplicating each
 /// other in one screen.
+///
+/// Every subject starts collapsed, so the tab stays a short list of subjects no
+/// matter how many PDFs have been collected, and only the subjects the student
+/// opens show their files.
 class NotesHomeScreen extends ConsumerStatefulWidget {
   const NotesHomeScreen({super.key});
 
@@ -44,11 +49,45 @@ class NotesHomeScreen extends ConsumerStatefulWidget {
 class _NotesHomeScreenState extends ConsumerState<NotesHomeScreen> {
   _MaterialFilter _filter = _MaterialFilter.all;
 
+  /// Which subjects are showing their files inline.
+  ///
+  /// Ephemeral on purpose: which section is open is screen state, not data the
+  /// student would expect to find again after a restart.
+  final Set<int> _expandedSubjects = <int>{};
+
+  void _toggleSubject(int subjectId) {
+    setState(() {
+      if (_expandedSubjects.remove(subjectId)) {
+        return;
+      }
+      _expandedSubjects.add(subjectId);
+    });
+  }
+
+  void _toggleAll(List<Subject> subjects) {
+    final ids = subjects.map((subject) => subject.id);
+    final allExpanded =
+        subjects.isNotEmpty &&
+        subjects.every((subject) => _expandedSubjects.contains(subject.id));
+    setState(() {
+      _expandedSubjects.clear();
+      if (!allExpanded) {
+        _expandedSubjects.addAll(ids);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final semester = ref.watch(activeSemesterProvider);
     final subjects = ref.watch(activeSemesterSubjectsProvider);
     final activeSemesterName = semester.value?.name;
+    final loadedSubjects = subjects.value ?? const <Subject>[];
+    final allExpanded =
+        loadedSubjects.isNotEmpty &&
+        loadedSubjects.every(
+          (subject) => _expandedSubjects.contains(subject.id),
+        );
 
     return AppScaffold(
       title: 'Notes',
@@ -61,18 +100,37 @@ class _NotesHomeScreenState extends ConsumerState<NotesHomeScreen> {
         children: [
           _SearchEntry(onTap: () => context.go(RoutePaths.notesSearch)),
           const SizedBox(height: AppSpacing.md),
-          Wrap(
-            key: const Key('notes_material_filter'),
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              for (final filter in _MaterialFilter.values)
-                FilterChip(
-                  key: Key('notes_filter_${filter.name}'),
-                  selected: _filter == filter,
-                  showCheckmark: false,
-                  label: Text(_materialFilterLabel(filter)),
-                  onSelected: (_) => setState(() => _filter = filter),
+              Expanded(
+                child: Wrap(
+                  key: const Key('notes_material_filter'),
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    for (final filter in _MaterialFilter.values)
+                      FilterChip(
+                        key: Key('notes_filter_${filter.name}'),
+                        selected: _filter == filter,
+                        showCheckmark: false,
+                        label: Text(_materialFilterLabel(filter)),
+                        onSelected: (_) => setState(() => _filter = filter),
+                      ),
+                  ],
+                ),
+              ),
+              if (loadedSubjects.isNotEmpty)
+                TextButton.icon(
+                  key: const Key('notes_expand_all'),
+                  onPressed: () => _toggleAll(loadedSubjects),
+                  icon: Icon(
+                    allExpanded
+                        ? Icons.unfold_less_rounded
+                        : Icons.unfold_more_rounded,
+                    size: 18,
+                  ),
+                  label: Text(allExpanded ? 'Collapse all' : 'Expand all'),
                 ),
             ],
           ),
@@ -95,7 +153,7 @@ class _NotesHomeScreenState extends ConsumerState<NotesHomeScreen> {
               message:
                   'Make a semester active to collect notes and files here.',
             )
-          else if ((subjects.value ?? const <Subject>[]).isEmpty)
+          else if (loadedSubjects.isEmpty)
             const EmptyState(
               icon: Icons.menu_book_outlined,
               title: 'No subjects yet',
@@ -103,8 +161,13 @@ class _NotesHomeScreenState extends ConsumerState<NotesHomeScreen> {
                   'Add a subject from Settings to start keeping notes and PDFs.',
             )
           else
-            for (final subject in subjects.value!)
-              _SubjectSection(subject: subject, filter: _filter),
+            for (final subject in loadedSubjects)
+              _SubjectSection(
+                subject: subject,
+                filter: _filter,
+                expanded: _expandedSubjects.contains(subject.id),
+                onToggle: () => _toggleSubject(subject.id),
+              ),
         ],
       ),
     );
@@ -148,25 +211,35 @@ class _SearchEntry extends StatelessWidget {
   }
 }
 
-/// One subject's material, as a heading with its files listed beneath it.
+/// One subject's material, as a heading that opens its files inline.
 ///
-/// The heading keeps the subject reachable — and keeps the list meaningful when
-/// a subject has no files yet — while the rows below stay flat.
+/// The heading is the toggle, so the whole row is one large target; the
+/// trailing action still opens the subject's own screen with its notes, files
+/// and per-subject PDF search.
 class _SubjectSection extends ConsumerWidget {
-  const _SubjectSection({required this.subject, required this.filter});
+  const _SubjectSection({
+    required this.subject,
+    required this.filter,
+    required this.expanded,
+    required this.onToggle,
+  });
 
   final Subject subject;
   final _MaterialFilter filter;
+  final bool expanded;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final files = ref.watch(subjectFilesProvider(subject.id));
-    final pages = {
-      for (final row in ref.watch(pdfSearchMetadataProvider).value ?? const [])
-        row.fileId: row.pageCount,
-    };
+    final metadata = ref.watch(pdfSearchMetadataProvider).value;
+    final pages = <int, int?>{};
+    for (final row in metadata ?? const []) {
+      pages[row.fileId] = row.pageCount;
+    }
     final details = [
       if (subject.shortCode.isNotEmpty) subject.shortCode,
       if (subject.room.isNotEmpty) 'Room ${subject.room}',
@@ -178,89 +251,158 @@ class _SubjectSection extends ConsumerWidget {
         .toList(growable: false);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          InkWell(
-            key: ValueKey('notes_subject_${subject.id}'),
-            onTap: () => context.push(
-              RoutePaths.subjectNotes.replaceFirst(
-                ':subjectId',
-                '${subject.id}',
-              ),
-            ),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          subject.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (details.isNotEmpty)
-                          Text(
-                            details.join(' · '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  key: ValueKey('notes_subject_${subject.id}'),
+                  onTap: onToggle,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: Semantics(
+                    button: true,
+                    expanded: expanded,
+                    label:
+                        '${subject.name} material, '
+                        '${expanded ? 'expanded' : 'collapsed'}',
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.xxs,
+                      ),
+                      child: Row(
+                        children: [
+                          AnimatedRotation(
+                            turns: expanded ? .25 : 0,
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : AppDurations.fast,
+                            curve: AppCurves.standard,
+                            child: Icon(
+                              Icons.keyboard_arrow_right_rounded,
+                              size: AppIconSize.md,
                               color: colors.onSurfaceVariant,
                             ),
                           ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: AppIconSize.sm,
-                    color: colors.onSurfaceVariant,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          if (files.isLoading)
-            _MutedLine(text: 'Loading files…', theme: theme)
-          else if (files.hasError)
-            _MutedLine(text: 'Could not load files.', theme: theme)
-          else if (visible.isEmpty)
-            _MutedLine(
-              text: files.value!.isEmpty
-                  ? 'No files yet. Upload slides or a PDF to keep them here.'
-                  : 'No ${_materialFilterLabel(filter).toLowerCase()} here yet.',
-              theme: theme,
-            )
-          else
-            PremiumSurface(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  for (var index = 0; index < visible.length; index++) ...[
-                    _MaterialRow(
-                      file: visible[index],
-                      subject: subject,
-                      pages: pages[visible[index].id],
-                    ),
-                    if (index != visible.length - 1)
-                      const Divider(
-                        height: 1,
-                        indent: AppSpacing.md,
-                        endIndent: AppSpacing.md,
+                          const SizedBox(width: AppSpacing.xxs),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  subject.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                if (details.isNotEmpty)
+                                  Text(
+                                    details.join(' · '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colors.onSurfaceVariant,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                  ],
-                ],
+                    ),
+                  ),
+                ),
               ),
+              IconButton(
+                key: ValueKey('notes_open_subject_${subject.id}'),
+                tooltip: 'Open ${subject.name} notes and files',
+                onPressed: () => context.push(
+                  RoutePaths.subjectNotes.replaceFirst(
+                    ':subjectId',
+                    '${subject.id}',
+                  ),
+                ),
+                icon: const Icon(Icons.folder_open_rounded),
+              ),
+            ],
+          ),
+          AnimatedSize(
+            duration: reduceMotion ? Duration.zero : AppDurations.fast,
+            curve: AppCurves.standard,
+            alignment: Alignment.topCenter,
+            child: expanded
+                ? Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
+                    child: _SubjectMaterial(
+                      subject: subject,
+                      filter: filter,
+                      files: files,
+                      visible: visible,
+                      pages: pages,
+                    ),
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The file list of one expanded subject, with its loading and empty states.
+class _SubjectMaterial extends StatelessWidget {
+  const _SubjectMaterial({
+    required this.subject,
+    required this.filter,
+    required this.files,
+    required this.visible,
+    required this.pages,
+  });
+
+  final Subject subject;
+  final _MaterialFilter filter;
+  final AsyncValue<List<SubjectFile>> files;
+  final List<SubjectFile> visible;
+  final Map<int, int?> pages;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (files.isLoading) {
+      return _MutedLine(text: 'Loading files…', theme: theme);
+    }
+    if (files.hasError) {
+      return _MutedLine(text: 'Could not load files.', theme: theme);
+    }
+    if (visible.isEmpty) {
+      return _MutedLine(
+        text: files.value!.isEmpty
+            ? 'No files yet. Upload slides or a PDF to keep them here.'
+            : 'No ${_materialFilterLabel(filter).toLowerCase()} here yet.',
+        theme: theme,
+      );
+    }
+    return PremiumSurface(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var index = 0; index < visible.length; index++) ...[
+            _MaterialRow(
+              file: visible[index],
+              subject: subject,
+              pages: pages[visible[index].id],
             ),
+            if (index != visible.length - 1)
+              const Divider(
+                height: 1,
+                indent: AppSpacing.md,
+                endIndent: AppSpacing.md,
+              ),
+          ],
         ],
       ),
     );

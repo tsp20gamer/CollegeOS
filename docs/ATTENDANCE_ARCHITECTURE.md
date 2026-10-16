@@ -49,6 +49,20 @@ Day state is derived, not independently stored:
 
 Cancelled sessions do not turn a day absent. Icons and text accompany semantic colors so state is not conveyed by color alone.
 
+## Derived holidays (schema v16)
+
+Three rules let a student record the days their college takes off without storing a single date, so nothing has to be maintained year after year:
+
+- `sunday_off` — every Sunday;
+- `second_saturday_off` — the second Saturday of each month (a Saturday whose day-of-month falls in 8–14); and
+- `government_holidays_off` — the fixed national holidays: Republic Day (26 January), Independence Day (15 August) and Gandhi Jayanti (2 October).
+
+`DefaultHolidayPolicy.labelFor(date)` in `lib/features/attendance/domain/attendance_engine.dart` is the only place the rules are evaluated; it returns the day's label (`Sunday`, `Second Saturday`, `Republic Day`, …) or null for a normal day, and a Sunday is reported as itself before the other two checks. A derived holiday behaves exactly like a stored holiday override: its scheduled classes leave the pending list and the Classes projection, its explicit marks no longer count towards any percentage, and the calendar shows the derived label.
+
+A stored `calendar_day_overrides` row always wins over a rule, including a `normal` row. That is how a one-off working Sunday, or a college that runs classes on a second Saturday, is expressed — and why the Attendance screen's day override stays the explicit answer for a single date.
+
+Because the days are derived rather than written, turning a rule off restores the classes that were always there: no attendance row is rewritten, deleted, or materialized, exactly as deleting a stored holiday range reveals the original class state. The rules live in `app_settings`, so they travel inside format-v1 backups: an archive that predates them restores as enabled, matching a fresh install, and a newer archive records what the student actually chose.
+
 ## Calculations
 
 For each subject, only explicit marks inside the semester and outside holiday/closed overrides participate:

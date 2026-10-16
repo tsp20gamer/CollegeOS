@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:college_os/features/subjects/domain/subject_repository.dart';
 import 'package:college_os/features/timetable/domain/timetable_repository.dart';
 
@@ -5,6 +7,52 @@ const timetableImportTemplate =
     'Day,Start,End,Subject,Code,Professor,Room,Note\n'
     'Monday,9:20 AM,10:10 AM,Mathematics,MC,Mrs. Aruna,2009,\n'
     'Tuesday,10:10 AM,11:00 AM,Programming for Problem Solving,PPS,Ms. Lakshmi,Lab 2,Practical';
+
+/// A failure that belongs to the chosen file rather than to one of its rows.
+///
+/// Its message is shown to the student as it is, because a corrupt workbook or
+/// a legacy `.xls` cannot be explained by the per-row issue list.
+final class TimetableImportFileException implements Exception {
+  const TimetableImportFileException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// The file kinds Smart timetable import can read.
+enum TimetableDocumentFormat { csv, xlsx, docx }
+
+/// The readable format for [fileName], or null when it is not supported.
+///
+/// Legacy `.xls` and `.doc` are deliberately absent: they are binary formats
+/// that nothing in the app can decode offline, so they are reported rather than
+/// half-read.
+TimetableDocumentFormat? timetableDocumentFormatFor(String fileName) {
+  final dot = fileName.lastIndexOf('.');
+  if (dot < 0) return null;
+  return switch (fileName.substring(dot + 1).toLowerCase()) {
+    'csv' => TimetableDocumentFormat.csv,
+    'xlsx' => TimetableDocumentFormat.xlsx,
+    'docx' => TimetableDocumentFormat.docx,
+    _ => null,
+  };
+}
+
+/// The message shown when the picker was handed a file nothing can read.
+String unsupportedTimetableFileMessage(String fileName) {
+  final dot = fileName.lastIndexOf('.');
+  final extension = dot < 0 ? '' : fileName.substring(dot + 1).toLowerCase();
+  return switch (extension) {
+    'xls' =>
+      'Excel .xls files cannot be read offline. Open it in Excel and save it as .xlsx.',
+    'doc' =>
+      'Word .doc files cannot be read offline. Open it in Word and save it as .docx.',
+    '' => 'Choose a CSV, Excel (.xlsx) or Word (.docx) file.',
+    _ => 'CollegeOS can import CSV, Excel (.xlsx) and Word (.docx) files.',
+  };
+}
 
 final class TimetableImportRow {
   const TimetableImportRow({
@@ -99,24 +147,32 @@ abstract interface class TimetableImportCommitter {
 }
 
 abstract interface class TimetableImportFilePicker {
-  Future<({String name, String contents})?> pickCsv();
+  /// Opens the platform picker and returns the chosen file, or null when the
+  /// student cancelled. Decoding happens outside the picker so every format
+  /// shares one tested path.
+  Future<({String name, Uint8List bytes})?> pickFile();
 }
 
-final class TimetableCsvParser {
-  const TimetableCsvParser();
+/// Turns a decoded table into an import preview.
+///
+/// Every format ends up here as rows, so CSV, Excel and Word share one set of
+/// matching, duplicate, overlap and validation rules rather than three drifting
+/// copies of them.
+final class TimetableTableParser {
+  const TimetableTableParser();
 
-  TimetableImportPreview parse({
+  TimetableImportPreview parseRows({
     required String fileName,
-    required String contents,
+    required List<List<String>> rows,
     required List<Subject> subjects,
     required List<TimetableEntry> existingEntries,
   }) {
-    final csv = _readCsv(contents);
+    final csv = rows;
     if (csv.isEmpty) {
       return TimetableImportPreview(
         fileName: fileName,
         candidates: const [],
-        issues: const [TimetableImportIssue(1, 'The CSV file is empty.')],
+        issues: const [TimetableImportIssue(1, 'The file has no rows.')],
       );
     }
     final header = <String, int>{};
@@ -266,6 +322,12 @@ final class TimetableCsvParser {
   }
 }
 
+/// Splits delimited text into rows, honouring quoted fields.
+///
+/// Kept as a static on the parser so the CSV path and the file picker cannot
+/// disagree about how a quoted comma or an unclosed quote is treated.
+List<List<String>> splitDelimitedText(String source) => _readCsv(source);
+
 String _subjectKey(TimetableImportRow row) => row.shortCode.trim().isNotEmpty
     ? 'code:${_normalize(row.shortCode)}'
     : 'name:${_normalize(row.subjectName)}';
@@ -276,7 +338,7 @@ String _normalize(String value) =>
 int _parseWeekday(String value) {
   final normalized = _normalize(value);
   final numeric = int.tryParse(normalized);
-  if (numeric != null && numeric >= 1 && numeric <= 6) return numeric;
+  if (numeric != null && numeric >= 1 && numeric <= 7) return numeric;
   return switch (normalized) {
     'mon' || 'monday' => DateTime.monday,
     'tue' || 'tues' || 'tuesday' => DateTime.tuesday,
@@ -284,6 +346,7 @@ int _parseWeekday(String value) {
     'thu' || 'thur' || 'thurs' || 'thursday' => DateTime.thursday,
     'fri' || 'friday' => DateTime.friday,
     'sat' || 'saturday' => DateTime.saturday,
+    'sun' || 'sunday' => DateTime.sunday,
     _ => throw FormatException('Unknown weekday "$value".'),
   };
 }

@@ -190,11 +190,19 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   semester: semester,
                   onMonthChanged: (month) =>
                       setState(() => _visibleMonth = month),
-                  onDateSelected: (date) =>
-                      setState(() => _selectedDate = date),
+                  onDateSelected: (date) => setState(() {
+                    _selectedDate = date;
+                    // A tap can land on a neighbouring month's date, which is
+                    // only shown to keep the grid complete; follow it.
+                    if (date.year != _visibleMonth.year ||
+                        date.month != _visibleMonth.month) {
+                      _visibleMonth = DateTime(date.year, date.month);
+                    }
+                  }),
                   day: day,
                   onMarkDay: (status) => _markWholeDay(day, semester, status),
                   onHoliday: () => _toggleHoliday(day, semester),
+                  onWorkingDay: () => _markWorkingDay(day, semester),
                   onSession: (session, status) =>
                       _markSession(session, semester, status),
                 )
@@ -263,9 +271,29 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     if (!ok) _showResult('Could not update attendance.');
   }
 
+  /// Marks a derived or ranged holiday as a working day.
+  ///
+  /// Nothing is deleted: the explicit `normal` override is what suppresses the
+  /// default-holiday rule and any stored holiday range for this date, and it is
+  /// reversible from the same button.
+  Future<void> _markWorkingDay(AttendanceDay day, Semester semester) async {
+    if (!day.isInsideSemester) return;
+    final ok = await ref
+        .read(attendanceCommandProvider.notifier)
+        .markWorkingDay(semester.id, day.date);
+    if (!mounted) return;
+    _showResult(
+      ok
+          ? 'Marked as a working day. Its classes count again.'
+          : 'Could not update the day.',
+    );
+  }
+
   Future<void> _toggleHoliday(AttendanceDay day, Semester semester) async {
     if (!day.isInsideSemester) return;
-    final isHoliday = day.state == AttendanceDayState.holiday;
+    final isHoliday =
+        day.state == AttendanceDayState.holiday ||
+        day.state == AttendanceDayState.collegeClosed;
     final ok = isHoliday
         ? await ref
               .read(attendanceCommandProvider.notifier)
@@ -414,6 +442,7 @@ class _CalendarMode extends StatelessWidget {
     required this.day,
     required this.onMarkDay,
     required this.onHoliday,
+    required this.onWorkingDay,
     required this.onSession,
     super.key,
   });
@@ -427,6 +456,7 @@ class _CalendarMode extends StatelessWidget {
   final AttendanceDay day;
   final ValueChanged<ClassAttendanceStatus> onMarkDay;
   final VoidCallback onHoliday;
+  final VoidCallback onWorkingDay;
   final void Function(ProjectedClassSession, ClassAttendanceStatus) onSession;
 
   @override
@@ -462,6 +492,7 @@ class _CalendarMode extends StatelessWidget {
           day: day,
           onMarkDay: onMarkDay,
           onHoliday: onHoliday,
+          onWorkingDay: onWorkingDay,
           onSession: onSession,
           showHolidayAction: true,
         ),
@@ -508,6 +539,7 @@ class _ClassesMode extends StatelessWidget {
           day: day,
           onMarkDay: onMarkDay,
           onHoliday: () {},
+          onWorkingDay: () {},
           onSession: onSession,
           showHolidayAction: false,
         ),
@@ -633,6 +665,7 @@ class _MonthCalendar extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxxs),
           GridView.builder(
+            key: const Key('attendance_month_grid'),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -642,8 +675,23 @@ class _MonthCalendar extends StatelessWidget {
             itemCount: itemCount,
             itemBuilder: (context, index) {
               final dayIndex = index - leading;
+              // Slots before the first and after the last day belong to the
+              // neighbouring months and are painted as muted, tappable dates
+              // instead of empty cells. The grid is a complete rectangle, so a
+              // week that the month only partly covers no longer reads as an
+              // empty band under the calendar, and a tap on a boundary date
+              // moves the month the way every other calendar behaves.
               if (dayIndex < 0 || dayIndex >= days.length) {
-                return const SizedBox.shrink();
+                return _AdjacentMonthDayCell(
+                  key: ValueKey('calendar_overflow_$index'),
+                  date: _adjacentDateFor(
+                    month: month,
+                    leading: leading,
+                    daysInMonth: days.length,
+                    index: index,
+                  ),
+                  onTap: onSelected,
+                );
               }
               final day = days[dayIndex];
               return _CalendarDayCell(
@@ -654,6 +702,59 @@ class _MonthCalendar extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A date that belongs to the month before or after [month].
+///
+/// It only fills the grid: it carries no attendance state, and selecting it
+/// moves the calendar onto its own month.
+DateTime _adjacentDateFor({
+  required DateTime month,
+  required int leading,
+  required int daysInMonth,
+  required int index,
+}) {
+  if (index < leading) {
+    return DateTime(month.year, month.month, 1 - (leading - index));
+  }
+  return DateTime(
+    month.year,
+    month.month,
+    daysInMonth + (index - leading - daysInMonth + 1),
+  );
+}
+
+class _AdjacentMonthDayCell extends StatelessWidget {
+  const _AdjacentMonthDayCell({
+    required this.date,
+    required this.onTap,
+    super.key,
+  });
+
+  final DateTime date;
+  final ValueChanged<DateTime> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: DateFormat.yMMMMd().format(date),
+      child: InkWell(
+        onTap: () => onTap(date),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+        child: Center(
+          child: Text(
+            '${date.day}',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: colors.outline,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -716,6 +817,7 @@ class _DayPanel extends StatelessWidget {
     required this.day,
     required this.onMarkDay,
     required this.onHoliday,
+    required this.onWorkingDay,
     required this.onSession,
     required this.showHolidayAction,
   });
@@ -723,6 +825,7 @@ class _DayPanel extends StatelessWidget {
   final AttendanceDay day;
   final ValueChanged<ClassAttendanceStatus> onMarkDay;
   final VoidCallback onHoliday;
+  final VoidCallback onWorkingDay;
   final void Function(ProjectedClassSession, ClassAttendanceStatus) onSession;
   final bool showHolidayAction;
 
@@ -732,6 +835,13 @@ class _DayPanel extends StatelessWidget {
     final isExcluded =
         day.state == AttendanceDayState.holiday ||
         day.state == AttendanceDayState.collegeClosed;
+    final override = day.override;
+    final holidayName = isExcluded ? (override?.note.trim() ?? '') : '';
+    // A stored row can be deleted. A default holiday (Sundays, second
+    // Saturdays, the fixed national dates) and a holiday range are not rows to
+    // delete, so the only way back to a working day is an explicit `normal`
+    // day override.
+    final isDerivedHoliday = isExcluded && (override?.id ?? 0) <= 0;
     return PremiumSurface(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -749,7 +859,9 @@ class _DayPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      visual.label,
+                      holidayName.isEmpty
+                          ? visual.label
+                          : '${visual.label}  •  $holidayName',
                       style: Theme.of(
                         context,
                       ).textTheme.labelLarge?.copyWith(color: visual.color),
@@ -799,14 +911,18 @@ class _DayPanel extends StatelessWidget {
                   Expanded(
                     child: _DayActionButton(
                       key: const Key('toggle_holiday'),
-                      label: day.state == AttendanceDayState.holiday
-                          ? 'Undo Holiday'
-                          : 'Holiday',
-                      icon: day.state == AttendanceDayState.holiday
-                          ? Icons.undo_rounded
-                          : Icons.beach_access_outlined,
+                      label: !isExcluded
+                          ? 'Holiday'
+                          : isDerivedHoliday
+                          ? 'Working Day'
+                          : 'Undo Holiday',
+                      icon: !isExcluded
+                          ? Icons.beach_access_outlined
+                          : isDerivedHoliday
+                          ? Icons.work_outline_rounded
+                          : Icons.undo_rounded,
                       tone: _DayActionTone.holiday,
-                      onTap: onHoliday,
+                      onTap: isDerivedHoliday ? onWorkingDay : onHoliday,
                     ),
                   ),
                 ],
@@ -819,10 +935,11 @@ class _DayPanel extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             if (isExcluded)
-              const _InlineNotice(
+              _InlineNotice(
                 icon: Icons.event_busy_outlined,
-                text:
-                    'Scheduled classes are excluded. Earlier marks are preserved and return if the holiday is undone.',
+                text: isDerivedHoliday
+                    ? 'Scheduled classes are excluded by a default holiday. Earlier marks are preserved and return when this date is marked as a working day.'
+                    : 'Scheduled classes are excluded. Earlier marks are preserved and return if the holiday is undone.',
               )
             else if (day.sessions.isEmpty)
               const _InlineNotice(

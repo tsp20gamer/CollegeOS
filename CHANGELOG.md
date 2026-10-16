@@ -1,5 +1,16 @@
 # CollegeOS changelog
 
+## 1.12.0+33 — 16 October 2026
+
+- Added **default holidays**: Sundays, second Saturdays and the fixed national dates — Republic Day, Independence Day and Gandhi Jayanti — are excluded automatically in every semester, each rule with its own switch in Calendar, so the days a college is closed no longer have to be added one by one; switching a rule off puts the classes back without touching a single mark.
+- Made a day excluded by a rule or by a stored holiday range one tap away from a working day: the day panel's Working day action writes the explicit `normal` override that outranks the rule, and the same button reverses it, so nothing is deleted and undo stays exact.
+- Added schema v16 (`app_settings.sunday_off`, `second_saturday_off`, `government_holidays_off`, all enabled by default) with a tested, data-preserving recreation migration that keeps the v15 reminder lead-time CHECK and the singleton CHECK. Backup format 1 carries the three fields, and an archive that predates them restores as enabled, exactly as a fresh install stores them.
+- Filled the Attendance month grid's boundary slots with the neighbouring months' dates instead of blank cells, so the last week no longer reads as an empty band under the calendar; the muted dates carry no attendance state, and tapping one moves the calendar onto its own month.
+- Removed the online AI question path, leaving PDF search as the on-device keyword search over the student's own documents: no key, no request, and no context leaves the device. The Gemini client, its context assembly, the AI screen and its tests are gone, along with the `GEMINI_*` build defines, the `env.json` asset and the release workflow's key step, so a release ships no credential; `INTERNET` remains only for the release check.
+- Added Excel (`.xlsx`) and Word (`.docx`) timetable import: the picker accepts the files colleges actually publish, and both formats are decoded offline with the zip and XML readers the app already ships instead of a spreadsheet or document-processing dependency. The CSV path is unchanged.
+- Turned the Notes destination into collapsible subject sections: every subject starts folded with its code, room and file count, an Expand all action opens the whole semester, and a section still opens its subject's own screen with its notes, files and PDF search.
+- Documented the new behaviour where it belongs: `PDF_SEARCH.md` replaces the AI note-search doc, `DATABASE.md` and `ATTENDANCE_ARCHITECTURE.md` describe the derived holidays and the v16 recreation, and the release checklist now lists one network-touching feature instead of two.
+
 ## 1.11.0+32 — 11 October 2026
 
 - Added an in-app updater: the app reads the published `version.json` once per launch (silently) and from Settings on demand, and a newer release is offered in a dialog that shows the changelog, downloads the APK with live progress and a Cancel, and hands it to Android's own installer. Nothing is downloaded until the student taps Update, a failed download changes nothing, and the installed data is never touched by the update itself.

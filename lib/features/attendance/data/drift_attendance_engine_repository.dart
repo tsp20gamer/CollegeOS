@@ -162,5 +162,10 @@ final class DriftAttendanceEngineRepository
               note: row.note,
             ),
         ],
+        defaultHolidays: DefaultHolidayPolicy(
+          sundayOff: rows.settings?.sundayOff ?? false,
+          secondSaturdayOff: rows.settings?.secondSaturdayOff ?? false,
+          governmentHolidaysOff: rows.settings?.governmentHolidaysOff ?? false,
+        ),
       );
 }

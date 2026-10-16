@@ -3,23 +3,25 @@ import 'dart:async';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
 
-import 'package:college_os/features/notes/application/ai_search_providers.dart';
 import 'package:college_os/features/notes/application/pdf_search_providers.dart';
-import 'package:college_os/features/notes/domain/ai_context.dart';
-import 'package:college_os/features/notes/domain/ai_note_search_state.dart';
 import 'package:college_os/features/subject_files/application/subject_files_providers.dart';
 import 'package:college_os/features/subject_files/domain/subject_file.dart';
 import 'package:college_os/features/subject_files/presentation/screens/pdf_viewer_screen.dart';
 import 'package:college_os/shared/widgets/app_scaffold.dart';
 import 'package:college_os/shared/widgets/empty_state.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Keyword search across the text CollegeOS has extracted from the student's
+/// own PDFs.
+///
+/// Everything here runs on device against the local FTS5 index; the screen
+/// makes no network request. It lives inside the Notes tab, so the dock stays
+/// the way back and the header needs no back arrow.
 class PdfSearchScreen extends ConsumerStatefulWidget {
   const PdfSearchScreen({this.subjectId, super.key});
 
-  /// Scopes the AI answer and the indexing indicator to one subject's files.
+  /// Scopes the results and the indexing indicator to one subject's files.
   ///
   /// Null means the whole library: keyword search has always been global, and
   /// the Notes destination and its search shortcut open this screen unscoped.
@@ -45,42 +47,11 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       if (mounted) {
-        // The AI answer belongs to the question it was asked for. Once the box
-        // no longer holds that question, drop it instead of showing an answer
-        // next to unrelated results.
-        final aiStatus = ref.read(aiSearchControllerProvider);
-        if (aiStatus.hasResult && aiStatus.question != query.trim()) {
-          ref.read(aiSearchControllerProvider.notifier).reset();
-        }
         setState(() {
           _query = query;
         });
       }
     });
-  }
-
-  /// Sends the current query to the AI layer.
-  ///
-  /// Retrieval and prompting live behind `aiSearchControllerProvider`; this
-  /// only decides what the question is and which PDFs may be searched.
-  void _askAi() {
-    final question = _query.trim();
-    if (question.isEmpty) return;
-
-    // Scope the answer to this subject's PDFs, matching what the list below
-    // shows. An unloaded file list means "no scope", not "no files", and an
-    // unscoped screen searches everything the student has indexed.
-    final subjectId = widget.subjectId;
-    final files = subjectId == null
-        ? null
-        : ref.read(subjectFilesProvider(subjectId)).value;
-    final allowedFileIds = (files == null || files.isEmpty)
-        ? null
-        : files.map((f) => f.id).toList();
-
-    ref
-        .read(aiSearchControllerProvider.notifier)
-        .ask(question, allowedFileIds: allowedFileIds);
   }
 
   @override
@@ -114,6 +85,9 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
                 AppSpacing.md,
                 0,
               ),
+              // Search is a pushed screen, so it carries the app's one back
+              // affordance: the dock stays the way between destinations, and
+              // the arrow is what returns to the screen search was opened from.
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -176,9 +150,6 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
             _buildIndexingStatus(colors),
-            const SizedBox(height: AppSpacing.md),
-            _buildAiSection(colors),
-            const SizedBox(height: AppSpacing.md),
             // Results area — Expanded so it fills the remaining screen
             Expanded(
               child: _query.isEmpty
@@ -245,208 +216,6 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
               ).textTheme.bodySmall?.copyWith(color: colors.onPrimaryContainer),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  /// The AI layer, added on top of local search without replacing it.
-  ///
-  /// The button is always available; pressing it with no configured key or no
-  /// network produces an explanatory card while the keyword results below keep
-  /// working exactly as before.
-  Widget _buildAiSection(ColorScheme colors) {
-    final status = ref.watch(aiSearchControllerProvider);
-    final theme = Theme.of(context);
-    final canAsk = _query.trim().isNotEmpty && !status.isBusy;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Local search finds pages. AI explains them.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              FilledButton.tonalIcon(
-                onPressed: canAsk ? _askAi : null,
-                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                label: const Text('Ask AI'),
-                style: FilledButton.styleFrom(
-                  shape: const StadiumBorder(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.xs,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (status.isBusy) _buildAiProgress(colors, status),
-          if (!status.isBusy && status.hasResult)
-            _buildAiAnswer(colors, status),
-        ],
-      ),
-    );
-  }
-
-  /// Renders retrieval/generation progress above the local results.
-  Widget _buildAiProgress(ColorScheme colors, AiNoteSearchStatus status) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: colors.primary,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 150),
-              child: Text(
-                status.progressLabel ?? 'Working…',
-                key: ValueKey(status.phase),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAiAnswer(ColorScheme colors, AiNoteSearchStatus status) {
-    final theme = Theme.of(context);
-    final result = status.result!;
-    final files =
-        ref.watch(searchableFilesProvider(widget.subjectId)).value ?? [];
-    final fileMap = {for (final f in files) f.id: f};
-
-    if (status.phase != AiNoteSearchPhase.success) {
-      // Offline, API error or "not in your notes" — all explanatory, none of
-      // them a substitute for the local results still shown below.
-      return Container(
-        margin: const EdgeInsets.only(top: AppSpacing.sm),
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  status.phase == AiNoteSearchPhase.offline
-                      ? Icons.wifi_off_rounded
-                      : status.phase == AiNoteSearchPhase.noContext
-                      ? Icons.search_off_rounded
-                      : Icons.info_outline_rounded,
-                  size: 18,
-                  color: colors.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    status.message ?? result.answer,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (status.phase != AiNoteSearchPhase.noContext) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: _askAi,
-                  icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: const Text('Retry'),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(top: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.auto_awesome_rounded, size: 16, color: colors.primary),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                'AI answer',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: colors.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              if (status.sourcePageCount > 0)
-                Text(
-                  '${status.sourcePageCount} pages searched',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          // Bounded so a long answer cannot push the local results off screen.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 260),
-            child: SingleChildScrollView(
-              child: MarkdownBody(
-                data: result.answer,
-                selectable: true,
-                styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-                  p: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
-                ),
-              ),
-            ),
-          ),
-          if (result.hasSources) ...[
-            const SizedBox(height: AppSpacing.sm),
-            ...result.sources.map(
-              (source) => _AiSourceRow(
-                source: source,
-                file: fileMap[source.fileId],
-                query: status.question ?? _query,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -547,70 +316,6 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
           },
         );
       },
-    );
-  }
-}
-
-/// One validated citation, rendered under an AI answer.
-///
-/// Only sources that passed local validation reach this widget, and [file] is
-/// looked up locally, so a tap always opens a real page.
-class _AiSourceRow extends StatelessWidget {
-  const _AiSourceRow({
-    required this.source,
-    required this.file,
-    required this.query,
-  });
-
-  final AiSourceReference source;
-  final SubjectFile? file;
-  final String query;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final name = source.fileName ?? file?.title ?? 'Document';
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      onTap: file == null
-          ? null
-          : () {
-              PdfViewerScreen.open(
-                context,
-                file: file!,
-                initialPageNumber: source.pageNumber,
-                initialSearchQuery: query,
-              );
-            },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        child: Row(
-          children: [
-            Icon(
-              Icons.picture_as_pdf_rounded,
-              size: 14,
-              color: Colors.red.shade600,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            Text(
-              'Page ${source.pageNumber}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

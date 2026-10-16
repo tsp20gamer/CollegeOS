@@ -260,10 +260,13 @@ SET effective_from = (
         // The class-notifier switch and its default lead time arrive together.
         // Both are defaulted, so every existing settings row backfills to
         // enabled with a 10-minute lead time, exactly as a fresh v15 install
-        // would: nothing that already works stops firing. The table is
-        // recreated rather than appended to because the new lead time carries a
-        // CHECK constraint, and recreating keeps it identical to a fresh
-        // create.
+        // would: nothing that already works stops firing. The lead time carries
+        // a table-level CHECK constraint, so the table is recreated rather
+        // than appended to. The recreation is the pinned v15 shape, written out
+        // below just like the v6 timetable recreation is: a `TableMigration`
+        // would build the table from the *current* Dart definition, so an app
+        // that ships a later settings version would silently demand v16
+        // columns from a v14 source table.
         final columns = await customSelect(
           'PRAGMA table_info(app_settings)',
         ).get();
@@ -271,15 +274,30 @@ SET effective_from = (
           (row) => row.read<String>('name') == 'class_reminders_enabled',
         );
         if (!hasClassReminders) {
-          await migrator.alterTable(
-            TableMigration(
-              appSettings,
-              newColumns: [
-                appSettings.classRemindersEnabled,
-                appSettings.classReminderMinutesBefore,
-              ],
-            ),
-          );
+          await _recreatePinnedAppSettings(migrator);
+        }
+      }
+      if (from < CollegeOsSchemaVersions.defaultHolidays &&
+          to >= CollegeOsSchemaVersions.defaultHolidays) {
+        // The three derived-holiday rules arrive together, all defaulted on so
+        // an existing install keeps exactly the attendance it had plus the
+        // holidays the student asked for: Sundays, second Saturdays and the
+        // fixed national dates stop counting. They are settings, not generated
+        // calendar rows, so nothing writes a holiday into the student's data.
+        // The table is recreated rather than appended to, which is what keeps
+        // the class-notifier CHECK and the singleton CHECK in the upgraded
+        // table: a plain `addColumn` would leave the old constraints behind.
+        // Like v15 above, the recreation is the pinned v16 shape instead of a
+        // `TableMigration`, so the copy cannot ask a v15 table for columns it
+        // does not have.
+        final columns = await customSelect(
+          'PRAGMA table_info(app_settings)',
+        ).get();
+        final hasDefaultHolidays = columns.any(
+          (row) => row.read<String>('name') == 'sunday_off',
+        );
+        if (!hasDefaultHolidays) {
+          await _recreateAppSettingsForDefaultHolidays();
         }
       }
     },
@@ -297,6 +315,105 @@ SET effective_from = (
   Future<bool> passesForeignKeyCheck() async {
     final violations = await customSelect('PRAGMA foreign_key_check').get();
     return violations.isEmpty;
+  }
+
+  /// Recreates `app_settings` in its exact frozen v15 shape.
+  ///
+  /// Mirrors the fresh-v15 create byte for byte, including the `CHECK`s a
+  /// plain `addColumn` cannot attach. The copy keeps every pre-v15 value and
+  /// lets the two new columns take their defaults.
+  Future<void> _recreatePinnedAppSettings(Migrator migrator) async {
+    await customStatement('''
+CREATE TABLE "tmp_app_settings_v15" (
+  "id" INTEGER NOT NULL DEFAULT 1,
+  "student_name" TEXT NOT NULL DEFAULT '',
+  "college_name" TEXT NOT NULL DEFAULT '',
+  "course" TEXT NOT NULL DEFAULT '',
+  "branch" TEXT NOT NULL DEFAULT '',
+  "academic_year_start_date" INTEGER NULL,
+  "academic_year_end_date" INTEGER NULL,
+  "default_attendance_target" REAL NOT NULL DEFAULT 0.75,
+  "theme_mode" TEXT NOT NULL DEFAULT 'system',
+  "onboarding_completed" INTEGER NOT NULL DEFAULT 0 CHECK (onboarding_completed IN (0, 1)),
+  "notifications_enabled" INTEGER NOT NULL DEFAULT 0 CHECK (notifications_enabled IN (0, 1)),
+  "automatic_local_backup" INTEGER NOT NULL DEFAULT 1 CHECK (automatic_local_backup IN (0, 1)),
+  "class_reminders_enabled" INTEGER NOT NULL DEFAULT 1 CHECK (class_reminders_enabled IN (0, 1)),
+  "class_reminder_minutes_before" INTEGER NOT NULL DEFAULT 10,
+  PRIMARY KEY(id),
+  CHECK(id = 1),
+  CHECK(default_attendance_target > 0 AND default_attendance_target <= 1),
+  CHECK(theme_mode IN ('system', 'light', 'dark')),
+  CHECK (class_reminder_minutes_before BETWEEN 0 AND 10080)
+)
+''');
+    await customStatement('''
+INSERT INTO "tmp_app_settings_v15"
+  ("id", "student_name", "college_name", "course", "branch",
+   "academic_year_start_date", "academic_year_end_date",
+   "default_attendance_target", "theme_mode", "onboarding_completed",
+   "notifications_enabled", "automatic_local_backup")
+SELECT "id", "student_name", "college_name", "course", "branch",
+       "academic_year_start_date", "academic_year_end_date",
+       "default_attendance_target", "theme_mode", "onboarding_completed",
+       "notifications_enabled", "automatic_local_backup"
+FROM "app_settings"
+''');
+    await customStatement('DROP TABLE "app_settings"');
+    await customStatement(
+      'ALTER TABLE "tmp_app_settings_v15" RENAME TO "app_settings"',
+    );
+  }
+
+  /// Recreates `app_settings` in the exact v16 shape, adding the three
+  /// default-holiday rules as defaulted columns and keeping every constraint
+  /// the database already enforces. The copy keeps the values the install
+  /// already carries, at whatever v15-or-earlier shape it has; the three new
+  /// rules take the defaults a fresh v16 install stores.
+  Future<void> _recreateAppSettingsForDefaultHolidays() async {
+    await customStatement('''
+CREATE TABLE "tmp_app_settings_v16" (
+  "id" INTEGER NOT NULL DEFAULT 1,
+  "student_name" TEXT NOT NULL DEFAULT '',
+  "college_name" TEXT NOT NULL DEFAULT '',
+  "course" TEXT NOT NULL DEFAULT '',
+  "branch" TEXT NOT NULL DEFAULT '',
+  "academic_year_start_date" INTEGER NULL,
+  "academic_year_end_date" INTEGER NULL,
+  "default_attendance_target" REAL NOT NULL DEFAULT 0.75,
+  "theme_mode" TEXT NOT NULL DEFAULT 'system',
+  "onboarding_completed" INTEGER NOT NULL DEFAULT 0 CHECK (onboarding_completed IN (0, 1)),
+  "notifications_enabled" INTEGER NOT NULL DEFAULT 0 CHECK (notifications_enabled IN (0, 1)),
+  "automatic_local_backup" INTEGER NOT NULL DEFAULT 1 CHECK (automatic_local_backup IN (0, 1)),
+  "class_reminders_enabled" INTEGER NOT NULL DEFAULT 1 CHECK (class_reminders_enabled IN (0, 1)),
+  "class_reminder_minutes_before" INTEGER NOT NULL DEFAULT 10,
+  "sunday_off" INTEGER NOT NULL DEFAULT 1 CHECK (sunday_off IN (0, 1)),
+  "second_saturday_off" INTEGER NOT NULL DEFAULT 1 CHECK (second_saturday_off IN (0, 1)),
+  "government_holidays_off" INTEGER NOT NULL DEFAULT 1 CHECK (government_holidays_off IN (0, 1)),
+  PRIMARY KEY(id),
+  CHECK (id = 1),
+  CHECK (default_attendance_target > 0 AND default_attendance_target <= 1),
+  CHECK (theme_mode IN ('system', 'light', 'dark')),
+  CHECK (class_reminder_minutes_before BETWEEN 0 AND 10080)
+)
+''');
+    await customStatement('''
+INSERT INTO "tmp_app_settings_v16"
+  ("id", "student_name", "college_name", "course", "branch",
+   "academic_year_start_date", "academic_year_end_date",
+   "default_attendance_target", "theme_mode", "onboarding_completed",
+   "notifications_enabled", "automatic_local_backup",
+   "class_reminders_enabled", "class_reminder_minutes_before")
+SELECT "id", "student_name", "college_name", "course", "branch",
+       "academic_year_start_date", "academic_year_end_date",
+       "default_attendance_target", "theme_mode", "onboarding_completed",
+       "notifications_enabled", "automatic_local_backup",
+       "class_reminders_enabled", "class_reminder_minutes_before"
+FROM "app_settings"
+''');
+    await customStatement('DROP TABLE "app_settings"');
+    await customStatement(
+      'ALTER TABLE "tmp_app_settings_v16" RENAME TO "app_settings"',
+    );
   }
 
   Future<void> _migrateAttendanceToLinkedSessions() async {

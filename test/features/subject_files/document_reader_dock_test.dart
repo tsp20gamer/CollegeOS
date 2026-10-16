@@ -103,6 +103,13 @@ void main() {
     expect(find.byType(CollegeNavigationBar), findsOneWidget);
     expect(find.byKey(const Key('navigation_bar_surface')), findsOneWidget);
 
+    // Subjects are listed collapsed, so the document is one tap below.
+    await tester.tap(find.byKey(const Key('notes_expand_all')));
+    for (var i = 0; i < 50; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await _pumpUntilFound(tester, find.byKey(ValueKey('notes_file_$fileId')));
+
     await tester.tap(find.byKey(ValueKey('notes_file_$fileId')));
     await _pumpUntilFound(tester, find.byType(PdfViewerScreen));
     await _pumpFrames(tester);

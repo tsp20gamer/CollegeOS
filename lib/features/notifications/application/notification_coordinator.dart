@@ -300,6 +300,9 @@ final class NotificationCoordinator {
       automaticLocalBackup: current.automaticLocalBackup,
       classRemindersEnabled: current.classRemindersEnabled,
       classReminderMinutesBefore: current.classReminderMinutesBefore,
+      sundayOff: current.sundayOff,
+      secondSaturdayOff: current.secondSaturdayOff,
+      governmentHolidaysOff: current.governmentHolidaysOff,
     ));
   }
 

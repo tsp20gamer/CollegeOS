@@ -1,13 +1,18 @@
 import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/features/subjects/domain/subject_repository.dart';
-import 'package:college_os/features/timetable/data/csv_timetable_import_file_picker.dart';
 import 'package:college_os/features/timetable/data/drift_timetable_importer.dart';
+import 'package:college_os/features/timetable/data/timetable_document_readers.dart';
+import 'package:college_os/features/timetable/data/timetable_import_file_picker.dart';
 import 'package:college_os/features/timetable/domain/timetable_import.dart';
 import 'package:college_os/features/timetable/domain/timetable_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final timetableImportFilePickerProvider = Provider<TimetableImportFilePicker>(
-  (_) => const CsvTimetableImportFilePicker(),
+  (_) => const DeviceTimetableImportFilePicker(),
+);
+
+final timetableImportDocumentReaderProvider = Provider<TimetableDocumentReader>(
+  (_) => const TimetableDocumentReader(),
 );
 
 final timetableImportCommitterProvider = Provider<TimetableImportCommitter>(
@@ -30,11 +35,16 @@ final class TimetableImportController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     TimetableImportPreview? preview;
     state = await AsyncValue.guard(() async {
-      final file = await ref.read(timetableImportFilePickerProvider).pickCsv();
+      final file = await ref.read(timetableImportFilePickerProvider).pickFile();
       if (file == null) return;
-      preview = const TimetableCsvParser().parse(
+      // Every format is decoded into rows first, so the preview, the duplicate
+      // rules and the commit path are shared rather than per-format copies.
+      final rows = ref
+          .read(timetableImportDocumentReaderProvider)
+          .readRows(fileName: file.name, bytes: file.bytes);
+      preview = const TimetableTableParser().parseRows(
         fileName: file.name,
-        contents: file.contents,
+        rows: rows,
         subjects: subjects,
         existingEntries: existingEntries,
       );

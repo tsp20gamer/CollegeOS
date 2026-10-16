@@ -451,6 +451,9 @@ final class _FakeSettings implements SettingsRepository {
         automaticLocalBackup: true,
         classRemindersEnabled: classRemindersEnabled,
         classReminderMinutesBefore: 10,
+        sundayOff: true,
+        secondSaturdayOff: true,
+        governmentHolidaysOff: true,
       );
 
   CollegeSettings _value;

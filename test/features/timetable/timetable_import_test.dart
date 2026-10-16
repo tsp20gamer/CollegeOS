@@ -1,8 +1,23 @@
 import 'package:college_os/core/database/app_database.dart';
+import 'package:college_os/features/subjects/domain/subject_repository.dart';
 import 'package:college_os/features/timetable/data/drift_timetable_importer.dart';
 import 'package:college_os/features/timetable/domain/timetable_import.dart';
+import 'package:college_os/features/timetable/domain/timetable_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+/// The CSV path is one front-end over the shared row parser, so these tests
+/// exercise exactly what an Excel or Word import reaches.
+TimetableImportPreview _parseCsv(
+  String contents, {
+  required List<Subject> subjects,
+  required List<TimetableEntry> existingEntries,
+}) => const TimetableTableParser().parseRows(
+  fileName: 'semester.csv',
+  rows: splitDelimitedText(contents),
+  subjects: subjects,
+  existingEntries: existingEntries,
+);
 
 void main() {
   test('smart parser matches subjects, skips duplicates and warns overlaps', () {
@@ -38,9 +53,8 @@ void main() {
         'Tuesday,10.10 AM,11.00 AM,Programming,PPS,Ms. Lakshmi,Lab 2,\n'
         'Funday,11:00,12:00,Invalid,INV,,,bad day';
 
-    final preview = const TimetableCsvParser().parse(
-      fileName: 'semester.csv',
-      contents: csv,
+    final preview = _parseCsv(
+      csv,
       subjects: [subject],
       existingEntries: [existing],
     );
@@ -73,12 +87,10 @@ void main() {
             updatedAt: now,
           ),
         );
-    final preview = const TimetableCsvParser().parse(
-      fileName: 'semester.csv',
-      contents:
-          'Day,Start,End,Subject,Code,Professor,Room,Note\n'
-          'Monday,9:20 AM,10:10 AM,Mathematics,MC,Mrs. Aruna,2009,\n'
-          'Wednesday,11:00,11:50,Mathematics,MC,Mrs. Aruna,2009,Tutorial',
+    final preview = _parseCsv(
+      'Day,Start,End,Subject,Code,Professor,Room,Note\n'
+      'Monday,9:20 AM,10:10 AM,Mathematics,MC,Mrs. Aruna,2009,\n'
+      'Wednesday,11:00,11:50,Mathematics,MC,Mrs. Aruna,2009,Tutorial',
       subjects: const [],
       existingEntries: const [],
     );
@@ -130,9 +142,8 @@ void main() {
             updatedAt: now,
           ),
         );
-    final preview = const TimetableCsvParser().parse(
-      fileName: 'semester.csv',
-      contents: 'Day,Start,End,Subject\nMonday,09:00,10:00,Mathematics',
+    final preview = _parseCsv(
+      'Day,Start,End,Subject\nMonday,09:00,10:00,Mathematics',
       subjects: const [],
       existingEntries: const [],
     );

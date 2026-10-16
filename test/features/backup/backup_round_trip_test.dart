@@ -59,6 +59,9 @@ void main() {
       expect(restored.toJson(), expected);
       expect(restored.settings.classRemindersEnabled, isFalse);
       expect(restored.settings.classReminderMinutesBefore, 25);
+      expect(restored.settings.sundayOff, isFalse);
+      expect(restored.settings.secondSaturdayOff, isFalse);
+      expect(restored.settings.governmentHolidaysOff, isTrue);
       expect(await database.passesIntegrityCheck(), isTrue);
       expect(await database.passesForeignKeyCheck(), isTrue);
       expect(emergency.saved, isA<ExportedBackup>());
@@ -314,6 +317,54 @@ void main() {
     },
   );
 
+  test('schema-v15 backups default the derived holidays to on', () async {
+    final backup = await service.create('1.0.0+1');
+    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final data =
+        jsonDecode(utf8.decode(archive.find('data.json')!.content))
+            as Map<String, dynamic>;
+    final settings = data['settings'] as Map<String, dynamic>;
+    settings
+      ..remove('sundayOff')
+      ..remove('secondSaturdayOff')
+      ..remove('governmentHolidaysOff');
+    final legacy = _replaceDataAndHash(
+      backup.bytes,
+      data,
+      databaseSchemaVersion: 15,
+    );
+
+    final prepared = service.inspect(
+      bytes: legacy,
+      sourceName: 'schema_v15.collegeos',
+    );
+
+    expect(
+      prepared.data.settings.sundayOff,
+      isTrue,
+      reason: 'an older backup restores the state an in-place upgrade gives',
+    );
+    expect(prepared.data.settings.secondSaturdayOff, isTrue);
+    expect(prepared.data.settings.governmentHolidaysOff, isTrue);
+  });
+
+  test('a derived-holiday rule can be switched off and restored', () async {
+    await database
+        .update(database.appSettings)
+        .write(const AppSettingsCompanion(secondSaturdayOff: Value(false)));
+    final backup = await service.create('1.0.0+1');
+
+    await _wipe(database);
+    await service.restore(
+      service.inspect(bytes: backup.bytes, sourceName: backup.fileName),
+      '1.0.0+1',
+    );
+
+    final restored = (await store.capture()).settings;
+    expect(restored.secondSaturdayOff, isFalse);
+    expect(restored.sundayOff, isFalse);
+  });
+
   test('rejects a class notifier lead time outside the schema range', () async {
     final backup = await service.create('1.0.0+1');
     final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
@@ -456,6 +507,11 @@ Future<void> _seedCompleteDatabase(AppDatabase database) async {
           // rather than let their column defaults hide a missing field.
           classRemindersEnabled: Value(false),
           classReminderMinutesBefore: Value(25),
+          // Also non-default: the archive has to carry the derived-holiday
+          // rules rather than let their column defaults fill them in.
+          sundayOff: Value(false),
+          secondSaturdayOff: Value(false),
+          governmentHolidaysOff: Value(true),
         ),
       );
   await database

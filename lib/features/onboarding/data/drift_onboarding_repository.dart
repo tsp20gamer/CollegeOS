@@ -48,6 +48,9 @@ final class DriftOnboardingRepository implements OnboardingRepository {
           classReminderMinutesBefore: Value(
             currentSettings.classReminderMinutesBefore,
           ),
+          sundayOff: Value(currentSettings.sundayOff),
+          secondSaturdayOff: Value(currentSettings.secondSaturdayOff),
+          governmentHolidaysOff: Value(currentSettings.governmentHolidaysOff),
         ),
       );
     });

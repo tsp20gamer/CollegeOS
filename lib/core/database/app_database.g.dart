@@ -8260,6 +8260,51 @@ class $AppSettingsTable extends AppSettings
         requiredDuringInsert: false,
         defaultValue: const Constant(10),
       );
+  static const VerificationMeta _sundayOffMeta = const VerificationMeta(
+    'sundayOff',
+  );
+  @override
+  late final GeneratedColumn<bool> sundayOff = GeneratedColumn<bool>(
+    'sunday_off',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("sunday_off" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _secondSaturdayOffMeta = const VerificationMeta(
+    'secondSaturdayOff',
+  );
+  @override
+  late final GeneratedColumn<bool> secondSaturdayOff = GeneratedColumn<bool>(
+    'second_saturday_off',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("second_saturday_off" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _governmentHolidaysOffMeta =
+      const VerificationMeta('governmentHolidaysOff');
+  @override
+  late final GeneratedColumn<bool> governmentHolidaysOff =
+      GeneratedColumn<bool>(
+        'government_holidays_off',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("government_holidays_off" IN (0, 1))',
+        ),
+        defaultValue: const Constant(true),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -8276,6 +8321,9 @@ class $AppSettingsTable extends AppSettings
     automaticLocalBackup,
     classRemindersEnabled,
     classReminderMinutesBefore,
+    sundayOff,
+    secondSaturdayOff,
+    governmentHolidaysOff,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8376,6 +8424,30 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('sunday_off')) {
+      context.handle(
+        _sundayOffMeta,
+        sundayOff.isAcceptableOrUnknown(data['sunday_off']!, _sundayOffMeta),
+      );
+    }
+    if (data.containsKey('second_saturday_off')) {
+      context.handle(
+        _secondSaturdayOffMeta,
+        secondSaturdayOff.isAcceptableOrUnknown(
+          data['second_saturday_off']!,
+          _secondSaturdayOffMeta,
+        ),
+      );
+    }
+    if (data.containsKey('government_holidays_off')) {
+      context.handle(
+        _governmentHolidaysOffMeta,
+        governmentHolidaysOff.isAcceptableOrUnknown(
+          data['government_holidays_off']!,
+          _governmentHolidaysOffMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -8449,6 +8521,18 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.int,
         data['${effectivePrefix}class_reminder_minutes_before'],
       )!,
+      sundayOff: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}sunday_off'],
+      )!,
+      secondSaturdayOff: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}second_saturday_off'],
+      )!,
+      governmentHolidaysOff: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}government_holidays_off'],
+      )!,
     );
   }
 
@@ -8501,6 +8585,26 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
   /// one range. Declared last so a migration that only adds these columns
   /// produces the same table SQL as a fresh create.
   final int classReminderMinutesBefore;
+
+  /// Whether Sundays are treated as holidays without a stored calendar row.
+  ///
+  /// The rule is derived, never persisted per day: a class scheduled on a
+  /// Sunday is still a normal class, it is simply excluded while this is on.
+  final bool sundayOff;
+
+  /// Whether the second Saturday of each month is treated as a holiday.
+  ///
+  /// Derived the same way as [sundayOff], and combined with it: a month whose
+  /// second Saturday is also its Sunday keeps both rules.
+  final bool secondSaturdayOff;
+
+  /// Whether the fixed-date national holidays are treated as holidays.
+  ///
+  /// The dates are constants rather than stored events, so the rule needs no
+  /// yearly data: Republic Day (26 January), Independence Day (15 August) and
+  /// Gandhi Jayanti (2 October). Declared last so a migration that only adds
+  /// these columns produces the same table SQL as a fresh create.
+  final bool governmentHolidaysOff;
   const AppSettingsRow({
     required this.id,
     required this.studentName,
@@ -8516,6 +8620,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     required this.automaticLocalBackup,
     required this.classRemindersEnabled,
     required this.classReminderMinutesBefore,
+    required this.sundayOff,
+    required this.secondSaturdayOff,
+    required this.governmentHolidaysOff,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8554,6 +8661,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     map['class_reminder_minutes_before'] = Variable<int>(
       classReminderMinutesBefore,
     );
+    map['sunday_off'] = Variable<bool>(sundayOff);
+    map['second_saturday_off'] = Variable<bool>(secondSaturdayOff);
+    map['government_holidays_off'] = Variable<bool>(governmentHolidaysOff);
     return map;
   }
 
@@ -8577,6 +8687,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       automaticLocalBackup: Value(automaticLocalBackup),
       classRemindersEnabled: Value(classRemindersEnabled),
       classReminderMinutesBefore: Value(classReminderMinutesBefore),
+      sundayOff: Value(sundayOff),
+      secondSaturdayOff: Value(secondSaturdayOff),
+      governmentHolidaysOff: Value(governmentHolidaysOff),
     );
   }
 
@@ -8618,6 +8731,11 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       classReminderMinutesBefore: serializer.fromJson<int>(
         json['classReminderMinutesBefore'],
       ),
+      sundayOff: serializer.fromJson<bool>(json['sundayOff']),
+      secondSaturdayOff: serializer.fromJson<bool>(json['secondSaturdayOff']),
+      governmentHolidaysOff: serializer.fromJson<bool>(
+        json['governmentHolidaysOff'],
+      ),
     );
   }
   @override
@@ -8646,6 +8764,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       'classReminderMinutesBefore': serializer.toJson<int>(
         classReminderMinutesBefore,
       ),
+      'sundayOff': serializer.toJson<bool>(sundayOff),
+      'secondSaturdayOff': serializer.toJson<bool>(secondSaturdayOff),
+      'governmentHolidaysOff': serializer.toJson<bool>(governmentHolidaysOff),
     };
   }
 
@@ -8664,6 +8785,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     bool? automaticLocalBackup,
     bool? classRemindersEnabled,
     int? classReminderMinutesBefore,
+    bool? sundayOff,
+    bool? secondSaturdayOff,
+    bool? governmentHolidaysOff,
   }) => AppSettingsRow(
     id: id ?? this.id,
     studentName: studentName ?? this.studentName,
@@ -8685,6 +8809,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     classRemindersEnabled: classRemindersEnabled ?? this.classRemindersEnabled,
     classReminderMinutesBefore:
         classReminderMinutesBefore ?? this.classReminderMinutesBefore,
+    sundayOff: sundayOff ?? this.sundayOff,
+    secondSaturdayOff: secondSaturdayOff ?? this.secondSaturdayOff,
+    governmentHolidaysOff: governmentHolidaysOff ?? this.governmentHolidaysOff,
   );
   AppSettingsRow copyWithCompanion(AppSettingsCompanion data) {
     return AppSettingsRow(
@@ -8722,6 +8849,13 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       classReminderMinutesBefore: data.classReminderMinutesBefore.present
           ? data.classReminderMinutesBefore.value
           : this.classReminderMinutesBefore,
+      sundayOff: data.sundayOff.present ? data.sundayOff.value : this.sundayOff,
+      secondSaturdayOff: data.secondSaturdayOff.present
+          ? data.secondSaturdayOff.value
+          : this.secondSaturdayOff,
+      governmentHolidaysOff: data.governmentHolidaysOff.present
+          ? data.governmentHolidaysOff.value
+          : this.governmentHolidaysOff,
     );
   }
 
@@ -8741,7 +8875,10 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
           ..write('notificationsEnabled: $notificationsEnabled, ')
           ..write('automaticLocalBackup: $automaticLocalBackup, ')
           ..write('classRemindersEnabled: $classRemindersEnabled, ')
-          ..write('classReminderMinutesBefore: $classReminderMinutesBefore')
+          ..write('classReminderMinutesBefore: $classReminderMinutesBefore, ')
+          ..write('sundayOff: $sundayOff, ')
+          ..write('secondSaturdayOff: $secondSaturdayOff, ')
+          ..write('governmentHolidaysOff: $governmentHolidaysOff')
           ..write(')'))
         .toString();
   }
@@ -8762,6 +8899,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     automaticLocalBackup,
     classRemindersEnabled,
     classReminderMinutesBefore,
+    sundayOff,
+    secondSaturdayOff,
+    governmentHolidaysOff,
   );
   @override
   bool operator ==(Object other) =>
@@ -8780,7 +8920,10 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
           other.notificationsEnabled == this.notificationsEnabled &&
           other.automaticLocalBackup == this.automaticLocalBackup &&
           other.classRemindersEnabled == this.classRemindersEnabled &&
-          other.classReminderMinutesBefore == this.classReminderMinutesBefore);
+          other.classReminderMinutesBefore == this.classReminderMinutesBefore &&
+          other.sundayOff == this.sundayOff &&
+          other.secondSaturdayOff == this.secondSaturdayOff &&
+          other.governmentHolidaysOff == this.governmentHolidaysOff);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
@@ -8798,6 +8941,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
   final Value<bool> automaticLocalBackup;
   final Value<bool> classRemindersEnabled;
   final Value<int> classReminderMinutesBefore;
+  final Value<bool> sundayOff;
+  final Value<bool> secondSaturdayOff;
+  final Value<bool> governmentHolidaysOff;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.studentName = const Value.absent(),
@@ -8813,6 +8959,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     this.automaticLocalBackup = const Value.absent(),
     this.classRemindersEnabled = const Value.absent(),
     this.classReminderMinutesBefore = const Value.absent(),
+    this.sundayOff = const Value.absent(),
+    this.secondSaturdayOff = const Value.absent(),
+    this.governmentHolidaysOff = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -8829,6 +8978,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     this.automaticLocalBackup = const Value.absent(),
     this.classRemindersEnabled = const Value.absent(),
     this.classReminderMinutesBefore = const Value.absent(),
+    this.sundayOff = const Value.absent(),
+    this.secondSaturdayOff = const Value.absent(),
+    this.governmentHolidaysOff = const Value.absent(),
   });
   static Insertable<AppSettingsRow> custom({
     Expression<int>? id,
@@ -8845,6 +8997,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     Expression<bool>? automaticLocalBackup,
     Expression<bool>? classRemindersEnabled,
     Expression<int>? classReminderMinutesBefore,
+    Expression<bool>? sundayOff,
+    Expression<bool>? secondSaturdayOff,
+    Expression<bool>? governmentHolidaysOff,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -8869,6 +9024,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
         'class_reminders_enabled': classRemindersEnabled,
       if (classReminderMinutesBefore != null)
         'class_reminder_minutes_before': classReminderMinutesBefore,
+      if (sundayOff != null) 'sunday_off': sundayOff,
+      if (secondSaturdayOff != null) 'second_saturday_off': secondSaturdayOff,
+      if (governmentHolidaysOff != null)
+        'government_holidays_off': governmentHolidaysOff,
     });
   }
 
@@ -8887,6 +9046,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     Value<bool>? automaticLocalBackup,
     Value<bool>? classRemindersEnabled,
     Value<int>? classReminderMinutesBefore,
+    Value<bool>? sundayOff,
+    Value<bool>? secondSaturdayOff,
+    Value<bool>? governmentHolidaysOff,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -8907,6 +9069,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
           classRemindersEnabled ?? this.classRemindersEnabled,
       classReminderMinutesBefore:
           classReminderMinutesBefore ?? this.classReminderMinutesBefore,
+      sundayOff: sundayOff ?? this.sundayOff,
+      secondSaturdayOff: secondSaturdayOff ?? this.secondSaturdayOff,
+      governmentHolidaysOff:
+          governmentHolidaysOff ?? this.governmentHolidaysOff,
     );
   }
 
@@ -8973,6 +9139,17 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
         classReminderMinutesBefore.value,
       );
     }
+    if (sundayOff.present) {
+      map['sunday_off'] = Variable<bool>(sundayOff.value);
+    }
+    if (secondSaturdayOff.present) {
+      map['second_saturday_off'] = Variable<bool>(secondSaturdayOff.value);
+    }
+    if (governmentHolidaysOff.present) {
+      map['government_holidays_off'] = Variable<bool>(
+        governmentHolidaysOff.value,
+      );
+    }
     return map;
   }
 
@@ -8992,7 +9169,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
           ..write('notificationsEnabled: $notificationsEnabled, ')
           ..write('automaticLocalBackup: $automaticLocalBackup, ')
           ..write('classRemindersEnabled: $classRemindersEnabled, ')
-          ..write('classReminderMinutesBefore: $classReminderMinutesBefore')
+          ..write('classReminderMinutesBefore: $classReminderMinutesBefore, ')
+          ..write('sundayOff: $sundayOff, ')
+          ..write('secondSaturdayOff: $secondSaturdayOff, ')
+          ..write('governmentHolidaysOff: $governmentHolidaysOff')
           ..write(')'))
         .toString();
   }
@@ -16996,6 +17176,9 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<bool> automaticLocalBackup,
       Value<bool> classRemindersEnabled,
       Value<int> classReminderMinutesBefore,
+      Value<bool> sundayOff,
+      Value<bool> secondSaturdayOff,
+      Value<bool> governmentHolidaysOff,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -17013,6 +17196,9 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<bool> automaticLocalBackup,
       Value<bool> classRemindersEnabled,
       Value<int> classReminderMinutesBefore,
+      Value<bool> sundayOff,
+      Value<bool> secondSaturdayOff,
+      Value<bool> governmentHolidaysOff,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -17096,6 +17282,21 @@ class $$AppSettingsTableFilterComposer
     column: $table.classReminderMinutesBefore,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<bool> get sundayOff => $composableBuilder(
+    column: $table.sundayOff,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get secondSaturdayOff => $composableBuilder(
+    column: $table.secondSaturdayOff,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get governmentHolidaysOff => $composableBuilder(
+    column: $table.governmentHolidaysOff,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$AppSettingsTableOrderingComposer
@@ -17176,6 +17377,21 @@ class $$AppSettingsTableOrderingComposer
     column: $table.classReminderMinutesBefore,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get sundayOff => $composableBuilder(
+    column: $table.sundayOff,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get secondSaturdayOff => $composableBuilder(
+    column: $table.secondSaturdayOff,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get governmentHolidaysOff => $composableBuilder(
+    column: $table.governmentHolidaysOff,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -17250,6 +17466,19 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.classReminderMinutesBefore,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get sundayOff =>
+      $composableBuilder(column: $table.sundayOff, builder: (column) => column);
+
+  GeneratedColumn<bool> get secondSaturdayOff => $composableBuilder(
+    column: $table.secondSaturdayOff,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get governmentHolidaysOff => $composableBuilder(
+    column: $table.governmentHolidaysOff,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -17297,6 +17526,9 @@ class $$AppSettingsTableTableManager
                 Value<bool> automaticLocalBackup = const Value.absent(),
                 Value<bool> classRemindersEnabled = const Value.absent(),
                 Value<int> classReminderMinutesBefore = const Value.absent(),
+                Value<bool> sundayOff = const Value.absent(),
+                Value<bool> secondSaturdayOff = const Value.absent(),
+                Value<bool> governmentHolidaysOff = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 studentName: studentName,
@@ -17312,6 +17544,9 @@ class $$AppSettingsTableTableManager
                 automaticLocalBackup: automaticLocalBackup,
                 classRemindersEnabled: classRemindersEnabled,
                 classReminderMinutesBefore: classReminderMinutesBefore,
+                sundayOff: sundayOff,
+                secondSaturdayOff: secondSaturdayOff,
+                governmentHolidaysOff: governmentHolidaysOff,
               ),
           createCompanionCallback:
               ({
@@ -17329,6 +17564,9 @@ class $$AppSettingsTableTableManager
                 Value<bool> automaticLocalBackup = const Value.absent(),
                 Value<bool> classRemindersEnabled = const Value.absent(),
                 Value<int> classReminderMinutesBefore = const Value.absent(),
+                Value<bool> sundayOff = const Value.absent(),
+                Value<bool> secondSaturdayOff = const Value.absent(),
+                Value<bool> governmentHolidaysOff = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 studentName: studentName,
@@ -17344,6 +17582,9 @@ class $$AppSettingsTableTableManager
                 automaticLocalBackup: automaticLocalBackup,
                 classRemindersEnabled: classRemindersEnabled,
                 classReminderMinutesBefore: classReminderMinutesBefore,
+                sundayOff: sundayOff,
+                secondSaturdayOff: secondSaturdayOff,
+                governmentHolidaysOff: governmentHolidaysOff,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

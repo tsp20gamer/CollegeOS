@@ -376,6 +376,9 @@ final CollegeSettings _settings = (
   automaticLocalBackup: false,
   classRemindersEnabled: true,
   classReminderMinutesBefore: 10,
+  sundayOff: true,
+  secondSaturdayOff: true,
+  governmentHolidaysOff: true,
 );
 
 // The classroom scenario: Maths at 9:00 and Physics at 10:00 every Monday.

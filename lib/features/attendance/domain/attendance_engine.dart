@@ -49,6 +49,64 @@ typedef DayOverride = ({
   String note,
 });
 
+/// The holidays every semester gets without a stored calendar row.
+///
+/// These are rules, not data: nothing is written per day, so turning one off
+/// simply reveals the classes that were always there — exactly what deleting a
+/// stored holiday range does. A stored `calendar_day_overrides` row always wins
+/// over them, including a `normal` row, which is how a one-off working Sunday
+/// or a college that runs classes on a second Saturday is expressed.
+final class DefaultHolidayPolicy {
+  const DefaultHolidayPolicy({
+    this.sundayOff = false,
+    this.secondSaturdayOff = false,
+    this.governmentHolidaysOff = false,
+  });
+
+  /// No derived holidays. The default for snapshots that predate the rules.
+  static const DefaultHolidayPolicy none = DefaultHolidayPolicy();
+
+  final bool sundayOff;
+  final bool secondSaturdayOff;
+  final bool governmentHolidaysOff;
+
+  /// The holiday [date] inherits from the rules, or null on a normal day.
+  ///
+  /// A Sunday is reported as itself before the second-Saturday and national
+  /// checks, because those two can only ever describe a different day.
+  String? labelFor(DateTime date) {
+    if (sundayOff && date.weekday == DateTime.sunday) {
+      return 'Sunday';
+    }
+    if (secondSaturdayOff && isSecondSaturday(date)) {
+      return 'Second Saturday';
+    }
+    if (governmentHolidaysOff) return governmentHolidayName(date);
+    return null;
+  }
+
+  /// True on the second Saturday of [date]'s month (its day falls in 8–14).
+  static bool isSecondSaturday(DateTime date) =>
+      date.weekday == DateTime.saturday && (date.day - 1) ~/ 7 == 1;
+
+  /// The fixed-date national holiday name for [date], or null.
+  ///
+  /// The dates are constants rather than stored events, so no yearly holiday
+  /// file is needed and the rule applies to every year automatically.
+  static String? governmentHolidayName(DateTime date) {
+    if (date.month == DateTime.january && date.day == 26) {
+      return 'Republic Day';
+    }
+    if (date.month == DateTime.august && date.day == 15) {
+      return 'Independence Day';
+    }
+    if (date.month == DateTime.october && date.day == 2) {
+      return 'Gandhi Jayanti';
+    }
+    return null;
+  }
+}
+
 typedef AttendanceCalendarEvent = ({
   int id,
   int semesterId,
@@ -66,6 +124,7 @@ final class AttendanceEngineSnapshot {
     required this.attendance,
     required this.overrides,
     this.calendarEvents = const [],
+    this.defaultHolidays = DefaultHolidayPolicy.none,
   });
 
   final List<Subject> subjects;
@@ -73,6 +132,7 @@ final class AttendanceEngineSnapshot {
   final List<ExplicitClassAttendance> attendance;
   final List<DayOverride> overrides;
   final List<AttendanceCalendarEvent> calendarEvents;
+  final DefaultHolidayPolicy defaultHolidays;
 }
 
 final class ProjectedClassSession {
@@ -157,9 +217,13 @@ abstract final class AttendanceScheduleEngine {
     final explicitOverride = snapshot.overrides
         .where((item) => _sameDate(item.date, target))
         .firstOrNull;
+    // Precedence is the student's own row, then a stored holiday range, then
+    // the derived default rules. A stored `normal` row therefore keeps a
+    // Sunday or second Saturday as a working day.
     final override =
         explicitOverride ??
-        _eventOverrideForDate(snapshot.calendarEvents, target);
+        _eventOverrideForDate(snapshot.calendarEvents, target) ??
+        _defaultHolidayOverride(snapshot, semester.id, target);
     if (!inside) {
       return AttendanceDay(
         date: target,
@@ -412,6 +476,28 @@ abstract final class AttendanceScheduleEngine {
   }
 }
 
+/// The derived-holiday day row for [date], or null when the rules leave it a
+/// normal day.
+///
+/// It is built on demand rather than stored, so the same date answers
+/// identically for every read while nothing is written to the database. The ID
+/// is zero because no row exists to edit or delete.
+DayOverride? _defaultHolidayOverride(
+  AttendanceEngineSnapshot snapshot,
+  int semesterId,
+  DateTime date,
+) {
+  final label = snapshot.defaultHolidays.labelFor(date);
+  if (label == null) return null;
+  return (
+    id: 0,
+    semesterId: semesterId,
+    date: _dateOnly(date),
+    type: CalendarDayOverrideType.holiday,
+    note: label,
+  );
+}
+
 DayOverride? _eventOverrideForDate(
   List<AttendanceCalendarEvent> events,
   DateTime date,
@@ -458,6 +544,7 @@ List<DayOverride> _allExclusions(
       date,
       () =>
           _eventOverrideForDate(snapshot.calendarEvents, date) ??
+          _defaultHolidayOverride(snapshot, semester.id, date) ??
           (
             id: 0,
             semesterId: semester.id,

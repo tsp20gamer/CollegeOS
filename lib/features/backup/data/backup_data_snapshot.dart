@@ -80,6 +80,9 @@ final class BackupDataSnapshot {
       'automaticLocalBackup': settings.automaticLocalBackup,
       'classRemindersEnabled': settings.classRemindersEnabled,
       'classReminderMinutesBefore': settings.classReminderMinutesBefore,
+      'sundayOff': settings.sundayOff,
+      'secondSaturdayOff': settings.secondSaturdayOff,
+      'governmentHolidaysOff': settings.governmentHolidaysOff,
     },
     'semesters': [
       for (final row in semesters)
@@ -324,6 +327,21 @@ final class BackupDataSnapshot {
         settingsMap,
         'classReminderMinutesBefore',
         orElse: defaultClassReminderMinutesBefore,
+      ),
+      // The derived-holiday rules were added in schema v16; older archives
+      // restore the same state an in-place upgrade produces, so a student who
+      // restores an older backup gets the default holidays rather than silently
+      // losing them.
+      sundayOff: _optionalBoolean(settingsMap, 'sundayOff', orElse: true),
+      secondSaturdayOff: _optionalBoolean(
+        settingsMap,
+        'secondSaturdayOff',
+        orElse: true,
+      ),
+      governmentHolidaysOff: _optionalBoolean(
+        settingsMap,
+        'governmentHolidaysOff',
+        orElse: true,
       ),
     );
     final semesters = _list(root, 'semesters')

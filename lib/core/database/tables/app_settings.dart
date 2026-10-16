@@ -43,6 +43,28 @@ class AppSettings extends Table {
   IntColumn get classReminderMinutesBefore =>
       integer().withDefault(const Constant(10))();
 
+  /// Whether Sundays are treated as holidays without a stored calendar row.
+  ///
+  /// The rule is derived, never persisted per day: a class scheduled on a
+  /// Sunday is still a normal class, it is simply excluded while this is on.
+  BoolColumn get sundayOff => boolean().withDefault(const Constant(true))();
+
+  /// Whether the second Saturday of each month is treated as a holiday.
+  ///
+  /// Derived the same way as [sundayOff], and combined with it: a month whose
+  /// second Saturday is also its Sunday keeps both rules.
+  BoolColumn get secondSaturdayOff =>
+      boolean().withDefault(const Constant(true))();
+
+  /// Whether the fixed-date national holidays are treated as holidays.
+  ///
+  /// The dates are constants rather than stored events, so the rule needs no
+  /// yearly data: Republic Day (26 January), Independence Day (15 August) and
+  /// Gandhi Jayanti (2 October). Declared last so a migration that only adds
+  /// these columns produces the same table SQL as a fresh create.
+  BoolColumn get governmentHolidaysOff =>
+      boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

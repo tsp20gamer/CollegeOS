@@ -7,6 +7,7 @@ import 'package:college_os/features/attendance/application/attendance_providers.
 import 'package:college_os/features/calendar/domain/academic_calendar_repository.dart';
 import 'package:college_os/features/calendar/domain/academic_calendar_impact.dart';
 import 'package:college_os/features/semesters/domain/semester_repository.dart';
+import 'package:college_os/features/settings/application/settings_providers.dart';
 import 'package:college_os/features/subjects/application/subject_providers.dart';
 import 'package:college_os/shared/widgets/empty_state.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
@@ -70,6 +71,8 @@ class AcademicCalendarScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 const _CalendarExplanation(),
+                const SizedBox(height: AppSpacing.md),
+                const _DefaultHolidaysCard(),
                 const SizedBox(height: AppSpacing.lg),
                 if (items.isEmpty)
                   EmptyState(
@@ -150,6 +153,132 @@ class AcademicCalendarScreen extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Could not delete the calendar entry.')),
     );
+  }
+}
+
+/// The derived holiday rules, with the same switches that gate them.
+///
+/// They are settings rather than generated calendar rows, so turning one off
+/// puts the affected classes back without touching a single stored date, and
+/// the list below stays the student's own entries.
+class _DefaultHolidaysCard extends ConsumerWidget {
+  const _DefaultHolidaysCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(collegeSettingsProvider).value;
+    final busy =
+        settings == null ||
+        ref.watch(settingsPreferenceControllerProvider).isLoading;
+    final colors = Theme.of(context).colorScheme;
+    final sundayOff = settings?.sundayOff ?? true;
+    final secondSaturdayOff = settings?.secondSaturdayOff ?? true;
+    final governmentHolidaysOff = settings?.governmentHolidaysOff ?? true;
+    return Card(
+      key: const Key('default_holidays_card'),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.sm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.event_available_rounded, color: colors.primary),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Default holidays',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              'These days are excluded automatically, every semester, without adding them one by one.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            SwitchListTile(
+              key: const Key('sunday_off_switch'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Sundays'),
+              subtitle: const Text('Weekly off'),
+              value: sundayOff,
+              onChanged: busy
+                  ? null
+                  : (value) => _save(
+                      ref,
+                      sundayOff: value,
+                      secondSaturdayOff: secondSaturdayOff,
+                      governmentHolidaysOff: governmentHolidaysOff,
+                    ),
+            ),
+            SwitchListTile(
+              key: const Key('second_saturday_off_switch'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Second Saturdays'),
+              subtitle: const Text('The second Saturday of every month'),
+              value: secondSaturdayOff,
+              onChanged: busy
+                  ? null
+                  : (value) => _save(
+                      ref,
+                      sundayOff: sundayOff,
+                      secondSaturdayOff: value,
+                      governmentHolidaysOff: governmentHolidaysOff,
+                    ),
+            ),
+            SwitchListTile(
+              key: const Key('government_holidays_off_switch'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Government holidays'),
+              subtitle: const Text(
+                'Republic Day 26 Jan • Independence Day 15 Aug • Gandhi Jayanti 2 Oct',
+              ),
+              value: governmentHolidaysOff,
+              onChanged: busy
+                  ? null
+                  : (value) => _save(
+                      ref,
+                      sundayOff: sundayOff,
+                      secondSaturdayOff: secondSaturdayOff,
+                      governmentHolidaysOff: value,
+                    ),
+            ),
+            Text(
+              'A single date can still be a working day: open it in Attendance and choose Working Day.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _save(
+    WidgetRef ref, {
+    required bool sundayOff,
+    required bool secondSaturdayOff,
+    required bool governmentHolidaysOff,
+  }) async {
+    await ref
+        .read(settingsPreferenceControllerProvider.notifier)
+        .setDefaultHolidays(
+          sundayOff: sundayOff,
+          secondSaturdayOff: secondSaturdayOff,
+          governmentHolidaysOff: governmentHolidaysOff,
+        );
   }
 }
 

@@ -278,6 +278,11 @@ void main() {
       expect(defaults.automaticLocalBackup, isTrue);
       expect(defaults.classRemindersEnabled, isTrue);
       expect(defaults.classReminderMinutesBefore, 10);
+      // The derived-holiday rules default on, so a fresh install excludes
+      // Sundays, second Saturdays and the fixed national dates.
+      expect(defaults.sundayOff, isTrue);
+      expect(defaults.secondSaturdayOff, isTrue);
+      expect(defaults.governmentHolidaysOff, isTrue);
 
       await repository.save((
         studentName: 'Test Student',
@@ -293,6 +298,9 @@ void main() {
         automaticLocalBackup: false,
         classRemindersEnabled: false,
         classReminderMinutesBefore: 25,
+        sundayOff: true,
+        secondSaturdayOff: false,
+        governmentHolidaysOff: false,
       ));
       final settings = await repository.get();
       expect(settings.studentName, 'Test Student');
@@ -302,6 +310,9 @@ void main() {
       expect(settings.automaticLocalBackup, isFalse);
       expect(settings.classRemindersEnabled, isFalse);
       expect(settings.classReminderMinutesBefore, 25);
+      expect(settings.sundayOff, isTrue);
+      expect(settings.secondSaturdayOff, isFalse);
+      expect(settings.governmentHolidaysOff, isFalse);
       expect(await database.select(database.appSettings).get(), hasLength(1));
     });
   });

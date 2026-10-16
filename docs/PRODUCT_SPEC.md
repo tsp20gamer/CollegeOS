@@ -99,6 +99,8 @@ Attendance is class-based and timetable-driven. The source of truth is a sparse 
 
 The monthly calendar derives semantic day states (present, absent, partial, partially marked, unmarked, holiday, college closed, no classes, or outside semester). Whole-day Present/Absent writes every scheduled class, while per-class edits can create partial attendance. Holidays and college-closed overrides mask the schedule without deleting prior marks, so undo is reversible.
 
+Default holidays are rules rather than stored dates, so a college's weekly off day and its national holidays need no yearly upkeep: Sundays, second Saturdays, and the fixed national holidays (26 January, 15 August, 2 October) are excluded automatically while enabled in the Calendar screen, and switching one off restores the classes on those dates without touching any mark. A single date still wins over a rule, which is how a working Sunday or a second Saturday with classes is expressed.
+
 Subject percentages remain class-based: `present / (present + absent)`. Unmarked, cancelled, holiday, and college-closed classes never count. Legacy session/day tables remain stored only so existing installations and old backups do not lose data; schema-v6 migration converts only records whose relationships can be inferred safely.
 
 ### 6.5 Weekly timetable

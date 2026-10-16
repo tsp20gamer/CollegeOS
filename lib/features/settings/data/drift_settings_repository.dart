@@ -31,6 +31,9 @@ final class DriftSettingsRepository implements SettingsRepository {
       automaticLocalBackup: Value(settings.automaticLocalBackup),
       classRemindersEnabled: Value(settings.classRemindersEnabled),
       classReminderMinutesBefore: Value(settings.classReminderMinutesBefore),
+      sundayOff: Value(settings.sundayOff),
+      secondSaturdayOff: Value(settings.secondSaturdayOff),
+      governmentHolidaysOff: Value(settings.governmentHolidaysOff),
     ),
   );
 
@@ -48,5 +51,8 @@ final class DriftSettingsRepository implements SettingsRepository {
     automaticLocalBackup: row.automaticLocalBackup,
     classRemindersEnabled: row.classRemindersEnabled,
     classReminderMinutesBefore: row.classReminderMinutesBefore,
+    sundayOff: row.sundayOff,
+    secondSaturdayOff: row.secondSaturdayOff,
+    governmentHolidaysOff: row.governmentHolidaysOff,
   );
 }

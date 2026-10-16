@@ -4,6 +4,11 @@ import 'package:college_os/features/semesters/domain/semester_repository.dart';
 import 'package:college_os/features/subjects/domain/subject_repository.dart';
 import 'package:college_os/features/timetable/domain/timetable_repository.dart';
 
+/// Every day a class can be scheduled on, in the order the day strip shows.
+///
+/// Sunday is last and stays schedulable: it is a *default* holiday, so the
+/// student can still add a special Sunday class and mark that date as a working
+/// day in Attendance. Nothing here decides whether a day is off.
 const timetableWeekdays = <int>[
   DateTime.monday,
   DateTime.tuesday,
@@ -11,6 +16,7 @@ const timetableWeekdays = <int>[
   DateTime.thursday,
   DateTime.friday,
   DateTime.saturday,
+  DateTime.sunday,
 ];
 
 const timetableDayNames = <int, String>{
@@ -20,6 +26,7 @@ const timetableDayNames = <int, String>{
   DateTime.thursday: 'Thursday',
   DateTime.friday: 'Friday',
   DateTime.saturday: 'Saturday',
+  DateTime.sunday: 'Sunday',
 };
 
 const timetableDayShortNames = <int, String>{
@@ -29,6 +36,7 @@ const timetableDayShortNames = <int, String>{
   DateTime.thursday: 'Thu',
   DateTime.friday: 'Fri',
   DateTime.saturday: 'Sat',
+  DateTime.sunday: 'Sun',
 };
 
 final class ScheduledClass {

@@ -14,5 +14,8 @@ abstract final class CollegeOsSchemaVersions {
   static const int pdfIndexResume = 13;
   static const int classReminders = 14;
   static const int classNotifier = 15;
-  static const int current = classNotifier;
+
+  /// Default holidays (Sundays, second Saturdays, fixed national dates).
+  static const int defaultHolidays = 16;
+  static const int current = defaultHolidays;
 }
