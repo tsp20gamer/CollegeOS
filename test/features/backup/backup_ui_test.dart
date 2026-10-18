@@ -78,6 +78,10 @@ void main() {
       await _pumpUntilFound(tester, find.text('Choose export'));
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byKey(const Key('export_full_backup')), findsOneWidget);
+      expect(
+        find.byKey(const Key('export_full_backup_with_files')),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('export_attendance_report')), findsOneWidget);
       expect(
         find.text(
@@ -101,7 +105,7 @@ void main() {
       expect(find.text('Keep Backups'), findsOneWidget);
       expect(
         find.text(
-          'Local backups remain on this phone. Export a backup to protect your data when changing devices.',
+          'Local backups remain on this phone. Export a backup to protect your data when changing devices. Automatic snapshots keep your records; uploaded files travel only in a backup you export.',
         ),
         findsOneWidget,
       );
@@ -170,7 +174,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(source),
           incomingBackupLoaderProvider.overrideWithValue(
-            (_) async => backup.bytes,
+            (_) async => backup.bytes!,
           ),
           incomingBackupCleanupProvider.overrideWithValue((_) async {}),
         ],
@@ -198,7 +202,7 @@ final class _PickedFileGateway implements BackupFileGateway {
 
   @override
   Future<PickedBackupFile?> pick() async =>
-      PickedBackupFile(name: backup.fileName, bytes: backup.bytes);
+      PickedBackupFile(name: backup.fileName, bytes: backup.bytes!);
 
   @override
   Future<bool> save(ExportedBackup backup) async => true;

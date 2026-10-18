@@ -165,12 +165,12 @@ Future<void> _generateImports() async {
       final label = batch.name.toUpperCase();
       fileName = 'CollegeOS_CSE_Batch_IV_${label}_Semester_1.collegeos';
       file = File('${output.path}${Platform.pathSeparator}$fileName');
-      await file.writeAsBytes(backup.bytes, flush: true);
+      await file.writeAsBytes(backup.bytes!, flush: true);
     } finally {
       await database.close();
     }
 
-    final prepared = codec.decode(
+    final prepared = await codec.decode(
       bytes: await file.readAsBytes(),
       sourceName: fileName,
     );

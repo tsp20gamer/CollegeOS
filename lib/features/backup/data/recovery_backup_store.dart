@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:college_os/features/backup/data/backup_service.dart';
 import 'package:college_os/features/backup/domain/backup_models.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -56,7 +57,10 @@ final class FileRecoveryBackupStore implements RecoveryBackupStore {
     final name = 'Recovery_${unique}_${backup.fileName}';
     final destination = File(p.join(directory.path, name));
     final partial = File('${destination.path}.part');
-    await partial.writeAsBytes(backup.bytes, flush: true);
+    await partial.writeAsBytes(
+      await readExportedBackupBytes(backup),
+      flush: true,
+    );
     final saved = await partial.rename(destination.path);
     await saved.setLastModified(createdAt);
     final backups = await list();

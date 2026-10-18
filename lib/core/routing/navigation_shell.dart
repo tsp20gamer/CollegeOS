@@ -381,29 +381,7 @@ class _NavigationDestinationState extends State<_NavigationDestination>
     );
 
     // 1.0 -> 1.10 -> 1.04 -> 1.0: a small rise and settle, never a bounce.
-    _popScale = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 1.0,
-          end: AppMotion.dockIconPeakScale,
-        ).chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 30,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: AppMotion.dockIconPeakScale,
-          end: AppMotion.dockIconPopScale,
-        ).chain(CurveTween(curve: AppCurves.standard)),
-        weight: 35,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: AppMotion.dockIconPopScale,
-          end: 1.0,
-        ).chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 35,
-      ),
-    ]).animate(_popController);
+    _popScale = AppMotion.popScale(_popController);
 
     _popLift = TweenSequence<double>([
       TweenSequenceItem(

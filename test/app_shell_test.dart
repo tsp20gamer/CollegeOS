@@ -231,28 +231,16 @@ void main() {
       findsOneWidget,
     );
 
-    // The notes search shortcut is a header action on Home and Tasks, sitting
-    // immediately before Settings and clear of the dock and of each other.
-    expect(find.byKey(const Key('open_notes_search_button')), findsOneWidget);
+    // Search lives with the notes it searches. The header carries Settings
+    // alone, so nothing competes with it and no shortcut has to be squeezed in
+    // beside it on a compact phone.
+    expect(find.byKey(const Key('open_notes_search_button')), findsNothing);
     expect(find.byKey(const Key('search_notes_fab')), findsNothing);
-    final searchRect = tester.getRect(
-      find.byKey(const Key('open_notes_search_button')),
-    );
     final settingsRect = tester.getRect(
       find.byKey(const Key('open_settings_button')),
     );
     expect(
-      searchRect.overlaps(settingsRect),
-      isFalse,
-      reason: 'the search button sits beside Settings, not on top of it',
-    );
-    expect(
-      searchRect.right,
-      lessThanOrEqualTo(settingsRect.left),
-      reason: 'the header reads [context] [Search] [Settings]',
-    );
-    expect(
-      searchRect.bottom,
+      settingsRect.bottom,
       lessThanOrEqualTo(barRect.top),
       reason: 'no header control reaches the dock',
     );
@@ -262,10 +250,9 @@ void main() {
     expect(_activeDotScale(tester, 'Timetable'), 1.0);
     expect(_activeDotOpacity(tester, 'Timetable'), 1.0);
     expect(_activeDotScale(tester, 'Tasks'), .2);
-    expect(find.byKey(const Key('open_notes_search_button')), findsNothing);
 
-    // Settings is reachable from every destination header, and the notes
-    // shortcut only appears on the two destinations that asked for it.
+    // Settings is reachable from every destination header, and it is the only
+    // control there: the notes shortcut never appears on a tab again.
     for (final destination in CollegeNavigationBar.destinations) {
       await tester.tap(find.byKey(destination.key));
       await _pumpFrames(tester);
@@ -274,13 +261,10 @@ void main() {
         findsOneWidget,
         reason: 'Settings must be reachable from ${destination.label}',
       );
-      final wantsShortcut =
-          destination.key == const Key('nav_home') ||
-          destination.key == const Key('nav_tasks');
       expect(
         find.byKey(const Key('open_notes_search_button')),
-        wantsShortcut ? findsOneWidget : findsNothing,
-        reason: 'notes shortcut on ${destination.label}',
+        findsNothing,
+        reason: 'no header search shortcut on ${destination.label}',
       );
     }
 
@@ -290,8 +274,14 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('nav_attendance')));
     await _pumpFrames(tester);
+    // Both named entries on the Attendance screen open their own screen, and
+    // both are on the screen rather than behind a header icon.
     await tester.tap(find.byKey(const Key('open_attendance_planner')));
     await _pumpUntilPath(tester, router, RoutePaths.attendancePlanner);
+    await tester.tap(find.byKey(const Key('nav_attendance')));
+    await _pumpUntilPath(tester, router, RoutePaths.attendance);
+    await tester.tap(find.byKey(const Key('open_attendance_analytics')));
+    await _pumpUntilPath(tester, router, RoutePaths.attendanceAnalytics);
     await tester.tap(find.byKey(const Key('nav_attendance')));
     await _pumpUntilPath(tester, router, RoutePaths.attendance);
 
@@ -335,10 +325,9 @@ void main() {
     expect(find.byKey(ValueKey('notes_subject_$subjectId')), findsOneWidget);
     expect(find.text('Responsive Design Systems'), findsOneWidget);
 
-    // The shortcut from Home lands on the same unscoped search screen.
-    await tester.tap(find.byKey(const Key('nav_home')));
-    await _pumpFrames(tester);
-    await tester.tap(find.byKey(const Key('open_notes_search_button')));
+    // The tab's own search field opens the unscoped search screen; with the
+    // header shortcut gone it is the one way in.
+    await tester.tap(find.byKey(const Key('notes_search_entry')));
     await _pumpFrames(tester);
     expect(find.text('Search PDFs'), findsOneWidget);
     // Search lives under the Notes branch, so the bar stays available.

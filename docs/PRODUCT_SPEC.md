@@ -30,7 +30,7 @@ The v1 user is the device owner. There are no shared colleges, faculty portals, 
 - Exams and recorded marks
 - Locally scheduled reminders
 - Light, dark, and system theme modes
-- Full export, share, import, validation, and restore
+- Full export, share, import, validation, and restore, optionally carrying the uploaded files
 
 ### Explicitly out of scope
 
@@ -39,7 +39,6 @@ The v1 user is the device owner. There are no shared colleges, faculty portals, 
 - Analytics, crash trackers, telemetry, ads, or growth SDKs
 - Faculty/student portals, collaboration, messaging, fee payments, or LMS integrations
 - Automatic attendance imported from an institution
-- Attachments in v1; the backup layout reserves room for them later
 - iOS and desktop release work; the architecture must not prevent later ports
 
 ## 4. First-time setup
@@ -102,6 +101,8 @@ The monthly calendar derives semantic day states (present, absent, partial, part
 Default holidays are rules rather than stored dates, so a college's weekly off day and its national holidays need no yearly upkeep: Sundays, second Saturdays, and the fixed national holidays (26 January, 15 August, 2 October) are excluded automatically while enabled in the Calendar screen, and switching one off restores the classes on those dates without touching any mark. A single date still wins over a rule, which is how a working Sunday or a second Saturday with classes is expressed.
 
 Subject percentages remain class-based: `present / (present + absent)`. Unmarked, cancelled, holiday, and college-closed classes never count. Legacy session/day tables remain stored only so existing installations and old backups do not lose data; schema-v6 migration converts only records whose relationships can be inferred safely.
+
+The destination leads with its two tools as named entries — **Attendance Planner** and **Attendance Analytics** — so both are found by name instead of through a header icon. The planner and the analytics screen remain read-only projections of the same linked class records, and both stay reachable while the semester is loading or absent, because Analytics reports across every semester rather than only the active one.
 
 ### 6.5 Weekly timetable
 

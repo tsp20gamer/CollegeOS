@@ -11,9 +11,12 @@ import 'package:college_os/features/attendance/presentation/widgets/attendance_s
 import 'package:college_os/features/semesters/domain/semester_repository.dart';
 import 'package:college_os/features/subjects/application/subject_providers.dart';
 import 'package:college_os/shared/widgets/app_scaffold.dart';
+import 'package:college_os/shared/widgets/entrance.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
+import 'package:college_os/shared/widgets/icon_pop.dart';
 import 'package:college_os/shared/widgets/loading_state.dart';
 import 'package:college_os/shared/widgets/premium_surface.dart';
+import 'package:college_os/shared/widgets/press_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,74 +54,49 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       title: 'Attendance',
       subtitle: 'One timetable, two synchronized views.',
       showSettingsAction: true,
-      actions: [
-        IconButton(
-          key: const Key('open_attendance_planner'),
-          tooltip: 'Attendance planner',
-          onPressed: () => context.push(RoutePaths.attendancePlanner),
-          icon: const Icon(Icons.calculate_outlined),
-        ),
-        Tooltip(
-          message: 'Attendance analytics',
-          child: TextButton.icon(
-            key: const Key('open_attendance_analytics'),
-            style: TextButton.styleFrom(
-              minimumSize: const Size(0, 40),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              backgroundColor: Theme.of(
-                context,
-              ).colorScheme.primaryContainer.withValues(alpha: .55),
-              foregroundColor: Theme.of(context).colorScheme.primary,
-              side: BorderSide(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: .20),
-              ),
-            ),
-            onPressed: () => context.push(RoutePaths.attendanceAnalytics),
-            icon: const Icon(Icons.analytics_outlined, size: 18),
-            label: const Text(
-              'Analytics',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-        ),
-      ],
-      child: semester.when(
-        loading: () => const LoadingState(label: 'Loading semester'),
-        error: (error, _) => ErrorState(
-          title: 'Could not load semester',
-          message: error.toString(),
-          onRetry: () => ref.invalidate(activeSemesterProvider),
-        ),
-        data: (value) {
-          if (value == null) {
-            return const _MessageCard(
-              icon: Icons.calendar_today_outlined,
-              title: 'No active semester',
-              message: 'Set an active semester in Settings to use attendance.',
-            );
-          }
-          return snapshot.when(
-            loading: () => const LoadingState(label: 'Building attendance'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // The two tools lead the screen by name instead of hiding behind a
+          // header icon, and they stay reachable while the semester loads or is
+          // missing, exactly as the header actions they replaced were.
+          const _AttendanceTools(),
+          const SizedBox(height: AppSpacing.md),
+          semester.when(
+            loading: () => const LoadingState(label: 'Loading semester'),
             error: (error, _) => ErrorState(
-              title: 'Could not load attendance',
+              title: 'Could not load semester',
               message: error.toString(),
-              onRetry: () => ref.invalidate(attendanceEngineProvider),
+              onRetry: () => ref.invalidate(activeSemesterProvider),
             ),
-            data: (data) => data == null
-                ? const SizedBox.shrink()
-                : _content(
-                    value,
-                    data,
-                    subjectResults.value ?? const [],
-                    pendingAttendance.value ?? 0,
-                  ),
-          );
-        },
+            data: (value) {
+              if (value == null) {
+                return const _MessageCard(
+                  icon: Icons.calendar_today_outlined,
+                  title: 'No active semester',
+                  message:
+                      'Set an active semester in Settings to use attendance.',
+                );
+              }
+              return snapshot.when(
+                loading: () => const LoadingState(label: 'Building attendance'),
+                error: (error, _) => ErrorState(
+                  title: 'Could not load attendance',
+                  message: error.toString(),
+                  onRetry: () => ref.invalidate(attendanceEngineProvider),
+                ),
+                data: (data) => data == null
+                    ? const SizedBox.shrink()
+                    : _content(
+                        value,
+                        data,
+                        subjectResults.value ?? const [],
+                        pendingAttendance.value ?? 0,
+                      ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -147,76 +125,85 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SegmentedButton<_AttendanceMode>(
-          key: const Key('attendance_mode_toggle'),
-          segments: const <ButtonSegment<_AttendanceMode>>[
-            ButtonSegment(
-              value: _AttendanceMode.calendar,
-              icon: Icon(Icons.calendar_month_rounded),
-              label: Text('Day View'),
-            ),
-            ButtonSegment(
-              value: _AttendanceMode.classes,
-              icon: Icon(Icons.view_agenda_outlined),
-              label: Text('Subject View'),
-            ),
-          ],
-          selected: {_mode},
-          showSelectedIcon: false,
-          onSelectionChanged: (value) => setState(() => _mode = value.single),
+        Entrance(
+          index: 0,
+          child: SegmentedButton<_AttendanceMode>(
+            key: const Key('attendance_mode_toggle'),
+            segments: const <ButtonSegment<_AttendanceMode>>[
+              ButtonSegment(
+                value: _AttendanceMode.calendar,
+                icon: Icon(Icons.calendar_month_rounded),
+                label: Text('Day View'),
+              ),
+              ButtonSegment(
+                value: _AttendanceMode.classes,
+                icon: Icon(Icons.view_agenda_outlined),
+                label: Text('Subject View'),
+              ),
+            ],
+            selected: {_mode},
+            showSelectedIcon: false,
+            onSelectionChanged: (value) => setState(() => _mode = value.single),
+          ),
         ),
         if (pending > 0) ...[
           const SizedBox(height: AppSpacing.md),
-          _PendingCard(
-            count: pending,
-            onReview: () => context.push(RoutePaths.pendingAttendance),
+          Entrance(
+            index: 1,
+            child: _PendingCard(
+              count: pending,
+              onReview: () => context.push(RoutePaths.pendingAttendance),
+            ),
           ),
         ],
         if (subjects.any((item) => item.metrics.hasClasses)) ...[
           const SizedBox(height: AppSpacing.md),
-          _RiskForecastCard(subjects: subjects),
+          Entrance(index: 2, child: _RiskForecastCard(subjects: subjects)),
         ],
         const SizedBox(height: AppSpacing.lg),
-        AnimatedSwitcher(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 220),
-          child: _mode == _AttendanceMode.calendar
-              ? _CalendarMode(
-                  key: const ValueKey('calendar'),
-                  visibleMonth: _visibleMonth,
-                  selectedDate: _selectedDate,
-                  snapshot: snapshot,
-                  semester: semester,
-                  onMonthChanged: (month) =>
-                      setState(() => _visibleMonth = month),
-                  onDateSelected: (date) => setState(() {
-                    _selectedDate = date;
-                    // A tap can land on a neighbouring month's date, which is
-                    // only shown to keep the grid complete; follow it.
-                    if (date.year != _visibleMonth.year ||
-                        date.month != _visibleMonth.month) {
-                      _visibleMonth = DateTime(date.year, date.month);
-                    }
-                  }),
-                  day: day,
-                  onMarkDay: (status) => _markWholeDay(day, semester, status),
-                  onHoliday: () => _toggleHoliday(day, semester),
-                  onWorkingDay: () => _markWorkingDay(day, semester),
-                  onSession: (session, status) =>
-                      _markSession(session, semester, status),
-                )
-              : _ClassesMode(
-                  key: const ValueKey('classes'),
-                  day: day,
-                  semester: semester,
-                  subjects: subjects,
-                  onDateChanged: _changeDate,
-                  onPickDate: () => _pickDate(semester),
-                  onMarkDay: (status) => _markWholeDay(day, semester, status),
-                  onSession: (session, status) =>
-                      _markSession(session, semester, status),
-                ),
+        Entrance(
+          index: 3,
+          child: AnimatedSwitcher(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 220),
+            child: _mode == _AttendanceMode.calendar
+                ? _CalendarMode(
+                    key: const ValueKey('calendar'),
+                    visibleMonth: _visibleMonth,
+                    selectedDate: _selectedDate,
+                    snapshot: snapshot,
+                    semester: semester,
+                    onMonthChanged: (month) =>
+                        setState(() => _visibleMonth = month),
+                    onDateSelected: (date) => setState(() {
+                      _selectedDate = date;
+                      // A tap can land on a neighbouring month's date, which is
+                      // only shown to keep the grid complete; follow it.
+                      if (date.year != _visibleMonth.year ||
+                          date.month != _visibleMonth.month) {
+                        _visibleMonth = DateTime(date.year, date.month);
+                      }
+                    }),
+                    day: day,
+                    onMarkDay: (status) => _markWholeDay(day, semester, status),
+                    onHoliday: () => _toggleHoliday(day, semester),
+                    onWorkingDay: () => _markWorkingDay(day, semester),
+                    onSession: (session, status) =>
+                        _markSession(session, semester, status),
+                  )
+                : _ClassesMode(
+                    key: const ValueKey('classes'),
+                    day: day,
+                    semester: semester,
+                    subjects: subjects,
+                    onDateChanged: _changeDate,
+                    onPickDate: () => _pickDate(semester),
+                    onMarkDay: (status) => _markWholeDay(day, semester, status),
+                    onSession: (session, status) =>
+                        _markSession(session, semester, status),
+                  ),
+          ),
         ),
       ],
     );
@@ -315,6 +302,168 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+/// The two doors into the attendance tools, as large named entries.
+///
+/// The planner and analytics used to be a header icon and a pill whose short
+/// label said nothing about what they contained. Leading the body instead, each
+/// one carries its own full name, a line of purpose and a tap target the size of
+/// a card, so a student who has never opened them can see that they exist.
+class _AttendanceTools extends StatelessWidget {
+  const _AttendanceTools();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Both names fit on two lines beside each other on a normal phone. A
+        // compact phone or a large text scale stacks them full width instead,
+        // where the tile turns horizontal and the pair stays one thumb tall.
+        // The threshold is the screen's own width: the constraint here is the
+        // page's content box, which is already narrower than the phone.
+        final stacked =
+            MediaQuery.sizeOf(context).width <= AppLayout.compactPhone ||
+            MediaQuery.textScalerOf(context).scale(14) > 18;
+        Widget tile({
+          required Key key,
+          required IconData icon,
+          required String title,
+          required String purpose,
+          required VoidCallback onTap,
+        }) => _AttendanceToolTile(
+          key: key,
+          icon: icon,
+          title: title,
+          purpose: purpose,
+          horizontal: stacked,
+          onTap: onTap,
+        );
+        final planner = tile(
+          key: const Key('open_attendance_planner'),
+          icon: Icons.calculate_outlined,
+          title: 'Attendance Planner',
+          purpose: 'See what a missed class costs',
+          onTap: () => context.push(RoutePaths.attendancePlanner),
+        );
+        final analytics = tile(
+          key: const Key('open_attendance_analytics'),
+          icon: Icons.analytics_outlined,
+          title: 'Attendance Analytics',
+          purpose: 'Trends, streaks and reports',
+          onTap: () => context.push(RoutePaths.attendanceAnalytics),
+        );
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              planner,
+              const SizedBox(height: AppSpacing.sm),
+              analytics,
+            ],
+          );
+        }
+        // Equal heights keep the two names on one baseline even when one of
+        // them wraps to a line the other does not.
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: planner),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: analytics),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// One named entry into an attendance tool.
+class _AttendanceToolTile extends StatelessWidget {
+  const _AttendanceToolTile({
+    required this.icon,
+    required this.title,
+    required this.purpose,
+    required this.onTap,
+    this.horizontal = false,
+    super.key,
+  });
+
+  final IconData icon;
+  final String title;
+  final String purpose;
+  final VoidCallback onTap;
+
+  /// Puts the coin and the chevron beside the text instead of above it.
+  final bool horizontal;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final coin = Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: colors.primaryContainer.withValues(alpha: .65),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Icon(icon, size: AppIconSize.sm, color: colors.primary),
+    );
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxxs),
+        Text(
+          purpose,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+    final chevron = Icon(
+      Icons.chevron_right_rounded,
+      size: AppIconSize.sm,
+      color: colors.onSurfaceVariant,
+    );
+    return PremiumSurface(
+      onTap: onTap,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: horizontal
+          ? Row(
+              children: [
+                coin,
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: text),
+                const SizedBox(width: AppSpacing.xs),
+                chevron,
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(children: [coin, const Spacer(), chevron]),
+                const SizedBox(height: AppSpacing.sm),
+                text,
+              ],
+            ),
+    );
   }
 }
 
@@ -668,6 +817,12 @@ class _MonthCalendar extends StatelessWidget {
             key: const Key('attendance_month_grid'),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            // A scroll view with no explicit padding inherits the ambient
+            // MediaQuery padding, and the card sits under a SafeArea that only
+            // consumes the top inset. The system navigation bar inset would
+            // then be added below the last week, leaving an empty band inside
+            // the calendar. The card sizes itself from its content only.
+            padding: EdgeInsets.zero,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
               mainAxisExtent: AppLayout.compactCalendarDayExtent,
@@ -1135,7 +1290,9 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) => FilterChip(
     selected: selected,
     showCheckmark: false,
-    avatar: Icon(icon, size: 17),
+    // Choosing a mark pops the mark itself, the way the dock pops the icon
+    // being chosen instead of the whole destination.
+    avatar: IconPop(trigger: selected, child: Icon(icon, size: 17)),
     label: Text(label),
     onSelected: (_) => onSelected(),
   );
@@ -1157,10 +1314,13 @@ class _DateNavigator extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      IconButton(
-        tooltip: 'Previous day',
-        onPressed: onPrevious,
-        icon: const Icon(Icons.chevron_left_rounded),
+      PressScale(
+        pressedScale: .9,
+        child: IconButton(
+          tooltip: 'Previous day',
+          onPressed: onPrevious,
+          icon: const Icon(Icons.chevron_left_rounded),
+        ),
       ),
       Expanded(
         child: OutlinedButton.icon(
@@ -1169,10 +1329,13 @@ class _DateNavigator extends StatelessWidget {
           label: Text(DateFormat('EEEE, d MMM').format(date)),
         ),
       ),
-      IconButton(
-        tooltip: 'Next day',
-        onPressed: onNext,
-        icon: const Icon(Icons.chevron_right_rounded),
+      PressScale(
+        pressedScale: .9,
+        child: IconButton(
+          tooltip: 'Next day',
+          onPressed: onNext,
+          icon: const Icon(Icons.chevron_right_rounded),
+        ),
       ),
     ],
   );

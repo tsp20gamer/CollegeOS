@@ -1,9 +1,16 @@
-import 'package:flutter/animation.dart';
+import 'package:flutter/widgets.dart';
 
 abstract final class AppDurations {
   static const fast = Duration(milliseconds: 150);
   static const medium = Duration(milliseconds: 250);
   static const slow = Duration(milliseconds: 400);
+
+  /// Base duration of a screen's content settling in after it opens.
+  static const entrance = Duration(milliseconds: 320);
+
+  /// Delay added per stagger step, so a screen's sections settle in as a
+  /// short wave instead of fading as one block.
+  static const entranceStagger = Duration(milliseconds: 40);
 
   /// Duration of the dock icon's selection pop.
   ///
@@ -52,6 +59,39 @@ abstract final class AppMotion {
   /// How far the icon lifts during the pop, in logical pixels.
   static const dockIconLift = 2.5;
 
+  /// The dock's rise-and-settle pop as a scale animation driven by [parent].
+  ///
+  /// 1.0 → 1.10 → through 1.04 → back to 1.0: a small rise and settle, never a
+  /// bounce. [begin] lets an icon that is appearing start below its resting
+  /// size so it grows into place. The dock's chosen icon and every icon pop
+  /// elsewhere share this sequence, so one pop everywhere reads the same way.
+  static Animation<double> popScale(
+    Animation<double> parent, {
+    double begin = 1,
+  }) => TweenSequence<double>([
+    TweenSequenceItem(
+      tween: Tween<double>(
+        begin: begin,
+        end: dockIconPeakScale,
+      ).chain(CurveTween(curve: Curves.easeOutCubic)),
+      weight: 30,
+    ),
+    TweenSequenceItem(
+      tween: Tween<double>(
+        begin: dockIconPeakScale,
+        end: dockIconPopScale,
+      ).chain(CurveTween(curve: AppCurves.standard)),
+      weight: 35,
+    ),
+    TweenSequenceItem(
+      tween: Tween<double>(
+        begin: dockIconPopScale,
+        end: 1,
+      ).chain(CurveTween(curve: Curves.easeOutCubic)),
+      weight: 35,
+    ),
+  ]).animate(parent);
+
   /// Fraction of horizontal slide for page transition on tab switch.
   static const dockPageSlideFraction = .018;
 
@@ -60,4 +100,22 @@ abstract final class AppMotion {
 
   /// Fraction of horizontal travel for the timetable day content.
   static const dayContentSlide = 0.02;
+
+  /// How far a settling section rises while it fades in, in logical pixels.
+  static const entranceRise = 12.0;
+
+  /// Highest stagger step that still adds delay.
+  ///
+  /// Deep lists settle together past this point instead of starting their
+  /// tail late, so nothing on screen ever waits noticeably to appear.
+  static const entranceMaxStaggerSteps = 5;
+
+  /// Whether motion should be suppressed for accessibility.
+  ///
+  /// True when the platform asks to remove animations and when accessibility
+  /// navigation is on. Every animation the app adds checks this first and
+  /// shows its final frame immediately when it is set.
+  static bool reduceMotion(BuildContext context) =>
+      MediaQuery.disableAnimationsOf(context) ||
+      MediaQuery.accessibleNavigationOf(context);
 }

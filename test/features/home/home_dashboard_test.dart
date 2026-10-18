@@ -181,6 +181,18 @@ Future<int> _setup(AppDatabase database) async {
       defaultAttendanceTarget: 0.75,
     ),
   );
+  // This fixture schedules classes on today's own weekday, while the default
+  // holidays exclude Sundays, second Saturdays and the fixed national dates
+  // from the schedule. Turning the three rules off keeps the dashboard's
+  // today-on-the-timetable behaviour testable on whatever day the suite runs,
+  // without changing a single assertion about it.
+  await database.settingsDao.save(
+    const AppSettingsCompanion(
+      sundayOff: Value(false),
+      secondSaturdayOff: Value(false),
+      governmentHolidaysOff: Value(false),
+    ),
+  );
   return (await database.semestersDao.findActive())!.id;
 }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 
@@ -7,6 +8,10 @@ import 'package:flutter/physics.dart';
 /// Uses a [SpringSimulation] instead of a canned curve, so the release feels
 /// physically motivated rather than robotically timed. The press-down is still
 /// a fast ease-out so the visual response is immediate.
+///
+/// A pointer that slides more than a touch slop releases the press, so starting
+/// a scroll from a card or a chip never leaves that card held down while the
+/// finger drags: inside a scrollable that touch is a scroll, not a press.
 class PressScale extends StatefulWidget {
   const PressScale({required this.child, this.pressedScale = 0.96, super.key});
 
@@ -33,6 +38,10 @@ class _PressScaleState extends State<PressScale>
   static const _pressDuration = Duration(milliseconds: 80);
 
   bool _pressed = false;
+
+  /// Where the active pointer went down, so a finger that slides away can
+  /// release the press instead of holding the child down through a scroll.
+  Offset? _downPosition;
 
   @override
   void initState() {
@@ -88,13 +97,32 @@ class _PressScaleState extends State<PressScale>
     }
   }
 
+  void _handlePointerDown(PointerDownEvent event) {
+    _downPosition = event.position;
+    _setPressed(true);
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    final origin = _downPosition;
+    if (origin == null) return;
+    if ((event.position - origin).distance > kTouchSlop) {
+      _releasePress();
+    }
+  }
+
+  void _releasePress() {
+    _downPosition = null;
+    _setPressed(false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: (_) => _setPressed(true),
-      onPointerUp: (_) => _setPressed(false),
-      onPointerCancel: (_) => _setPressed(false),
+      onPointerDown: _handlePointerDown,
+      onPointerMove: _handlePointerMove,
+      onPointerUp: (_) => _releasePress(),
+      onPointerCancel: (_) => _releasePress(),
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {

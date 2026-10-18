@@ -12,6 +12,7 @@ import 'package:college_os/features/subjects/application/subject_providers.dart'
 import 'package:college_os/shared/widgets/empty_state.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
 import 'package:college_os/shared/widgets/loading_state.dart';
+import 'package:college_os/shared/widgets/press_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -27,11 +28,14 @@ class AcademicCalendarScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Academic Calendar')),
       floatingActionButton: semester == null
           ? null
-          : FloatingActionButton.extended(
-              key: const Key('add_calendar_event'),
-              onPressed: () => _showEditor(context, semester),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add date'),
+          : PressScale(
+              pressedScale: .95,
+              child: FloatingActionButton.extended(
+                key: const Key('add_calendar_event'),
+                onPressed: () => _showEditor(context, semester),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add date'),
+              ),
             ),
       body: SafeArea(
         bottom: false,

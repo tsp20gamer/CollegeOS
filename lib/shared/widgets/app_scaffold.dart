@@ -1,6 +1,8 @@
 import 'package:college_os/core/routing/route_names.dart';
 import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/core/theme/dimensions.dart';
+import 'package:college_os/shared/widgets/entrance.dart';
+import 'package:college_os/shared/widgets/press_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -11,10 +13,8 @@ class AppScaffold extends StatelessWidget {
     required this.child,
     this.actions = const [],
     this.autoLeading = true,
-    this.showSearchAction = false,
     this.showSettingsAction = false,
     this.onSettingsPressed,
-    this.onSearchPressed,
     super.key,
   });
 
@@ -38,34 +38,27 @@ class AppScaffold extends StatelessWidget {
   /// Overrides what the Settings action does. Defaults to pushing `/settings`.
   final VoidCallback? onSettingsPressed;
 
-  /// Adds the notes/PDF search action to the header, immediately before
-  /// Settings.
+  /// The header's right-hand controls: this screen's own actions, then
+  /// Settings, which stays far right so it does not move between tabs.
   ///
-  /// Search lives under the Notes branch, so this navigates there instead of
-  /// pushing a screen over the shell: the bottom bar stays available, exactly
-  /// as it did when this shortcut was a floating button above the bar.
-  final bool showSearchAction;
-
-  /// Overrides what the search action does.
-  final VoidCallback? onSearchPressed;
-
-  /// The header's right-hand controls: this screen's own actions, then search,
-  /// then Settings, which stays far right so it does not move between tabs.
+  /// Every action presses in with the app's press feedback, the same shrink
+  /// and spring the dock's icons use.
+  ///
+  /// Notes search is deliberately not a header action: searching the library
+  /// belongs to the Notes destination, whose search field is the one entry
+  /// point every tab already reaches in a single dock tap.
   List<Widget> trailingActions(BuildContext context) => [
-    ...actions,
-    if (showSearchAction)
-      IconButton(
-        key: const Key('open_notes_search_button'),
-        tooltip: 'Search notes',
-        onPressed: onSearchPressed ?? () => context.go(RoutePaths.notesSearch),
-        icon: const Icon(Icons.search_rounded),
-      ),
+    for (final action in actions) PressScale(pressedScale: .9, child: action),
     if (showSettingsAction)
-      IconButton(
-        key: const Key('open_settings_button'),
-        tooltip: 'Settings',
-        onPressed: onSettingsPressed ?? () => context.push(RoutePaths.settings),
-        icon: const Icon(Icons.settings_outlined),
+      PressScale(
+        pressedScale: .9,
+        child: IconButton(
+          key: const Key('open_settings_button'),
+          tooltip: 'Settings',
+          onPressed:
+              onSettingsPressed ?? () => context.push(RoutePaths.settings),
+          icon: const Icon(Icons.settings_outlined),
+        ),
       ),
   ];
 
@@ -174,7 +167,9 @@ class AppScaffold extends StatelessWidget {
                     constraints: const BoxConstraints(
                       maxWidth: AppLayout.contentMaxWidth,
                     ),
-                    child: child,
+                    // Every screen's content settles in under its header, so
+                    // opening a screen always reads as one continuous motion.
+                    child: Entrance(child: child),
                   ),
                 ),
               ),
@@ -190,6 +185,7 @@ class AppScaffold extends StatelessWidget {
 ///
 /// Screens presented with [AppScaffold] have no `AppBar`, so without this a
 /// pushed screen could only be left with the Android system back gesture.
+/// It presses in with the same feedback as the header's other icons.
 class AppBackButton extends StatelessWidget {
   const AppBackButton({this.onPressed, this.tooltip, super.key});
 
@@ -198,11 +194,14 @@ class AppBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      key: const Key('app_back_button'),
-      tooltip: tooltip ?? MaterialLocalizations.of(context).backButtonTooltip,
-      onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
-      icon: const Icon(Icons.arrow_back_rounded),
+    return PressScale(
+      pressedScale: .9,
+      child: IconButton(
+        key: const Key('app_back_button'),
+        tooltip: tooltip ?? MaterialLocalizations.of(context).backButtonTooltip,
+        onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
+        icon: const Icon(Icons.arrow_back_rounded),
+      ),
     );
   }
 }

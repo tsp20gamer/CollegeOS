@@ -81,7 +81,7 @@ void main() {
       expect(shadows, isEmpty);
     });
 
-    testWidgets('normal pages open quickly and close with a complete fade', (
+    testWidgets('pages fade and rise in, and fade back out when popped', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -105,25 +105,56 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
 
       expect(find.text('Destination'), findsOneWidget);
-      final optimizedTransition = find.byKey(
-        const Key('optimized_page_transition'),
-      );
-      expect(optimizedTransition, findsOneWidget);
-      expect(
-        tester.widget<Opacity>(optimizedTransition).opacity,
-        greaterThan(.82),
-      );
+      final openingTransition = find.byKey(const Key('app_page_transition'));
+      expect(openingTransition, findsOneWidget);
+      final openingOpacity = tester.widget<Opacity>(openingTransition).opacity;
+      // The page is on screen and mid-flight: visible, but not yet at rest.
+      expect(openingOpacity, greaterThan(0));
+      expect(openingOpacity, lessThan(1));
 
       await tester.pumpAndSettle();
+      expect(tester.widget<Opacity>(openingTransition).opacity, 1);
+
       Navigator.of(tester.element(find.text('Destination'))).pop();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
 
-      final closingTransition = find.byKey(
-        const Key('optimized_page_transition'),
-      );
+      final closingTransition = find.byKey(const Key('app_page_transition'));
       expect(closingTransition, findsOneWidget);
-      expect(tester.widget<Opacity>(closingTransition).opacity, lessThan(.82));
+      expect(tester.widget<Opacity>(closingTransition).opacity, lessThan(1));
+    });
+
+    testWidgets('reduced motion removes the page transition entirely', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const Scaffold(body: Text('Destination')),
+                ),
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      expect(find.text('Destination'), findsOneWidget);
+      expect(find.byKey(const Key('app_page_transition')), findsNothing);
     });
   });
 }

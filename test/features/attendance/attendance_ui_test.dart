@@ -1,5 +1,7 @@
 import 'package:college_os/core/database/database_enums.dart';
 import 'package:college_os/core/theme/app_theme.dart';
+import 'package:college_os/core/theme/dimensions.dart';
+import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/attendance/application/attendance_providers.dart';
 import 'package:college_os/features/attendance/domain/attendance_engine.dart';
 import 'package:college_os/features/attendance/presentation/screens/attendance_screen.dart';
@@ -143,6 +145,36 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
+
+  testWidgets('the month calendar never reserves the system bottom inset', (
+    tester,
+  ) async {
+    await _pumpCalendar(
+      tester,
+      systemPadding: const FakeViewPadding(top: 24, bottom: 96),
+    );
+
+    final calendar = tester.getRect(
+      find.byKey(const Key('attendance_month_calendar')),
+    );
+    final grid = find.byKey(const Key('attendance_month_grid'));
+    final gridRect = tester.getRect(grid);
+    final cells = find.descendant(of: grid, matching: find.byType(InkWell));
+    final lastCell = tester.getRect(cells.last);
+    final today = DateUtils.dateOnly(DateTime.now());
+    final leading = DateTime(today.year, today.month).weekday - 1;
+    final weekCount =
+        (leading + DateUtils.getDaysInMonth(today.year, today.month) + 6) ~/ 7;
+
+    expect(gridRect.height, weekCount * AppLayout.compactCalendarDayExtent);
+    expect(lastCell.bottom, gridRect.bottom);
+    // Only the card's own padding sits below the last week. The navigation-bar
+    // inset is not card content, so it must stay outside the calendar.
+    expect(calendar.bottom - gridRect.bottom, AppSpacing.sm);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
 }
 
 Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
@@ -150,4 +182,57 @@ Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
     await tester.pump(const Duration(milliseconds: 100));
   }
   expect(finder, findsWidgets);
+}
+
+/// The system navigation-bar inset must never become padding inside the
+/// month grid: the card would show an empty band under its last week.
+Future<void> _pumpCalendar(
+  WidgetTester tester, {
+  required FakeViewPadding systemPadding,
+}) async {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  tester.view.padding = systemPadding;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.view.resetPadding);
+  final now = DateUtils.dateOnly(DateTime.now());
+  final timestamp = now.toUtc();
+  const snapshot = AttendanceEngineSnapshot(
+    subjects: [],
+    timetable: [],
+    attendance: [],
+    overrides: [],
+  );
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        activeSemesterProvider.overrideWith(
+          (ref) => Stream.value((
+            id: 1,
+            name: 'Semester 1',
+            semesterNumber: 1,
+            academicYear: '${now.year}-${now.year + 1}',
+            startDate: DateTime(now.year, 1, 1),
+            endDate: DateTime(now.year, 12, 31),
+            isActive: true,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          )),
+        ),
+        attendanceEngineProvider.overrideWith((ref) => Stream.value(snapshot)),
+      ],
+      child: MaterialApp(
+        theme: AppTheme.dark,
+        home: const Scaffold(body: AttendanceScreen()),
+      ),
+    ),
+  );
+  await _pumpUntilFound(
+    tester,
+    find.byKey(const Key('attendance_month_calendar')),
+  );
+  // Let the screen's settle-in motion finish, so the geometry assertions
+  // below measure the layout at rest.
+  await tester.pump(const Duration(milliseconds: 600));
 }

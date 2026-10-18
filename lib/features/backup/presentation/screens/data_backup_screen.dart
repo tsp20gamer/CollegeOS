@@ -129,11 +129,15 @@ class _DataBackupScreenState extends ConsumerState<DataBackupScreen> {
     }
   }
 
-  Future<void> _export(BuildContext context, WidgetRef ref) async {
+  Future<void> _export(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool includeFiles,
+  }) async {
     try {
       final saved = await ref
           .read(backupControllerProvider.notifier)
-          .exportToFile();
+          .exportToFile(includeFiles: includeFiles);
       if (context.mounted && saved) {
         _message(context, 'Backup saved successfully.');
       }
@@ -143,18 +147,18 @@ class _DataBackupScreenState extends ConsumerState<DataBackupScreen> {
   }
 
   Future<void> _chooseExport(BuildContext context, WidgetRef ref) async {
-    final choice = await showModalBottomSheet<_ExportChoice>(
-      context: context,
-      useRootNavigator: true,
-      showDragHandle: true,
-      useSafeArea: true,
-      builder: (sheetContext) => const _ExportChoiceSheet(),
+    final choice = await _chooseBackupOption(
+      context,
+      title: 'Choose export',
+      includeAttendanceReport: true,
     );
     if (!context.mounted || choice == null) return;
     switch (choice) {
-      case _ExportChoice.fullBackup:
-        await _export(context, ref);
-      case _ExportChoice.attendanceCsv:
+      case _BackupExportChoice.dataOnly:
+        await _export(context, ref, includeFiles: false);
+      case _BackupExportChoice.withFiles:
+        await _export(context, ref, includeFiles: true);
+      case _BackupExportChoice.attendanceCsv:
         await _exportAttendance(context, ref);
     }
   }
@@ -175,12 +179,39 @@ class _DataBackupScreenState extends ConsumerState<DataBackupScreen> {
   }
 
   Future<void> _share(BuildContext context, WidgetRef ref) async {
+    final choice = await _chooseBackupOption(
+      context,
+      title: 'Share backup',
+      includeAttendanceReport: false,
+    );
+    if (!context.mounted ||
+        choice == null ||
+        choice == _BackupExportChoice.attendanceCsv) {
+      return;
+    }
     try {
-      await ref.read(backupControllerProvider.notifier).shareBackup();
+      await ref
+          .read(backupControllerProvider.notifier)
+          .shareBackup(includeFiles: choice == _BackupExportChoice.withFiles);
     } catch (error) {
       if (context.mounted) _error(context, error);
     }
   }
+
+  Future<_BackupExportChoice?> _chooseBackupOption(
+    BuildContext context, {
+    required String title,
+    required bool includeAttendanceReport,
+  }) => showModalBottomSheet<_BackupExportChoice>(
+    context: context,
+    useRootNavigator: true,
+    showDragHandle: true,
+    useSafeArea: true,
+    builder: (sheetContext) => _ExportChoiceSheet(
+      title: title,
+      includeAttendanceReport: includeAttendanceReport,
+    ),
+  );
 
   Future<void> _import(BuildContext context, WidgetRef ref) async {
     try {
@@ -224,7 +255,12 @@ class _DataBackupScreenState extends ConsumerState<DataBackupScreen> {
       useSafeArea: true,
       builder: (context) => _RestorePreview(backup: backup),
     );
-    if (restore != true || !context.mounted) return;
+    if (restore != true) {
+      if (!context.mounted) return;
+      await ref.read(backupControllerProvider.notifier).discardPrepared();
+      return;
+    }
+    if (!context.mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -233,9 +269,11 @@ class _DataBackupScreenState extends ConsumerState<DataBackupScreen> {
           color: Theme.of(dialogContext).colorScheme.error,
         ),
         title: const Text('Replace current data?'),
-        content: const Text(
-          'Existing CollegeOS data on this device will be replaced.\n\n'
-          'CollegeOS will first create a private emergency backup. If restore fails, your current data stays unchanged.',
+        content: Text(
+          'Existing CollegeOS data on this device will be replaced.'
+          '${backup.hasAttachments ? '\n\nUploaded files will also be replaced by the ones in this backup.' : ''}'
+          '\n\nCollegeOS will first create a private emergency backup. '
+          'If restore fails, your current data stays unchanged.',
         ),
         actions: [
           TextButton(
@@ -251,8 +289,8 @@ class _DataBackupScreenState extends ConsumerState<DataBackupScreen> {
       ),
     );
     if (confirmed != true || !context.mounted) return;
+    final controller = ref.read(backupControllerProvider.notifier);
     try {
-      final controller = ref.read(backupControllerProvider.notifier);
       if (recovery) {
         await controller.restoreRecovery(backup);
       } else {
@@ -260,6 +298,7 @@ class _DataBackupScreenState extends ConsumerState<DataBackupScreen> {
       }
     } catch (error) {
       if (context.mounted) _error(context, error);
+      await controller.discardPrepared();
       return;
     }
     if (!context.mounted) return;
@@ -268,63 +307,103 @@ class _DataBackupScreenState extends ConsumerState<DataBackupScreen> {
   }
 }
 
-enum _ExportChoice { fullBackup, attendanceCsv }
+enum _BackupExportChoice { dataOnly, withFiles, attendanceCsv }
 
-class _ExportChoiceSheet extends StatelessWidget {
-  const _ExportChoiceSheet();
+class _ExportChoiceSheet extends ConsumerWidget {
+  const _ExportChoiceSheet({
+    required this.title,
+    required this.includeAttendanceReport,
+  });
+
+  final String title;
+  final bool includeAttendanceReport;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      AppSpacing.lg,
-      AppSpacing.xs,
-      AppSpacing.lg,
-      AppSpacing.xl,
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('Choose export', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'A full backup already includes attendance and every other CollegeOS record.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final files = ref.watch(backupAttachmentSummaryProvider).value;
+    final hasFiles = files != null && files.count > 0;
+    final String filesSubtitle;
+    if (files == null) {
+      filesSubtitle = 'Carries every uploaded PDF and slide file as well.';
+    } else if (files.count == 0) {
+      filesSubtitle = 'You have not uploaded any files yet.';
+    } else if (files.bytes > maxBackupAttachmentTotalBytes) {
+      filesSubtitle =
+          '${files.count} files · ${_formatBytes(files.bytes)} — above the '
+          '${_formatBytes(maxBackupAttachmentTotalBytes)} backup limit.';
+    } else {
+      filesSubtitle =
+          '${files.count} files · ${_formatBytes(files.bytes)} — includes '
+          'your uploaded PDFs and slides.';
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.xs,
+        AppSpacing.lg,
+        AppSpacing.xl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'A full backup already includes attendance and every other CollegeOS record.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                key: const Key('export_full_backup'),
-                leading: const Icon(Icons.inventory_2_outlined),
-                title: const Text('Full CollegeOS Backup'),
-                subtitle: const Text(
-                  'Portable .collegeos file for restoring everything.',
+          const SizedBox(height: AppSpacing.md),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  key: const Key('export_full_backup'),
+                  leading: const Icon(Icons.inventory_2_outlined),
+                  title: const Text('Full CollegeOS Backup'),
+                  subtitle: const Text(
+                    'Portable .collegeos file for restoring everything.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () =>
+                      Navigator.pop(context, _BackupExportChoice.dataOnly),
                 ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.pop(context, _ExportChoice.fullBackup),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                key: const Key('export_attendance_report'),
-                leading: const Icon(Icons.table_view_outlined),
-                title: const Text('Attendance CSV'),
-                subtitle: const Text(
-                  'Readable class attendance for spreadsheet apps.',
+                const Divider(height: 1),
+                ListTile(
+                  key: const Key('export_full_backup_with_files'),
+                  enabled: hasFiles,
+                  leading: const Icon(Icons.folder_special_outlined),
+                  title: const Text('Full Backup + Files'),
+                  subtitle: Text(filesSubtitle),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () =>
+                      Navigator.pop(context, _BackupExportChoice.withFiles),
                 ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () =>
-                    Navigator.pop(context, _ExportChoice.attendanceCsv),
-              ),
-            ],
+                if (includeAttendanceReport) ...[
+                  const Divider(height: 1),
+                  ListTile(
+                    key: const Key('export_attendance_report'),
+                    leading: const Icon(Icons.table_view_outlined),
+                    title: const Text('Attendance CSV'),
+                    subtitle: const Text(
+                      'Readable class attendance for spreadsheet apps.',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.pop(
+                      context,
+                      _BackupExportChoice.attendanceCsv,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _AutomaticRecoverySection extends ConsumerWidget {
@@ -393,7 +472,7 @@ class _AutomaticRecoverySection extends ConsumerWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'Local backups remain on this phone. Export a backup to protect your data when changing devices.',
+                  'Local backups remain on this phone. Export a backup to protect your data when changing devices. Automatic snapshots keep your records; uploaded files travel only in a backup you export.',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onTertiaryContainer,
                     fontWeight: FontWeight.w600,
@@ -743,6 +822,13 @@ class _RestorePreview extends StatelessWidget {
           ),
           _PreviewLine(label: 'Tasks', value: '${counts.tasks}'),
           _PreviewLine(label: 'Exams', value: '${counts.exams}'),
+          if (manifest.attachments.isNotEmpty)
+            _PreviewLine(
+              label: 'Uploaded files',
+              value:
+                  '${manifest.attachments.length} · '
+                  '${_formatBytes(manifest.totalAttachmentBytes)}',
+            ),
           const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -810,6 +896,20 @@ class _PreviewLine extends StatelessWidget {
 
 void _message(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
+String _formatBytes(int bytes) {
+  const kilobyte = 1024;
+  const megabyte = 1024 * 1024;
+  if (bytes >= megabyte) {
+    final value = bytes / megabyte;
+    return '${value.toStringAsFixed(value >= 100 ? 0 : 1)} MB';
+  }
+  if (bytes >= kilobyte) {
+    final value = bytes / kilobyte;
+    return '${value.toStringAsFixed(value >= 100 ? 0 : 1)} KB';
+  }
+  return '$bytes B';
 }
 
 void _error(BuildContext context, Object error) {

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/features/backup/data/backup_archive_codec.dart';
+import 'package:college_os/features/backup/data/backup_attachment_reader.dart';
 import 'package:college_os/features/backup/data/backup_database_store.dart';
 import 'package:college_os/features/backup/data/backup_file_gateway.dart';
 import 'package:college_os/features/backup/data/backup_service.dart';
@@ -30,6 +31,30 @@ final backupFileGatewayProvider = Provider<BackupFileGateway>(
   (ref) => const AndroidBackupFileGateway(),
 );
 
+final backupAttachmentReaderProvider = Provider<BackupAttachmentReader>(
+  (ref) => LocalBackupAttachmentReader(),
+);
+
+typedef BackupAttachmentSummary = ({int count, int bytes});
+
+/// Sizes of the uploaded files a full backup would carry, taken from the
+/// files that actually exist on disk.
+final backupAttachmentSummaryProvider = StreamProvider<BackupAttachmentSummary>(
+  (ref) {
+    final reader = ref.watch(backupAttachmentReaderProvider);
+    return ref.watch(appDatabaseProvider).subjectFilesDao.watchAll().asyncMap((
+      rows,
+    ) async {
+      final resolved = await reader.resolve(rows);
+      var bytes = 0;
+      for (final attachment in resolved) {
+        bytes += attachment.bytes;
+      }
+      return (count: resolved.length, bytes: bytes);
+    });
+  },
+);
+
 typedef IncomingBackupLoader = Future<List<int>> Function(String path);
 typedef IncomingBackupCleanup = Future<void> Function(String path);
 
@@ -50,6 +75,7 @@ final backupServiceProvider = Provider<CollegeOsBackupService>(
     ref.watch(backupDatabaseStoreProvider),
     ref.watch(backupCodecProvider),
     ref.watch(emergencyBackupStoreProvider),
+    attachmentReader: ref.watch(backupAttachmentReaderProvider),
   ),
 );
 
@@ -100,13 +126,26 @@ final class BackupController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<bool> exportToFile() => _run(() async {
-    final backup = await _create();
-    return ref.read(backupFileGatewayProvider).save(backup);
+  /// Writes a backup and opens the platform save dialog.
+  ///
+  /// With [includeFiles] the uploaded subject files travel inside the
+  /// archive; the temporary archive is deleted once it has been saved.
+  Future<bool> exportToFile({bool includeFiles = false}) => _run(() async {
+    final backup = await _create(includeFiles: includeFiles);
+    try {
+      return await ref.read(backupFileGatewayProvider).save(backup);
+    } finally {
+      await ref.read(backupServiceProvider).discardExport(backup);
+    }
   });
 
-  Future<void> shareBackup() => _run(() async {
-    final backup = await _create();
+  /// Shares a backup through the platform share sheet.
+  ///
+  /// A file-backed share keeps its scratch archive: the receiving app may
+  /// read it after the share sheet closes. It is removed on the next export
+  /// or on the next launch.
+  Future<void> shareBackup({bool includeFiles = false}) => _run(() async {
+    final backup = await _create(includeFiles: includeFiles);
     await ref.read(backupFileGatewayProvider).share(backup);
   });
 
@@ -157,6 +196,16 @@ final class BackupController extends AsyncNotifier<void> {
     ref.invalidate(recoveryBackupsProvider);
   });
 
+  /// Throws away attachments staged by an inspect the student did not
+  /// restore. Best-effort: the next inspect or launch cleans up anyway.
+  Future<void> discardPrepared() async {
+    try {
+      await ref.read(backupServiceProvider).discardStaging();
+    } catch (_) {
+      // Stale staging never blocks the student.
+    }
+  }
+
   Future<void> _tryReconcileNotifications() async {
     try {
       await ref.read(notificationCoordinatorProvider).reconcile();
@@ -165,9 +214,11 @@ final class BackupController extends AsyncNotifier<void> {
     }
   }
 
-  Future<ExportedBackup> _create() async {
+  Future<ExportedBackup> _create({bool includeFiles = false}) async {
     final version = await ref.read(appVersionProvider.future);
-    return ref.read(backupServiceProvider).create(version);
+    return ref
+        .read(backupServiceProvider)
+        .create(version, includeFiles: includeFiles);
   }
 
   Future<T> _run<T>(Future<T> Function() action) async {

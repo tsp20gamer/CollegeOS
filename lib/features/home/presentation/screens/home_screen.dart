@@ -19,9 +19,11 @@ import 'package:college_os/features/timetable/application/timetable_providers.da
 import 'package:college_os/features/timetable/domain/timetable_services.dart';
 import 'package:college_os/shared/widgets/app_scaffold.dart';
 import 'package:college_os/shared/widgets/empty_state.dart';
+import 'package:college_os/shared/widgets/entrance.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
 import 'package:college_os/shared/widgets/loading_state.dart';
 import 'package:college_os/shared/widgets/premium_surface.dart';
+import 'package:college_os/shared/widgets/press_scale.dart';
 import 'package:college_os/shared/widgets/status_badge.dart';
 import 'package:college_os/shared/widgets/gradient_progress.dart';
 import 'package:college_os/shared/widgets/section_header.dart';
@@ -69,7 +71,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return AppScaffold(
       title: _greeting(now, settings.value?.studentName),
       subtitle: DateFormat('EEEE, d MMMM').format(now),
-      showSearchAction: true,
       showSettingsAction: true,
       child: Column(
         key: const Key('home_dashboard_ready'),
@@ -92,75 +93,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // The day's main event, on the roomiest surface of the page. Its
             // own status badge says what it is, so no section header competes
             // with it.
-            _AsyncSection<NextClassResult>(
-              value: next,
-              loadingLabel: 'Finding your next class',
-              builder: (result) => _NextClassCard(
-                result: result,
-                now: now,
-                attendanceDay: todayAttendance.value,
+            Entrance(
+              index: 0,
+              child: _AsyncSection<NextClassResult>(
+                value: next,
+                loadingLabel: 'Finding your next class',
+                builder: (result) => _NextClassCard(
+                  result: result,
+                  now: now,
+                  attendanceDay: todayAttendance.value,
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            SectionHeader(
-              title: "Today's classes",
-              icon: Icons.view_agenda_outlined,
-              accent: features.timetable.accent,
-              action: TextButton(
-                onPressed: () => context.go(RoutePaths.timetable),
-                child: const Text('Full timetable'),
+            Entrance(
+              index: 1,
+              child: SectionHeader(
+                title: "Today's classes",
+                icon: Icons.view_agenda_outlined,
+                accent: features.timetable.accent,
+                action: TextButton(
+                  onPressed: () => context.go(RoutePaths.timetable),
+                  child: const Text('Full timetable'),
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            _TodaySchedule(
-              day: todayAttendance,
-              semesterId: semester.value!.id,
+            Entrance(
+              index: 2,
+              child: _TodaySchedule(
+                day: todayAttendance,
+                semesterId: semester.value!.id,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            const SectionHeader(
-              title: 'Quick actions',
-              icon: Icons.bolt_rounded,
-              variant: SectionHeaderVariant.secondary,
+            const Entrance(
+              index: 3,
+              child: SectionHeader(
+                title: 'Quick actions',
+                icon: Icons.bolt_rounded,
+                variant: SectionHeaderVariant.secondary,
+              ),
             ),
             const SizedBox(height: AppSpacing.xs),
-            const _QuickActions(),
+            const Entrance(index: 4, child: _QuickActions()),
             const SizedBox(height: AppSpacing.lg),
-            const SectionHeader(
-              title: 'Upcoming',
-              icon: Icons.upcoming_rounded,
-              variant: SectionHeaderVariant.secondary,
+            const Entrance(
+              index: 5,
+              child: SectionHeader(
+                title: 'Upcoming',
+                icon: Icons.upcoming_rounded,
+                variant: SectionHeaderVariant.secondary,
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            _UpcomingSection(
-              tasks: tasks,
-              exams: exams,
-              subjects: subjects.value ?? const [],
-              today: now,
+            Entrance(
+              index: 6,
+              child: _UpcomingSection(
+                tasks: tasks,
+                exams: exams,
+                subjects: subjects.value ?? const [],
+                today: now,
+              ),
             ),
             // Supporting detail: the numbers behind the day, kept one step
             // quieter than the schedule the student acts on.
             const SizedBox(height: AppSpacing.xl),
-            SectionHeader(
-              title: 'Overall attendance',
-              icon: Icons.insights_rounded,
-              accent: features.attendance.accent,
-              variant: SectionHeaderVariant.secondary,
-              action: TextButton(
-                onPressed: () => context.go(RoutePaths.attendance),
-                child: const Text('View details'),
+            Entrance(
+              index: 7,
+              child: SectionHeader(
+                title: 'Overall attendance',
+                icon: Icons.insights_rounded,
+                accent: features.attendance.accent,
+                variant: SectionHeaderVariant.secondary,
+                action: TextButton(
+                  onPressed: () => context.go(RoutePaths.attendance),
+                  child: const Text('View details'),
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            _AsyncSection<List<SubjectAttendanceResult>>(
-              value: attendance,
-              loadingLabel: 'Calculating attendance',
-              builder: (items) => _AttendanceOverview(
-                subjects: items,
-                pending: pending.value ?? 0,
+            Entrance(
+              index: 8,
+              child: _AsyncSection<List<SubjectAttendanceResult>>(
+                value: attendance,
+                loadingLabel: 'Calculating attendance',
+                builder: (items) => _AttendanceOverview(
+                  subjects: items,
+                  pending: pending.value ?? 0,
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            const WeeklyAttendanceCard(),
+            const Entrance(index: 9, child: WeeklyAttendanceCard()),
           ],
         ],
       ),
@@ -1032,29 +1057,32 @@ class _QuickActionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return Material(
-      color: colors.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: colors.primary),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                label,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+    return PressScale(
+      pressedScale: .95,
+      child: Material(
+        color: colors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 18, color: colors.primary),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

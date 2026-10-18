@@ -114,8 +114,8 @@ void main() {
           // ── Home: compact header, hero, one surface for the day ───────────
           expect(
             find.byKey(const Key('open_notes_search_button')),
-            findsOneWidget,
-            reason: 'search lives in the Home header',
+            findsNothing,
+            reason: 'Home leaves search to the Notes destination',
           );
           expect(find.byKey(const Key('open_settings_button')), findsOneWidget);
           expect(
@@ -160,8 +160,8 @@ void main() {
           );
           expect(
             find.byKey(const Key('open_notes_search_button')),
-            findsOneWidget,
-            reason: 'Tasks kept its search entry when the FAB was removed',
+            findsNothing,
+            reason: 'no tab header carries a second control beside Settings',
           );
           _expectNoLayoutFailure(tester, 'Tasks in $label mode');
 
@@ -182,6 +182,14 @@ void main() {
             findsNothing,
             reason: 'Notes carries the search field itself',
           );
+          // The library card counts what the list below it holds, and a subject
+          // card names its own material: code and room beside its counts, with
+          // the monogram taken from the code.
+          await _pumpUntilFound(tester, find.textContaining('0 files'));
+          expect(find.byKey(const Key('notes_library_stats')), findsOneWidget);
+          expect(find.text('RD'), findsOneWidget);
+          expect(find.textContaining('RDS'), findsOneWidget);
+          expect(find.text('PDFs 0'), findsOneWidget);
           _expectNoLayoutFailure(tester, 'Notes in $label mode');
 
           // ── Attendance and Timetable ──────────────────────────────────────

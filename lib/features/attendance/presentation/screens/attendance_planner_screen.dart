@@ -14,6 +14,7 @@ import 'package:college_os/shared/widgets/empty_state.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
 import 'package:college_os/shared/widgets/gradient_progress.dart';
 import 'package:college_os/shared/widgets/loading_state.dart';
+import 'package:college_os/shared/widgets/press_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -788,10 +789,13 @@ class _CountControl extends StatelessWidget {
       Expanded(
         child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
-      IconButton.outlined(
-        tooltip: 'Decrease $label',
-        onPressed: value == 0 ? null : () => onChanged(value - 1),
-        icon: const Icon(Icons.remove_rounded),
+      PressScale(
+        pressedScale: .9,
+        child: IconButton.outlined(
+          tooltip: 'Decrease $label',
+          onPressed: value == 0 ? null : () => onChanged(value - 1),
+          icon: const Icon(Icons.remove_rounded),
+        ),
       ),
       Semantics(
         liveRegion: true,
@@ -807,11 +811,14 @@ class _CountControl extends StatelessWidget {
           ),
         ),
       ),
-      IconButton.filledTonal(
-        key: ValueKey('planner_increase_$label'),
-        tooltip: 'Increase $label',
-        onPressed: value >= 50 ? null : () => onChanged(value + 1),
-        icon: const Icon(Icons.add_rounded),
+      PressScale(
+        pressedScale: .9,
+        child: IconButton.filledTonal(
+          key: ValueKey('planner_increase_$label'),
+          tooltip: 'Increase $label',
+          onPressed: value >= 50 ? null : () => onChanged(value + 1),
+          icon: const Icon(Icons.add_rounded),
+        ),
       ),
     ],
   );

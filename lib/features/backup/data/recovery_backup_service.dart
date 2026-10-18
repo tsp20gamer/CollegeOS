@@ -39,7 +39,7 @@ final class RecoveryBackupService implements RecoveryBackupManager {
     for (final item in stored) {
       try {
         final bytes = await _store.read(item.id);
-        final prepared = _codec.decode(
+        final prepared = await _codec.decode(
           bytes: bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
           sourceName: item.fileName,
         );

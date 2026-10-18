@@ -1,5 +1,6 @@
 import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/spacing.dart';
+import 'package:college_os/shared/widgets/icon_pop.dart';
 import 'package:flutter/material.dart';
 
 /// How loud a section header is.
@@ -54,22 +55,29 @@ class SectionHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (icon case final icon?) ...[
-          Container(
-            width: isPrimary ? 34 : 24,
-            height: isPrimary ? 34 : 24,
-            decoration: BoxDecoration(
-              color: isPrimary
-                  ? Color.alphaBlend(
-                      tint.withValues(alpha: .16),
-                      colors.surface,
-                    )
-                  : tint.withValues(alpha: .12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              size: isPrimary ? AppIconSize.sm : 14,
-              color: tint,
+          // The coin pops in as its section arrives, the dock's own
+          // rise-and-settle — the icon a row is filed under should greet the
+          // row, not simply appear beside it.
+          IconPop(
+            popOnMount: true,
+            fromScale: .72,
+            child: Container(
+              width: isPrimary ? 34 : 24,
+              height: isPrimary ? 34 : 24,
+              decoration: BoxDecoration(
+                color: isPrimary
+                    ? Color.alphaBlend(
+                        tint.withValues(alpha: .16),
+                        colors.surface,
+                      )
+                    : tint.withValues(alpha: .12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: isPrimary ? AppIconSize.sm : 14,
+                color: tint,
+              ),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),

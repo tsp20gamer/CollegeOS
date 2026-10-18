@@ -183,6 +183,29 @@ derives content clearance from the resolved padding. A route pushed above the
 shell sees only the system inset, which is what makes the same helper correct
 both inside and outside the shell.
 
+Navigation itself moves. Every pushed route fades in while rising the last 14 px
+and settling from 0.985 scale, and sinks and fades away as it leaves — one
+`CollegePageTransitionsBuilder`, mounted through `PageTransitionsTheme`, so no
+screen defines its own. Beneath it, every `AppScaffold` screen's content settles
+in once with a short fade-and-rise (`Entrance`), the screens a day is scanned
+top-to-bottom — Home, Attendance, Notes and Tasks — stagger their sections in
+40 ms steps so a screen assembles as a wave instead of appearing as one block,
+the attendance ring counts its percentage up as the ring fills, and tappable
+cards press in and spring back through the same `PressScale` the dock uses.
+The dock's rise-and-settle is the app's icon gesture, not just the dock's:
+`AppMotion.popScale` defines the one 1.0 → 1.10 → 1.04 → 1.0 sequence the
+dock's chosen icon and every `IconPop` share, so a section header's coin and a
+subject monogram grow into place as their card arrives, a completed task's tick
+pops inside its box, and an attendance mark pops when it is chosen. Header
+actions, the back button, extended FABs, Home's quick-action chips and the small
+date and stepper controls all press in through `PressScale` too, and a finger
+that slides past the touch slop releases the press so starting a scroll never
+leaves a card held down. Every timing and distance lives in `AppDurations`,
+`AppCurves` and `AppMotion` in `animation_tokens.dart`, `Entrance` and `IconPop`
+are the two widgets staged reveals and icon pops go through, and each piece
+renders its final frame immediately when Android asks for reduced motion or
+screen-reader navigation.
+
 A document is read full-screen. Every PDF opens through `PdfViewerScreen.open`,
 which pushes on the root navigator so the floating dock cannot end up over the
 page the student opened — the same reason Settings is a top-level route. The
@@ -199,6 +222,27 @@ Settings is deliberately not a destination. Each tab header exposes it through
 over the shell so it keeps a back button. `AppScaffold` also supplies a back
 affordance to every pushed screen, and wraps its header actions so a compact
 phone with several actions at a large text scale wraps instead of overflowing.
+It offers no notes-search action: the Notes destination owns the library and its
+search field is the single entry point into PDF search, so every header carries
+Settings alone and nothing competes with it on a compact phone.
+
+The Attendance destination leads with its two tools as named entries instead of
+header icons. Planner and Analytics each get a card-sized tile carrying a name, a
+line of purpose and a 40 px icon coin, side by side while both names fit on two
+lines each and stacked full width below the phone width in
+`AppLayout.compactPhone` or at a large text scale. They sit above the Day/Subject
+views and outside the semester's loading and empty states, because Analytics
+projects every semester rather than only the active one.
+
+The Notes destination is a library rather than a settings list. Its header card
+holds the search field and the size of what is below it — subjects, files, pages
+PDF search has indexed and space on the device — measured from one stream of the
+student's files narrowed to the listed subjects, so the totals and the list can
+never disagree. Each material chip counts what it holds. Each subject is one card
+with a monogram in that subject's own display colour, its code, room, note and
+file counts, and its files opening inside the card rather than in a second
+surface. A PDF keeps the cobalt tile; other formats stay neutral and are told
+apart by their glyph, so the library never invents a second accent.
 
 The Timetable day bar keeps one strip one surface step above the canvas and one
 cobalt circle on the selected day. The circle takes its diameter from the day

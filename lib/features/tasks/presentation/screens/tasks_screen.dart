@@ -11,7 +11,9 @@ import 'package:college_os/features/tasks/domain/task_service.dart';
 import 'package:college_os/features/tasks/presentation/widgets/task_form_sheet.dart';
 import 'package:college_os/shared/widgets/app_scaffold.dart';
 import 'package:college_os/shared/widgets/empty_state.dart';
+import 'package:college_os/shared/widgets/entrance.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
+import 'package:college_os/shared/widgets/icon_pop.dart';
 import 'package:college_os/shared/widgets/loading_state.dart';
 import 'package:college_os/shared/widgets/premium_surface.dart';
 import 'package:flutter/material.dart';
@@ -82,7 +84,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       title: 'Tasks',
       subtitle:
           semester.value?.name ?? 'Assignments and personal work, together.',
-      showSearchAction: true,
       showSettingsAction: true,
       actions: [
         IconButton.filledTonal(
@@ -154,101 +155,116 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _TaskSummary(
-          open: openTasks.length,
-          dueToday: dueToday,
-          overdue: overdue,
+        Entrance(
+          index: 0,
+          child: _TaskSummary(
+            open: openTasks.length,
+            dueToday: dueToday,
+            overdue: overdue,
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         // Compact filter chips: one row of controls instead of a segmented
         // control that competes with the list underneath it.
-        Wrap(
-          key: const Key('task_filter'),
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: [
-            for (final filter in TaskFilter.values)
-              FilterChip(
-                key: Key('task_filter_${filter.name}'),
-                selected: _filter == filter,
-                showCheckmark: false,
-                avatar: Icon(_filterIcon(filter), size: 17),
-                label: Text(_filterLabel(filter)),
-                onSelected: (_) => setState(() => _filter = filter),
-              ),
-          ],
+        Entrance(
+          index: 1,
+          child: Wrap(
+            key: const Key('task_filter'),
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final filter in TaskFilter.values)
+                FilterChip(
+                  key: Key('task_filter_${filter.name}'),
+                  selected: _filter == filter,
+                  showCheckmark: false,
+                  avatar: Icon(_filterIcon(filter), size: 17),
+                  label: Text(_filterLabel(filter)),
+                  onSelected: (_) => setState(() => _filter = filter),
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                _filterTitle(_filter),
-                style: Theme.of(context).textTheme.titleLarge,
+        Entrance(
+          index: 2,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _filterTitle(_filter),
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
-            ),
-            Text(
-              '${visible.length}',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              Text(
+                '${visible.length}',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         if (visible.isEmpty)
-          EmptyState(
-            icon: _filter == TaskFilter.completed
-                ? Icons.check_circle_outline_rounded
-                : Icons.task_alt_rounded,
-            title: _emptyTitle(_filter),
-            message: _emptyMessage(_filter),
-            action: _filter == TaskFilter.completed
-                ? null
-                : FilledButton.icon(
-                    onPressed: () => _showTaskForm(
-                      semesterId: semesterId,
-                      subjects: subjects,
-                    ),
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Add task'),
-                  ),
-          )
-        else
-          AnimatedSwitcher(
-            duration: AppDurations.fast,
-            switchInCurve: AppCurves.standard,
-            switchOutCurve: AppCurves.standard,
-            child: PremiumSurface(
-              key: ValueKey(
-                '${_filter.name}-${visible.map((t) => '${t.id}:${t.isCompleted}').join(',')}',
-              ),
-              // One list surface: tasks are rows under a single heading rather
-              // than a stack of separate cards.
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  for (var index = 0; index < visible.length; index++) ...[
-                    _TaskRow(
-                      task: visible[index],
-                      subject: bySubject[visible[index].subjectId],
-                      now: now,
-                      onEdit: () => _showTaskForm(
+          Entrance(
+            index: 3,
+            child: EmptyState(
+              icon: _filter == TaskFilter.completed
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.task_alt_rounded,
+              title: _emptyTitle(_filter),
+              message: _emptyMessage(_filter),
+              action: _filter == TaskFilter.completed
+                  ? null
+                  : FilledButton.icon(
+                      onPressed: () => _showTaskForm(
                         semesterId: semesterId,
                         subjects: subjects,
-                        task: visible[index],
                       ),
-                      onToggle: () => _toggle(visible[index]),
-                      onDelete: () => _delete(visible[index]),
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add task'),
                     ),
-                    if (index != visible.length - 1)
-                      const Divider(
-                        height: 1,
-                        indent: AppSpacing.md,
-                        endIndent: AppSpacing.md,
+            ),
+          )
+        else
+          Entrance(
+            index: 3,
+            child: AnimatedSwitcher(
+              duration: AppDurations.fast,
+              switchInCurve: AppCurves.standard,
+              switchOutCurve: AppCurves.standard,
+              child: PremiumSurface(
+                key: ValueKey(
+                  '${_filter.name}-${visible.map((t) => '${t.id}:${t.isCompleted}').join(',')}',
+                ),
+                // One list surface: tasks are rows under a single heading rather
+                // than a stack of separate cards.
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (var index = 0; index < visible.length; index++) ...[
+                      _TaskRow(
+                        task: visible[index],
+                        subject: bySubject[visible[index].subjectId],
+                        now: now,
+                        onEdit: () => _showTaskForm(
+                          semesterId: semesterId,
+                          subjects: subjects,
+                          task: visible[index],
+                        ),
+                        onToggle: () => _toggle(visible[index]),
+                        onDelete: () => _delete(visible[index]),
                       ),
+                      if (index != visible.length - 1)
+                        const Divider(
+                          height: 1,
+                          indent: AppSpacing.md,
+                          endIndent: AppSpacing.md,
+                        ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -518,7 +534,15 @@ class _TaskCheckbox extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.xs),
             ),
             child: completed
-                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                ? const IconPop(
+                    popOnMount: true,
+                    fromScale: .4,
+                    child: Icon(
+                      Icons.check_rounded,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                  )
                 : null,
           ),
         ),

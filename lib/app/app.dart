@@ -43,6 +43,7 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _automaticBackups = ref.read(automaticBackupCoordinatorProvider)..start();
+    unawaited(ref.read(backupServiceProvider).discardTemporaryData());
     final incomingBackups = ref.read(incomingBackupServiceProvider);
     _incomingBackupSubscription = incomingBackups.events.listen(
       _handleIncomingBackup,

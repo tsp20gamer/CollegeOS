@@ -152,12 +152,12 @@ Future<void> _generateImport() async {
       createdAt: _createdAt,
     );
     file = File('${output.path}${Platform.pathSeparator}$_fileName');
-    await file.writeAsBytes(backup.bytes, flush: true);
+    await file.writeAsBytes(backup.bytes!, flush: true);
   } finally {
     await database.close();
   }
 
-  final prepared = codec.decode(
+  final prepared = await codec.decode(
     bytes: await file.readAsBytes(),
     sourceName: _fileName,
   );

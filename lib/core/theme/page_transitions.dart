@@ -1,8 +1,13 @@
+import 'package:college_os/core/theme/animation_tokens.dart';
 import 'package:flutter/material.dart';
 
-/// Page transition tuned for perceived speed: a pushed page appears at once,
-/// while a popped page fades out completely. Animations are skipped entirely
-/// for the first route and when the system requests reduced motion.
+/// Page transition used by every route in the app.
+///
+/// A pushed page fades in while rising a few pixels and settling from a hair
+/// below full size, so navigation reads as one quick, visible motion instead
+/// of an instant swap. Popping runs the same tween backwards, so the page
+/// sinks and fades away. The first route and reduced-motion requests skip the
+/// transition entirely.
 class CollegePageTransitionsBuilder extends PageTransitionsBuilder {
   const CollegePageTransitionsBuilder();
 
@@ -14,23 +19,33 @@ class CollegePageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    if (route.isFirst || MediaQuery.disableAnimationsOf(context)) return child;
+    if (route.isFirst || AppMotion.reduceMotion(context)) return child;
 
-    // Open instantly: any forward progress renders the page fully opaque.
-    // Closing keeps the standard ease-in fade so the page leaves gracefully.
-    final opacityAnimation = CurvedAnimation(
+    final progress = CurvedAnimation(
       parent: animation,
-      curve: const Threshold(0),
+      curve: AppCurves.standard,
       reverseCurve: Curves.easeIn,
     );
-
     return AnimatedBuilder(
-      animation: opacityAnimation,
-      builder: (context, _) => Opacity(
-        key: const Key('optimized_page_transition'),
-        opacity: opacityAnimation.value,
-        child: child,
-      ),
+      animation: progress,
+      builder: (context, _) {
+        final value = progress.value;
+        return Opacity(
+          key: const Key('app_page_transition'),
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, AppMotion.pageSlideDistance * (1 - value)),
+            child: Transform.scale(
+              // Settles from just under full size, so the page reads as
+              // arriving at the viewer rather than simply appearing.
+              scale:
+                  AppMotion.routeStartScale +
+                  (1 - AppMotion.routeStartScale) * value,
+              child: child,
+            ),
+          ),
+        );
+      },
     );
   }
 }

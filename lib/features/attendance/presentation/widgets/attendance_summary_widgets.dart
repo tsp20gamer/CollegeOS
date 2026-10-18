@@ -75,13 +75,20 @@ class AttendanceProgressRing extends StatelessWidget {
               color: metrics.hasClasses ? color : null,
               child: const SizedBox.shrink(),
             ),
-            AnimatedSwitcher(
-              duration: reduceMotion ? Duration.zero : AppDurations.fast,
-              child: Text(
+            TweenAnimationBuilder<double>(
+              // Counts up the first time the ring appears, and eases between
+              // old and new values afterwards, so a changed percentage reads
+              // as a change instead of a jump.
+              tween: Tween<double>(
+                begin: 0,
+                end: metrics.attendancePercentage?.roundToDouble() ?? 0,
+              ),
+              duration: reduceMotion ? Duration.zero : AppDurations.medium,
+              curve: AppCurves.standard,
+              builder: (context, value, _) => Text(
                 metrics.attendancePercentage == null
                     ? '—'
-                    : '${metrics.attendancePercentage!.round()}%',
-                key: ValueKey(metrics.attendancePercentage?.round()),
+                    : '${value.round()}%',
                 // Plain theme text, not the status colour: the centre of the
                 // ring shows the value, and the badge below carries the status.
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(

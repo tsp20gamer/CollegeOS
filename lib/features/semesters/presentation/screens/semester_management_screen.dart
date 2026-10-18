@@ -4,6 +4,7 @@ import 'package:college_os/core/theme/spacing.dart';
 import 'package:college_os/features/semesters/application/semester_providers.dart';
 import 'package:college_os/features/semesters/domain/semester_repository.dart';
 import 'package:college_os/features/semesters/presentation/widgets/semester_rollover_sheet.dart';
+import 'package:college_os/shared/widgets/press_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -16,11 +17,14 @@ class SemesterManagementScreen extends ConsumerWidget {
     final semesters = ref.watch(semestersProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Semester Management')),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('add_semester_button'),
-        onPressed: () => _openEditor(context, ref),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add semester'),
+      floatingActionButton: PressScale(
+        pressedScale: .95,
+        child: FloatingActionButton.extended(
+          key: const Key('add_semester_button'),
+          onPressed: () => _openEditor(context, ref),
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Add semester'),
+        ),
       ),
       body: SafeArea(
         bottom: false,

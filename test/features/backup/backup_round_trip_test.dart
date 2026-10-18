@@ -42,15 +42,15 @@ void main() {
       final backup = await service.create('1.0.0+1');
 
       expect(backup.fileName, 'CollegeOS_Backup_2026-08-12_1500.collegeos');
-      final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+      final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
       expect(archive.find('manifest.json'), isA<ArchiveFile>());
       expect(archive.find('data.json'), isA<ArchiveFile>());
       expect(archive.find('attachments/'), isA<ArchiveFile>());
 
       await _wipe(database);
       expect(await database.select(database.subjects).get(), isEmpty);
-      final prepared = service.inspect(
-        bytes: backup.bytes,
+      final prepared = await service.inspect(
+        bytes: backup.bytes!,
         sourceName: backup.fileName,
       );
       await service.restore(prepared, '1.0.0+1');
@@ -70,8 +70,8 @@ void main() {
 
   test('rejects a corrupt archive without changing data', () async {
     final before = (await store.capture()).toJson();
-    expect(
-      () => service.inspect(
+    await expectLater(
+      service.inspect(
         bytes: Uint8List.fromList([1, 2, 3, 4]),
         sourceName: 'broken.collegeos',
       ),
@@ -90,8 +90,8 @@ void main() {
     final backup = await service.create('1.0.0+1');
     final before = (await store.capture()).toJson();
 
-    expect(
-      () => service.inspect(bytes: backup.bytes, sourceName: 'backup.zip'),
+    await expectLater(
+      service.inspect(bytes: backup.bytes!, sourceName: 'backup.zip'),
       throwsA(
         isA<BackupException>().having(
           (error) => error.code,
@@ -106,12 +106,12 @@ void main() {
   test('rejects an invalid manifest', () async {
     final backup = await service.create('1.0.0+1');
     final changed = _replaceJson(
-      backup.bytes,
+      backup.bytes!,
       'manifest.json',
       <String, Object?>{},
     );
-    expect(
-      () => service.inspect(bytes: changed, sourceName: 'invalid.collegeos'),
+    await expectLater(
+      service.inspect(bytes: changed, sourceName: 'invalid.collegeos'),
       throwsA(
         isA<BackupException>().having(
           (error) => error.code,
@@ -124,14 +124,14 @@ void main() {
 
   test('rejects an unsupported future backup version', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
     final manifest =
         jsonDecode(utf8.decode(archive.find('manifest.json')!.content))
             as Map<String, dynamic>;
     manifest['backupFormatVersion'] = 999;
-    final changed = _replaceJson(backup.bytes, 'manifest.json', manifest);
-    expect(
-      () => service.inspect(bytes: changed, sourceName: 'future.collegeos'),
+    final changed = _replaceJson(backup.bytes!, 'manifest.json', manifest);
+    await expectLater(
+      service.inspect(bytes: changed, sourceName: 'future.collegeos'),
       throwsA(
         isA<BackupException>().having(
           (error) => error.code,
@@ -144,14 +144,14 @@ void main() {
 
   test('rejects an unsupported future database schema', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
     final manifest =
         jsonDecode(utf8.decode(archive.find('manifest.json')!.content))
             as Map<String, dynamic>;
     manifest['databaseSchemaVersion'] = 999;
-    final changed = _replaceJson(backup.bytes, 'manifest.json', manifest);
-    expect(
-      () => service.inspect(bytes: changed, sourceName: 'future.collegeos'),
+    final changed = _replaceJson(backup.bytes!, 'manifest.json', manifest);
+    await expectLater(
+      service.inspect(bytes: changed, sourceName: 'future.collegeos'),
       throwsA(
         isA<BackupException>().having(
           (error) => error.code,
@@ -164,11 +164,11 @@ void main() {
 
   test('rejects zip-slip paths even when required files exist', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true)
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true)
       ..add(ArchiveFile.string('../outside.txt', 'unsafe'));
     final changed = ZipEncoder().encodeBytes(archive);
-    expect(
-      () => service.inspect(bytes: changed, sourceName: 'unsafe.collegeos'),
+    await expectLater(
+      service.inspect(bytes: changed, sourceName: 'unsafe.collegeos'),
       throwsA(
         isA<BackupException>().having(
           (error) => error.code,
@@ -181,7 +181,7 @@ void main() {
 
   test('schema-v2 backups default automatic local backup to enabled', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
     final data =
         jsonDecode(utf8.decode(archive.find('data.json')!.content))
             as Map<String, dynamic>;
@@ -189,12 +189,12 @@ void main() {
       ..remove('automaticLocalBackup')
       ..remove('studentName');
     final legacy = _replaceDataAndHash(
-      backup.bytes,
+      backup.bytes!,
       data,
       databaseSchemaVersion: 2,
     );
 
-    final prepared = service.inspect(
+    final prepared = await service.inspect(
       bytes: legacy,
       sourceName: 'schema_v2.collegeos',
     );
@@ -205,7 +205,7 @@ void main() {
 
   test('schema-v3 backups default exam reminder intent to off', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
     final data =
         jsonDecode(utf8.decode(archive.find('data.json')!.content))
             as Map<String, dynamic>;
@@ -213,12 +213,12 @@ void main() {
       (exam as Map<String, dynamic>).remove('reminderAt');
     }
     final legacy = _replaceDataAndHash(
-      backup.bytes,
+      backup.bytes!,
       data,
       databaseSchemaVersion: 3,
     );
 
-    final prepared = service.inspect(
+    final prepared = await service.inspect(
       bytes: legacy,
       sourceName: 'schema_v3.collegeos',
     );
@@ -228,18 +228,18 @@ void main() {
 
   test('schema-v6 backups default academic calendar events to empty', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
     final data =
         jsonDecode(utf8.decode(archive.find('data.json')!.content))
             as Map<String, dynamic>;
     data.remove('calendarEvents');
     final legacy = _replaceDataAndHash(
-      backup.bytes,
+      backup.bytes!,
       data,
       databaseSchemaVersion: 6,
     );
 
-    final prepared = service.inspect(
+    final prepared = await service.inspect(
       bytes: legacy,
       sourceName: 'schema_v6.collegeos',
     );
@@ -249,7 +249,7 @@ void main() {
 
   test('schema-v13 backups default class reminders to none', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
     final data =
         jsonDecode(utf8.decode(archive.find('data.json')!.content))
             as Map<String, dynamic>;
@@ -262,12 +262,12 @@ void main() {
       (entry as Map<String, dynamic>).remove('reminderMinutesBefore');
     }
     final legacy = _replaceDataAndHash(
-      backup.bytes,
+      backup.bytes!,
       data,
       databaseSchemaVersion: 13,
     );
 
-    final prepared = service.inspect(
+    final prepared = await service.inspect(
       bytes: legacy,
       sourceName: 'schema_v13.collegeos',
     );
@@ -279,7 +279,7 @@ void main() {
     'schema-v14 backups default the class notifier to on at ten minutes',
     () async {
       final backup = await service.create('1.0.0+1');
-      final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+      final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
       final data =
           jsonDecode(utf8.decode(archive.find('data.json')!.content))
               as Map<String, dynamic>;
@@ -293,12 +293,12 @@ void main() {
         ..remove('classRemindersEnabled')
         ..remove('classReminderMinutesBefore');
       final legacy = _replaceDataAndHash(
-        backup.bytes,
+        backup.bytes!,
         data,
         databaseSchemaVersion: 14,
       );
 
-      final prepared = service.inspect(
+      final prepared = await service.inspect(
         bytes: legacy,
         sourceName: 'schema_v14.collegeos',
       );
@@ -319,7 +319,7 @@ void main() {
 
   test('schema-v15 backups default the derived holidays to on', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
     final data =
         jsonDecode(utf8.decode(archive.find('data.json')!.content))
             as Map<String, dynamic>;
@@ -329,12 +329,12 @@ void main() {
       ..remove('secondSaturdayOff')
       ..remove('governmentHolidaysOff');
     final legacy = _replaceDataAndHash(
-      backup.bytes,
+      backup.bytes!,
       data,
       databaseSchemaVersion: 15,
     );
 
-    final prepared = service.inspect(
+    final prepared = await service.inspect(
       bytes: legacy,
       sourceName: 'schema_v15.collegeos',
     );
@@ -356,7 +356,7 @@ void main() {
 
     await _wipe(database);
     await service.restore(
-      service.inspect(bytes: backup.bytes, sourceName: backup.fileName),
+      await service.inspect(bytes: backup.bytes!, sourceName: backup.fileName),
       '1.0.0+1',
     );
 
@@ -367,19 +367,16 @@ void main() {
 
   test('rejects a class notifier lead time outside the schema range', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
     final data =
         jsonDecode(utf8.decode(archive.find('data.json')!.content))
             as Map<String, dynamic>;
     (data['settings'] as Map<String, dynamic>)['classReminderMinutesBefore'] =
         99999;
-    final changed = _replaceDataAndHash(backup.bytes, data);
+    final changed = _replaceDataAndHash(backup.bytes!, data);
 
-    expect(
-      () => service.inspect(
-        bytes: changed,
-        sourceName: 'class_notifier.collegeos',
-      ),
+    await expectLater(
+      service.inspect(bytes: changed, sourceName: 'class_notifier.collegeos'),
       throwsA(
         isA<BackupException>().having(
           (error) => error.code,
@@ -392,16 +389,16 @@ void main() {
 
   test('rejects a class reminder lead time outside the schema range', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
     final data =
         jsonDecode(utf8.decode(archive.find('data.json')!.content))
             as Map<String, dynamic>;
     (data['timetable'] as List<dynamic>).single['reminderMinutesBefore'] =
         99999;
-    final changed = _replaceDataAndHash(backup.bytes, data);
+    final changed = _replaceDataAndHash(backup.bytes!, data);
 
-    expect(
-      () => service.inspect(bytes: changed, sourceName: 'reminder.collegeos'),
+    await expectLater(
+      service.inspect(bytes: changed, sourceName: 'reminder.collegeos'),
       throwsA(
         isA<BackupException>().having(
           (error) => error.code,
@@ -414,14 +411,14 @@ void main() {
 
   test('rejects broken relationships before restore', () async {
     final backup = await service.create('1.0.0+1');
-    final archive = ZipDecoder().decodeBytes(backup.bytes, verify: true);
+    final archive = ZipDecoder().decodeBytes(backup.bytes!, verify: true);
     final data =
         jsonDecode(utf8.decode(archive.find('data.json')!.content))
             as Map<String, dynamic>;
     (data['subjects'] as List<dynamic>).first['semesterId'] = 99999;
-    final changed = _replaceDataAndHash(backup.bytes, data);
-    expect(
-      () => service.inspect(bytes: changed, sourceName: 'relations.collegeos'),
+    final changed = _replaceDataAndHash(backup.bytes!, data);
+    await expectLater(
+      service.inspect(bytes: changed, sourceName: 'relations.collegeos'),
       throwsA(
         isA<BackupException>().having(
           (error) => error.code,
@@ -436,8 +433,8 @@ void main() {
     'forced restore failure rolls back every deletion and insertion',
     () async {
       final incoming = await service.create('1.0.0+1');
-      final prepared = service.inspect(
-        bytes: incoming.bytes,
+      final prepared = await service.inspect(
+        bytes: incoming.bytes!,
         sourceName: incoming.fileName,
       );
       await database

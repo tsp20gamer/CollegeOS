@@ -859,8 +859,8 @@ final class BackupDataSnapshot {
       validSubjectSemester(row.subjectId, row.semesterId, 'A subject file');
       _require(row.fileName.trim().isNotEmpty, 'A subject file name is empty.');
       _require(
-        row.relativeFilePath.trim().isNotEmpty,
-        'A subject file path is empty.',
+        isSafeSubjectFileRelativePath(row.relativeFilePath),
+        'A subject file path is unsafe.',
       );
     }
   }

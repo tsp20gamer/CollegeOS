@@ -1,5 +1,6 @@
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
+import 'package:college_os/shared/widgets/press_scale.dart';
 import 'package:flutter/material.dart';
 
 class PremiumSurface extends StatelessWidget {
@@ -37,6 +38,14 @@ class PremiumSurface extends StatelessWidget {
           : BorderSide(color: const Color(0xFF000000).withValues(alpha: .06)),
     );
     final content = Padding(padding: padding, child: child);
+    final surface = Material(
+      color: color ?? colors.surfaceContainerLow,
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
+      child: onTap == null
+          ? content
+          : InkWell(onTap: onTap, customBorder: shape, child: content),
+    );
     return Semantics(
       container: true,
       button: onTap != null,
@@ -46,14 +55,12 @@ class PremiumSurface extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           boxShadow: _depthShadows(context),
         ),
-        child: Material(
-          color: color ?? colors.surfaceContainerLow,
-          shape: shape,
-          clipBehavior: Clip.antiAlias,
-          child: onTap == null
-              ? content
-              : InkWell(onTap: onTap, customBorder: shape, child: content),
-        ),
+        // Tappable cards press in under the finger and spring back, matching
+        // the dock and every other pressable surface in the app. The shrink
+        // stays shallow: a card is a page of information, not an icon.
+        child: onTap == null
+            ? surface
+            : PressScale(pressedScale: .985, child: surface),
       ),
     );
   }
