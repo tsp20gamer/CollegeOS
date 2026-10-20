@@ -116,6 +116,13 @@ void main() {
     for (final destination in CollegeNavigationBar.destinations) {
       expect(find.byKey(destination.key), findsOneWidget);
       expect(
+        destination.restAt,
+        1.0,
+        reason:
+            '${destination.label} draws itself in from a blank first frame, so '
+            'it must rest on its finished frame instead',
+      );
+      expect(
         find.byKey(Key('dock_label_${destination.label}')),
         findsOneWidget,
       );
@@ -133,11 +140,11 @@ void main() {
     final colors = Theme.of(
       tester.element(find.byType(CollegeNavigationBar)),
     ).colorScheme;
+    // Every destination's glyph is a bundled animation painted in the one
+    // accent the Material icon it replaced used.
     expect(
-      tester
-          .widget<Icon>(find.byKey(const ValueKey('dock_icon_Home_true')))
-          .color,
-      colors.primary,
+      _dockIconTint(tester, 'Home'),
+      ColorFilter.mode(colors.primary, BlendMode.srcIn),
     );
 
     // Selection is minimal: a cobalt icon and label with a tiny cobalt dot
@@ -166,12 +173,8 @@ void main() {
       );
       expect(_activeDotOpacity(tester, destination.label), 0.0);
       expect(
-        tester
-            .widget<Icon>(
-              find.byKey(ValueKey('dock_icon_${destination.label}_false')),
-            )
-            .color,
-        colors.onSurfaceVariant,
+        _dockIconTint(tester, destination.label),
+        ColorFilter.mode(colors.onSurfaceVariant, BlendMode.srcIn),
         reason: 'inactive icons stay muted',
       );
     }
@@ -210,12 +213,13 @@ void main() {
     );
     // Every destination resolves to the one Electric Cobalt accent.
     expect(
-      tester
-          .widget<Icon>(find.byKey(const ValueKey('dock_icon_Tasks_true')))
-          .color,
-      Theme.of(
-        tester.element(find.byKey(const Key('nav_tasks'))),
-      ).extension<FeatureColors>()!.tasks.accent,
+      _dockIconTint(tester, 'Tasks'),
+      ColorFilter.mode(
+        Theme.of(
+          tester.element(find.byKey(const Key('nav_tasks'))),
+        ).extension<FeatureColors>()!.tasks.accent,
+        BlendMode.srcIn,
+      ),
     );
     expect(
       Theme.of(
@@ -466,6 +470,54 @@ void main() {
         reason: '${destination.label} label must stay inside the bar',
       );
     }
+
+    // The row steps down together: one shared size, no label left oversized.
+    final styles = tester
+        .widgetList<AnimatedDefaultTextStyle>(
+          find.descendant(
+            of: find.byType(PressScale),
+            matching: find.byType(AnimatedDefaultTextStyle),
+          ),
+        )
+        .map((widget) => widget.style.fontSize)
+        .toSet();
+    expect(styles, hasLength(1));
+    expect(styles.single, isNotNull);
+  });
+
+  testWidgets('all five dock labels share one type size', (tester) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          bottomNavigationBar: CollegeNavigationBar(
+            selectedIndex: 0,
+            onSelected: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    final sizes = tester
+        .widgetList<AnimatedDefaultTextStyle>(
+          find.descendant(
+            of: find.byType(PressScale),
+            matching: find.byType(AnimatedDefaultTextStyle),
+          ),
+        )
+        .map((widget) => widget.style.fontSize)
+        .toList();
+
+    expect(sizes, hasLength(CollegeNavigationBar.destinations.length));
+    // "Home" and "Attendance" are very different widths. Sizing each name on
+    // its own leaves the short one larger; one measured size for the whole row
+    // keeps all five reading at the same scale.
+    expect(sizes.toSet(), hasLength(1));
+    expect(sizes.first, isNotNull);
   });
 
   testWidgets('floats as a translucent glass dock in both themes', (
@@ -548,6 +600,16 @@ double _dockRadius(WidgetTester tester) {
   );
   return (clip.borderRadius as BorderRadius).topLeft.x;
 }
+
+/// The colour filter a destination's dock animation is painted through.
+ColorFilter? _dockIconTint(WidgetTester tester, String label) => tester
+    .widget<ColorFiltered>(
+      find.descendant(
+        of: find.byKey(ValueKey('dock_icon_rest_$label')),
+        matching: find.byType(ColorFiltered),
+      ),
+    )
+    .colorFilter;
 
 /// Scale the destination's active dot paints with.
 double _activeDotScale(WidgetTester tester, String label) => tester

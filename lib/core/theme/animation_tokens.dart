@@ -21,6 +21,14 @@ abstract final class AppDurations {
   /// Duration for the dock's active indicator dot.
   static const dockDot = Duration(milliseconds: 150);
 
+  /// Longest a destination's dock animation may run when it is chosen.
+  ///
+  /// The bundled animations run 1–4.6 s at their native pace, which is far
+  /// longer than the tab change itself. Capping the controller's duration keeps
+  /// every destination's flourish inside the same short beat as the pop, and
+  /// the icon holds the animation's final frame once it settles.
+  static const dockLottieMaxPlayback = Duration(milliseconds: 600);
+
   /// Duration the timetable day pill takes to glide between day slots.
   ///
   /// Slightly longer than the dock's pop: the pill travels a real distance, so

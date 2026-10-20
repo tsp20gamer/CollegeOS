@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.13.0+34
+version: 1.14.0+35
 
 environment:
   sdk: ^3.12.2
@@ -57,6 +57,9 @@ dependencies:
   http: ^1.6.0
   dio: ^5.11.1
   open_filex: ^4.7.0
+  # Renders the dock's own destination animations from bundled assets: no
+  # network path is used and no new permission is added.
+  lottie: ^3.6.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -91,6 +94,7 @@ flutter:
     - assets/splash/splash_background_1080x1920.png
     - assets/splash/splash_glow.png
     - assets/splash/subtle_noise.png
+    - assets/lottie/
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

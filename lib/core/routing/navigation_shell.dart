@@ -5,6 +5,7 @@ import 'package:college_os/core/theme/color_tokens.dart';
 import 'package:college_os/core/theme/dimensions.dart';
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
+import 'package:college_os/shared/widgets/dock_lottie_icon.dart';
 import 'package:college_os/shared/widgets/press_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -13,6 +14,9 @@ import 'package:go_router/go_router.dart';
 
 /// Text scaling ceiling for destination labels.
 const double _maxLabelTextScaleFactor = 1.3;
+
+/// Tracking applied to every destination label.
+const double _dockLabelLetterSpacing = .1;
 
 /// Corner radius of the dock.
 ///
@@ -200,7 +204,8 @@ class _AnimatedDockVisibility extends StatelessWidget {
 /// A translucent, blurred strip that hovers above the content instead of being
 /// attached to the screen edge. Five equal destinations, always labelled:
 /// - the selected destination is a cobalt icon, a cobalt label and a micro dot
-/// - the newly selected icon pops, lifts and settles; nothing else animates
+/// - the newly selected icon plays its bundled animation once while it pops,
+///   lifts and settles; nothing else animates
 /// - the page keeps its short translation and fade behind the dock
 class CollegeNavigationBar extends StatelessWidget {
   const CollegeNavigationBar({
@@ -212,36 +217,81 @@ class CollegeNavigationBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
+  // Each destination carries the animation that stands in for its glyph plus
+  // the Material pair kept as the reduced-motion and load-failure fallback.
+  //
+  // The five animations are one drawn family on a 36 px canvas, but their held
+  // frames still draw their subjects at different sizes, so `glyphScale` is
+  // measured per animation until every subject covers the same 19 px inside
+  // the 24 px slot — one visual weight across the row. Their first frame is
+  // deliberately blank — every stroke draws itself in — so `restAt` is the
+  // finished frame: an unselected destination is a still, complete icon and
+  // choosing it replays the drawing.
+  //
+  // Every line also carries a soft glow stroke painted at 28 % opacity and
+  // roughly twice the stroke's own width. That halo is part of the family's
+  // weight: without it (as the calendar was drawn) one glyph reads visibly
+  // lighter and smaller than the other four.
+  //
+  // The artwork is authored in a cyan→cobalt→violet gradient; the dock still
+  // flattens it to its single accent with the `srcIn` filter, exactly as it did
+  // for the previous set, so five palettes keep speaking one accent in both
+  // themes.
   static const destinations =
-      <({String label, IconData icon, IconData selectedIcon, Key key})>[
+      <
+        ({
+          String label,
+          IconData icon,
+          IconData selectedIcon,
+          String lottie,
+          double glyphScale,
+          double restAt,
+          Key key,
+        })
+      >[
         (
           label: 'Home',
           icon: Icons.space_dashboard_outlined,
           selectedIcon: Icons.space_dashboard_rounded,
+          lottie: 'assets/lottie/home.json',
+          glyphScale: .98,
+          restAt: 1,
           key: Key('nav_home'),
         ),
         (
           label: 'Attendance',
           icon: Icons.fact_check_outlined,
           selectedIcon: Icons.fact_check_rounded,
+          lottie: 'assets/lottie/tasks.json',
+          glyphScale: .97,
+          restAt: 1,
           key: Key('nav_attendance'),
         ),
         (
           label: 'Timetable',
           icon: Icons.calendar_view_week_outlined,
           selectedIcon: Icons.calendar_view_week_rounded,
+          lottie: 'assets/lottie/calendar.json',
+          glyphScale: 1.05,
+          restAt: 1,
           key: Key('nav_timetable'),
         ),
         (
           label: 'Tasks',
           icon: Icons.task_alt_outlined,
           selectedIcon: Icons.task_alt_rounded,
+          lottie: 'assets/lottie/completed.json',
+          glyphScale: 1.11,
+          restAt: 1,
           key: Key('nav_tasks'),
         ),
         (
           label: 'Notes',
           icon: Icons.menu_book_outlined,
           selectedIcon: Icons.menu_book_rounded,
+          lottie: 'assets/lottie/library.json',
+          glyphScale: 1.13,
+          restAt: 1,
           key: Key('nav_notes'),
         ),
       ];
@@ -309,23 +359,43 @@ class CollegeNavigationBar extends StatelessWidget {
                 ),
                 child: SizedBox(
                   height: AppLayout.navigationBarHeight,
-                  child: Row(
-                    children: [
-                      for (var index = 0; index < destinations.length; index++)
-                        Expanded(
-                          child: _NavigationDestination(
-                            key: destinations[index].key,
-                            index: index,
-                            label: destinations[index].label,
-                            icon: destinations[index].icon,
-                            selectedIcon: destinations[index].selectedIcon,
-                            selected: selectedIndex == index,
-                            reduceMotion: reduceMotion,
-                            accent: accent,
-                            onTap: () => onSelected(index),
-                          ),
-                        ),
-                    ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Every destination is stretched to the same slot, so the
+                      // labels share one type size measured against the widest
+                      // of them instead of each shrinking on its own.
+                      final labelFontSize = _sharedLabelFontSize(
+                        context: context,
+                        style: theme.textTheme.labelMedium ?? const TextStyle(),
+                        slotWidth: constraints.maxWidth / destinations.length,
+                      );
+                      return Row(
+                        children: [
+                          for (
+                            var index = 0;
+                            index < destinations.length;
+                            index++
+                          )
+                            Expanded(
+                              child: _NavigationDestination(
+                                key: destinations[index].key,
+                                index: index,
+                                label: destinations[index].label,
+                                icon: destinations[index].icon,
+                                selectedIcon: destinations[index].selectedIcon,
+                                lottie: destinations[index].lottie,
+                                glyphScale: destinations[index].glyphScale,
+                                restAt: destinations[index].restAt,
+                                labelFontSize: labelFontSize,
+                                selected: selectedIndex == index,
+                                reduceMotion: reduceMotion,
+                                accent: accent,
+                                onTap: () => onSelected(index),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -345,6 +415,10 @@ class _NavigationDestination extends StatefulWidget {
     required this.label,
     required this.icon,
     required this.selectedIcon,
+    required this.lottie,
+    required this.glyphScale,
+    required this.restAt,
+    required this.labelFontSize,
     required this.selected,
     required this.reduceMotion,
     required this.accent,
@@ -356,6 +430,12 @@ class _NavigationDestination extends StatefulWidget {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+  final String lottie;
+  final double glyphScale;
+  final double restAt;
+
+  /// The one size every dock label is drawn at, shared by all destinations.
+  final double labelFontSize;
   final bool selected;
   final bool reduceMotion;
   final Color accent;
@@ -463,7 +543,11 @@ class _NavigationDestinationState extends State<_NavigationDestination>
                         label: widget.label,
                         icon: widget.icon,
                         selectedIcon: widget.selectedIcon,
+                        asset: widget.lottie,
+                        glyphScale: widget.glyphScale,
+                        restAt: widget.restAt,
                         selected: widget.selected,
+                        reduceMotion: widget.reduceMotion,
                         duration: duration,
                         accent: widget.accent,
                       ),
@@ -472,6 +556,7 @@ class _NavigationDestinationState extends State<_NavigationDestination>
                     // Label: keeps its place and gains the accent.
                     _DockLabel(
                       label: widget.label,
+                      fontSize: widget.labelFontSize,
                       selected: widget.selected,
                       colors: colors,
                       accent: widget.accent,
@@ -502,7 +587,11 @@ class _DockIcon extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.selectedIcon,
+    required this.asset,
+    required this.glyphScale,
+    required this.restAt,
     required this.selected,
+    required this.reduceMotion,
     required this.duration,
     required this.accent,
   });
@@ -510,7 +599,11 @@ class _DockIcon extends StatelessWidget {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+  final String asset;
+  final double glyphScale;
+  final double restAt;
   final bool selected;
+  final bool reduceMotion;
   final Duration duration;
   final Color accent;
 
@@ -529,24 +622,18 @@ class _DockIcon extends StatelessWidget {
         scale: scale,
         child: child,
       ),
-      // Outline to filled is a short fade and scale, never an instant swap.
-      child: AnimatedSwitcher(
-        duration: duration,
-        switchInCurve: AppCurves.standard,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: .9, end: 1.0).animate(animation),
-            child: child,
-          ),
-        ),
-        child: Icon(
-          selected ? selectedIcon : icon,
-          key: ValueKey('dock_icon_${label}_$selected'),
-          color: selected ? accent : colors.onSurfaceVariant,
-          size: AppIconSize.md,
-        ),
+      // The bundled animation carries the rest-to-selected change instead of
+      // the old outline-to-filled cross-fade: it plays once when the
+      // destination is chosen and holds its final frame.
+      child: DockLottieIcon(
+        asset: asset,
+        label: label,
+        glyphScale: glyphScale,
+        restAt: restAt,
+        selected: selected,
+        reduceMotion: reduceMotion,
+        tint: selected ? accent : colors.onSurfaceVariant,
+        fallbackIcon: selected ? selectedIcon : icon,
       ),
     );
   }
@@ -554,9 +641,57 @@ class _DockIcon extends StatelessWidget {
 
 // ─── Dock Label ──────────────────────────────────────────────────────────
 
+/// The single font size every dock label is drawn at.
+///
+/// The names run from "Home" to "Attendance" while every slot is the same
+/// width, so sizing each label on its own shrinks only the long ones and
+/// leaves "Home" visibly larger than "Attendance" — five labels, five
+/// apparent sizes, one row. Measuring the widest name once and handing that
+/// one size to all five keeps the type identical across the strip, and lets
+/// the whole row step down together on a narrow screen or under large text
+/// scaling instead of clipping a single name.
+///
+/// The measurement uses the selected weight, which is the widest the label
+/// ever gets, and the same clamped text scaler the labels render with, so no
+/// label is ever shrunk on its own and the five never drift apart.
+double _sharedLabelFontSize({
+  required BuildContext context,
+  required TextStyle style,
+  required double slotWidth,
+}) {
+  final base = style.fontSize ?? 12;
+  final available = slotWidth - AppSpacing.xxs * 2;
+  if (!available.isFinite || available <= 0) return base;
+
+  final painter = TextPainter(
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+    textScaler: MediaQuery.textScalerOf(
+      context,
+    ).clamp(maxScaleFactor: _maxLabelTextScaleFactor),
+  );
+  var widest = 0.0;
+  for (final destination in CollegeNavigationBar.destinations) {
+    painter.text = TextSpan(
+      text: destination.label,
+      style: style.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: _dockLabelLetterSpacing,
+      ),
+    );
+    painter.layout();
+    if (painter.width > widest) widest = painter.width;
+  }
+  painter.dispose();
+
+  if (widest <= available) return base;
+  return base * available / widest;
+}
+
 class _DockLabel extends StatelessWidget {
   const _DockLabel({
     required this.label,
+    required this.fontSize,
     required this.selected,
     required this.colors,
     required this.accent,
@@ -564,6 +699,10 @@ class _DockLabel extends StatelessWidget {
   });
 
   final String label;
+
+  /// Shared with every other destination: one row, one type size.
+  final double fontSize;
+
   final bool selected;
   final ColorScheme colors;
   final Color accent;
@@ -575,8 +714,9 @@ class _DockLabel extends StatelessWidget {
     final labelStyle = (theme.textTheme.labelMedium ?? const TextStyle())
         .copyWith(
           color: selected ? accent : colors.onSurfaceVariant,
+          fontSize: fontSize,
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-          letterSpacing: .1,
+          letterSpacing: _dockLabelLetterSpacing,
           height: 1.1,
         );
 

@@ -166,15 +166,41 @@ with one soft shadow and a hairline rim, at radius 28. Its content strip is
 pill radius while giving the icon, label and dot slot a little more room. All
 five destinations keep
 their icon and label at every width: labels are clamped to a 1.3 text scale factor
-and scaled down to fit their slot instead of being truncated or hidden. Selection
+and all five are drawn at one type size measured from the widest name — the row
+steps down together until that name fits its slot instead of each label shrinking
+on its own, so "Home" and "Attendance" never read at two different sizes — and a
+label is never truncated or hidden. Selection
 paints no capsule: the chosen destination gets the cobalt icon, a cobalt label and
 a 4 px cobalt dot, and its dot slot is reserved whether or not the dot is showing,
-so no label ever moves. Only the newly selected icon animates — a 240 ms pop to
-1.10 and back through 1.04 with a 2.5 px lift, plus an outline-to-filled
-cross-fade — while the retained tab subtree makes a 150 ms translation of 1.2% of
-its width with no full-page opacity layer. Android reduced-motion and
-accessible-navigation settings disable that decorative movement while leaving the
-glass itself unchanged.
+so no label ever moves. Each destination's glyph is a bundled Lottie animation
+(`assets/lottie/`) painted in one colour through a `srcIn` filter — cobalt when
+chosen, muted otherwise — so five animations with five different palettes speak
+the dock's single accent in both themes. The five are one drawn family authored
+for the dock: a 36 px artboard at 60 fps where the subject strokes and fills
+itself in over 90 frames, with a shared 4.5 % settle at the end.The artwork
+  carries a cyan → cobalt → violet gradient that the `srcIn` filter flattens, so
+  the gradient lives only in the source files. Every outline, ring, panel and
+  marked day also carries a soft glow stroke painted at 28 % opacity and roughly
+  twice the line's own width — the halo is part of the family's weight, so a
+  glyph drawn without it reads visibly lighter than its neighbours. Their held frames still draw their
+subjects at different sizes, so each destination carries a measured `glyphScale`
+that lands its held subject on the same ~19 px of ink inside the 24 px slot: Home,
+Attendance, Timetable, Tasks and Notes read as one size, and no glyph looks smaller
+than its neighbours. Each destination rests at 1 — the finished frame — because
+every one of them begins on an empty
+canvas; resting an unselected destination on frame 0 would leave it blank, and
+choosing it therefore replays the drawing while the finished frame stays the
+still image. Only the newly selected icon animates: it
+plays its animation once, accelerated to `AppDurations.dockLottieMaxPlayback`
+(600 ms), while it makes a 240 ms pop to 1.10 and back through 1.04 with a 2.5 px
+lift, and then holds the animation's final frame; leaving a destination returns it
+to its resting frame, and the destination that is already selected when the dock
+mounts rests on its final frame instead of animating on launch. Meanwhile the
+retained tab subtree makes a 150 ms translation of 1.2% of its width with no
+full-page opacity layer. Android reduced-motion and accessible-navigation settings
+disable all of that decorative movement — those destinations show the Material
+icon the dock used before, as does any destination whose animation cannot be
+loaded — while leaving the glass itself unchanged.
 
 Because the shell uses `Scaffold.extendBody`, the dock's measured height — its
 content plus the floating gap and the system inset — is folded into
@@ -318,6 +344,7 @@ The versions below were resolved locally on 12 August 2026 with Flutter 3.44.9 /
 | `http` | `^1.6.0` | Reads the published release manifest for the update check |
 | `dio` | `^5.11.1` | Streams the release APK download with progress and cancellation |
 | `open_filex` | `^4.7.0` | Hands the downloaded APK to Android's package installer |
+| `lottie` | `^3.6.1` | Plays the dock's bundled destination animations from local assets; no network path is used |
 
 Flutter itself supplies Material 3. No third-party UI kit, font downloader, chart library, object mapper, or model generator is planned. Progress rings and bars are simple reusable Flutter widgets.
 

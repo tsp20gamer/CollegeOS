@@ -63,7 +63,7 @@ Use a floating translucent glass dock with five persistent destinations:
 4. **Tasks** — assignments and general tasks
 5. **Notes** — per-subject material and search over every indexed PDF
 
-The dock floats above the content with a translucent, blurred surface. Every destination keeps its icon and label at any width; the selected one is marked by a cobalt icon, a cobalt label and a micro dot, never by a capsule behind it. Settings is deliberately not a destination: each destination header exposes it, and it opens above the shell.
+The dock floats above the content with a translucent, blurred surface. Every destination keeps its icon and label at any width; the selected one is marked by a cobalt icon, a cobalt label and a micro dot, never by a capsule behind it. Each destination's icon is a bundled offline animation that plays once when its tab is chosen and settles on its finished frame; the animations are tinted into the app's single accent and a device that asks for reduced motion sees the flat Material icon instead. Settings is deliberately not a destination: each destination header exposes it, and it opens above the shell.
 
 Each destination preserves its navigation stack and scroll position when switching tabs. Forms and details open above the relevant tab. Onboarding and full-screen restore progress live outside the tab shell.
 
