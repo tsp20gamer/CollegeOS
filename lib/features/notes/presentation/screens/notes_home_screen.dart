@@ -671,14 +671,12 @@ class _MaterialRow extends ConsumerWidget {
     final tint = isPdf ? colors.primary : colors.onSurfaceVariant;
     return InkWell(
       key: ValueKey('notes_file_${file.id}'),
-      // Opening a file keeps the behaviour the subject screen already had:
-      // PDFs open in the viewer, everything else opens or shares through the
-      // platform.
+      // Tapping the row opens the file; sharing has its own button below.
       onTap: () {
         if (isPdf) {
           PdfViewerScreen.open(context, file: file);
         } else {
-          ref.read(subjectFileCommandProvider.notifier).openOrShareFile(file);
+          ref.read(subjectFileCommandProvider.notifier).openFile(file);
         }
       },
       child: Padding(
@@ -726,10 +724,24 @@ class _MaterialRow extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: AppIconSize.sm,
-              color: colors.onSurfaceVariant,
+            IconButton(
+              tooltip: 'Open file',
+              onPressed: () {
+                if (isPdf) {
+                  PdfViewerScreen.open(context, file: file);
+                } else {
+                  ref.read(subjectFileCommandProvider.notifier).openFile(file);
+                }
+              },
+              icon: const Icon(Icons.open_in_new_rounded),
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              tooltip: 'Share file',
+              onPressed: () =>
+                  ref.read(subjectFileCommandProvider.notifier).shareFile(file),
+              icon: const Icon(Icons.share_rounded),
+              visualDensity: VisualDensity.compact,
             ),
           ],
         ),

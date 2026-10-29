@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:college_os/features/notes/application/pdf_search_providers.dart';
+import 'package:college_os/features/notes/domain/pdf_search_result.dart';
 import 'package:college_os/features/subject_files/domain/subject_file.dart';
 import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/features/subject_files/presentation/widgets/pdf_page_scrubber.dart';
@@ -58,6 +60,10 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
   String? _error;
   bool _showSearchToolbar = false;
   bool _isSearchInitiated = false;
+  bool _isIndexedSearchLoading = false;
+  List<PdfSearchResult> _indexedSearchResults = const [];
+  int _indexedSearchIndex = 0;
+  int _searchRequestId = 0;
 
   /// Pages in the open document, and the page on screen. Both come from the
   /// viewer's own callbacks and drive the right-edge page scrubber.
@@ -99,13 +105,76 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
     }
   }
 
-  void _executeSearch(String query) {
-    if (query.trim().isEmpty) return;
+  Future<void> _executeSearch(String query) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) return;
+    final requestId = ++_searchRequestId;
+
+    _pdfTextSearchResult.removeListener(_onSearchProgress);
+    _pdfTextSearchResult.clear();
+    _pdfTextSearchResult.dispose();
     setState(() {
       _isSearchInitiated = true;
-      _pdfTextSearchResult = _pdfViewerController.searchText(query);
+      _isIndexedSearchLoading = true;
+      _indexedSearchResults = const [];
+      _indexedSearchIndex = 0;
+      _pdfTextSearchResult = _pdfViewerController.searchText(normalizedQuery);
       _pdfTextSearchResult.addListener(_onSearchProgress);
     });
+
+    try {
+      // Syncfusion searches selectable text in the PDF itself. The local FTS
+      // index also contains OCR text from scanned pages, so search this file's
+      // indexed pages and use those page hits for in-document navigation.
+      final dao = ref.read(pdfSearchDaoProvider);
+      final metadata = await dao.getMetadata(widget.file.id);
+      if (metadata == null ||
+          metadata.status == 'indexed' ||
+          metadata.status == 'ocr_error' ||
+          metadata.status == 'error' ||
+          metadata.status.startsWith('indexing')) {
+        await ref
+            .read(pdfIndexCommandProvider.notifier)
+            .indexFile(widget.file.id, widget.file.relativeFilePath);
+      }
+      final matches = await dao.search(
+        normalizedQuery,
+        fileId: widget.file.id,
+        limit: 1000,
+      );
+      if (!mounted || requestId != _searchRequestId) return;
+      setState(() {
+        _indexedSearchResults = matches;
+        _isIndexedSearchLoading = false;
+      });
+      if (matches.isNotEmpty) {
+        _goToPage(matches.first.pageNumber);
+      }
+    } catch (_) {
+      if (!mounted || requestId != _searchRequestId) return;
+      setState(() => _isIndexedSearchLoading = false);
+    }
+  }
+
+  void _navigateSearchResult(int direction) {
+    if (_indexedSearchResults.isNotEmpty) {
+      final nextIndex =
+          (_indexedSearchIndex + direction) % _indexedSearchResults.length;
+      _indexedSearchIndex = nextIndex < 0
+          ? _indexedSearchResults.length - 1
+          : nextIndex;
+      _goToPage(_indexedSearchResults[_indexedSearchIndex].pageNumber);
+      setState(() {});
+      return;
+    }
+
+    if (direction < 0) {
+      _pdfTextSearchResult.previousInstance();
+    } else {
+      _pdfViewerController.clearSelection();
+      _pdfTextSearchResult.nextInstance();
+    }
+    setState(() {});
   }
 
   void _onSearchProgress() {
@@ -115,11 +184,15 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
   }
 
   void _clearSearch() {
+    _searchRequestId++;
     setState(() {
       _searchController.clear();
       _pdfTextSearchResult.clear();
       _pdfViewerController.clearSelection();
       _isSearchInitiated = false;
+      _isIndexedSearchLoading = false;
+      _indexedSearchResults = const [];
+      _indexedSearchIndex = 0;
       _pdfTextSearchResult.removeListener(_onSearchProgress);
     });
   }
@@ -213,7 +286,8 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
                 color: colors.surfaceContainerLow,
                 child: Row(
                   children: [
-                    if (!_pdfTextSearchResult.isSearchCompleted)
+                    if (_isIndexedSearchLoading ||
+                        !_pdfTextSearchResult.isSearchCompleted)
                       const SizedBox(
                         width: 16,
                         height: 16,
@@ -221,29 +295,23 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
                       )
                     else
                       Text(
-                        _pdfTextSearchResult.hasResult
+                        _indexedSearchResults.isNotEmpty
+                            ? 'Page ${_indexedSearchIndex + 1} of ${_indexedSearchResults.length} matching pages'
+                            : _pdfTextSearchResult.hasResult
                             ? '${_pdfTextSearchResult.currentInstanceIndex} of ${_pdfTextSearchResult.totalInstanceCount}'
                             : 'No matches found',
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                     const Spacer(),
-                    if (_pdfTextSearchResult.hasResult) ...[
+                    if (_indexedSearchResults.isNotEmpty ||
+                        _pdfTextSearchResult.hasResult) ...[
                       IconButton(
                         icon: const Icon(Icons.navigate_before_rounded),
-                        onPressed: () {
-                          setState(() {
-                            _pdfTextSearchResult.previousInstance();
-                          });
-                        },
+                        onPressed: () => _navigateSearchResult(-1),
                       ),
                       IconButton(
                         icon: const Icon(Icons.navigate_next_rounded),
-                        onPressed: () {
-                          setState(() {
-                            _pdfViewerController.clearSelection();
-                            _pdfTextSearchResult.nextInstance();
-                          });
-                        },
+                        onPressed: () => _navigateSearchResult(1),
                       ),
                     ],
                   ],

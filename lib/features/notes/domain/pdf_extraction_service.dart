@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:college_os/core/database/daos/pdf_search_dao.dart';
+import 'package:college_os/features/notes/domain/pdf_page_ocr_service.dart';
 import 'package:college_os/features/subject_files/domain/subject_file_storage_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -159,10 +160,12 @@ final class LocalPdfExtractionService implements PdfExtractionService {
     this._storageService, {
     this.documentMemoryBudgetBytes = kDocumentMemoryBudgetBytes,
     this.useParallel = true,
+    this._ocrService = const NoopPdfPageOcrService(),
   });
 
   final PdfSearchDao _dao;
   final SubjectFileStorageService _storageService;
+  final PdfPageOcrService _ocrService;
 
   /// Whether to attempt parallel extraction using exactly 2 isolates.
   /// Falls back to single isolate if system resources (e.g. processor count)
@@ -185,14 +188,14 @@ final class LocalPdfExtractionService implements PdfExtractionService {
   }) async {
     final total = Stopwatch()..start();
 
-    // Never re-extract a document that is already fully indexed: the pages are
-    // still in pdf_page_fts, so any further work would be wasted. This runs
-    // before the file is touched so an indexed file is never even read.
     final meta = await _dao.getMetadata(fileId);
-    if (meta != null &&
-        meta.status == 'indexed' &&
+    final alreadyExtracted =
+        meta != null &&
         meta.pageCount > 0 &&
-        meta.lastIndexedPage >= meta.pageCount) {
+        meta.lastIndexedPage >= meta.pageCount;
+    if (meta != null &&
+        alreadyExtracted &&
+        (!_ocrService.isAvailable || meta.status == 'indexed_ocr')) {
       debugPrint(
         'PdfIndex[$fileId] already indexed (${meta.pageCount} pages), skipping',
       );
@@ -215,6 +218,17 @@ final class LocalPdfExtractionService implements PdfExtractionService {
     if (!await file.exists()) {
       await _dao.markAsError(fileId);
       return PdfIndexReport.failed(total.elapsed);
+    }
+
+    // Upgrade older text-only indexes in place. Only pages with no FTS row are
+    // rendered and OCR'd, leaving every existing extracted page untouched.
+    if (meta != null && alreadyExtracted && _ocrService.isAvailable) {
+      return _ocrPreviouslyIndexedPages(
+        fileId,
+        file,
+        pageCount: meta.pageCount,
+        lastIndexedPage: meta.lastIndexedPage,
+      );
     }
 
     // Keeps every page a previous run stored and reports where to continue.
@@ -250,6 +264,7 @@ final class LocalPdfExtractionService implements PdfExtractionService {
     var databaseMillis = 0;
     var recycles = 0;
     var unsupported = false;
+    var ocrFailed = false;
 
     final outcome = Completer<String?>(); // null == completed fine
 
@@ -348,16 +363,16 @@ final class LocalPdfExtractionService implements PdfExtractionService {
             // One transaction per batch: pages and the progress metadata that
             // describes them are written together, so an interruption resumes
             // exactly where the stored text ends.
+            final extractedPages = [
+              for (final page in pages)
+                PdfExtractedPage(pageNumber: page.pageNumber, text: page.text),
+            ];
+            final ocrResult = await _ocrEmptyPages(file.path, extractedPages);
+            ocrFailed = ocrFailed || ocrResult.failed;
             final dbWatch = Stopwatch()..start();
             await _dao.saveExtractedBatch(
               fileId,
-              [
-                for (final page in pages)
-                  PdfExtractedPage(
-                    pageNumber: page.pageNumber,
-                    text: page.text,
-                  ),
-              ],
+              ocrResult.pages,
               lastPageIndexed: lastPageAttempted,
               totalPages: totalPages == 0 ? lastPageAttempted : totalPages,
             );
@@ -392,7 +407,11 @@ final class LocalPdfExtractionService implements PdfExtractionService {
             pagesIndexed = pagesExtracted;
             final completedPages = pageCount == 0 ? totalPages : pageCount;
             final dbWatch = Stopwatch()..start();
-            await _dao.completeIndexing(fileId, completedPages);
+            await _dao.completeIndexing(
+              fileId,
+              completedPages,
+              status: _completedIndexStatus(ocrFailed),
+            );
             dbWatch.stop();
             databaseMillis += dbWatch.elapsedMilliseconds;
             lastIndexedPage = completedPages;
@@ -455,7 +474,7 @@ final class LocalPdfExtractionService implements PdfExtractionService {
     total.stop();
     final failure = outcome.isCompleted ? await outcome.future : null;
     final result = PdfIndexReport(
-      outcome: failure != null
+      outcome: failure != null || ocrFailed
           ? PdfIndexOutcome.failed
           : (unsupported
                 ? PdfIndexOutcome.unsupported
@@ -486,6 +505,122 @@ final class LocalPdfExtractionService implements PdfExtractionService {
     );
     return result;
   }
+
+  Future<PdfIndexReport> _ocrPreviouslyIndexedPages(
+    int fileId,
+    File file, {
+    required int pageCount,
+    required int lastIndexedPage,
+  }) async {
+    final total = Stopwatch()..start();
+    final missingPages = await _dao.pagesWithoutText(fileId, pageCount);
+    var databaseTime = Duration.zero;
+    var extractedPages = 0;
+
+    try {
+      for (
+        var start = 0;
+        start < missingPages.length;
+        start += kPagesPerDatabaseBatch
+      ) {
+        final batch = missingPages
+            .skip(start)
+            .take(kPagesPerDatabaseBatch)
+            .toList();
+        final texts = await _ocrService.extractText(
+          filePath: file.path,
+          pageNumbers: batch,
+        );
+        final dbWatch = Stopwatch()..start();
+        await _dao.saveExtractedBatch(
+          fileId,
+          [
+            for (final page in batch)
+              PdfExtractedPage(pageNumber: page, text: texts[page] ?? ''),
+          ],
+          lastPageIndexed: lastIndexedPage,
+          totalPages: pageCount,
+        );
+        dbWatch.stop();
+        databaseTime += dbWatch.elapsed;
+        extractedPages += batch.length;
+      }
+      await _dao.completeIndexing(fileId, pageCount, status: 'indexed_ocr');
+      total.stop();
+      return PdfIndexReport(
+        outcome: PdfIndexOutcome.indexed,
+        pageCount: pageCount,
+        pagesIndexed: extractedPages,
+        resumedFromPage: lastIndexedPage,
+        failedPages: 0,
+        documentRecycles: 0,
+        openTime: Duration.zero,
+        extractionTime: total.elapsed - databaseTime,
+        databaseTime: databaseTime,
+        totalTime: total.elapsed,
+      );
+    } catch (error) {
+      debugPrint('PDF OCR upgrade failed for $fileId: $error');
+      await _dao.markOcrError(
+        fileId,
+        pageCount: pageCount,
+        lastIndexedPage: lastIndexedPage,
+      );
+      total.stop();
+      return PdfIndexReport(
+        outcome: PdfIndexOutcome.failed,
+        pageCount: pageCount,
+        pagesIndexed: extractedPages,
+        resumedFromPage: lastIndexedPage,
+        failedPages: missingPages.length - extractedPages,
+        documentRecycles: 0,
+        openTime: Duration.zero,
+        extractionTime: total.elapsed - databaseTime,
+        databaseTime: databaseTime,
+        totalTime: total.elapsed,
+      );
+    }
+  }
+
+  Future<({List<PdfExtractedPage> pages, bool failed})> _ocrEmptyPages(
+    String filePath,
+    List<PdfExtractedPage> pages,
+  ) async {
+    if (!_ocrService.isAvailable) return (pages: pages, failed: false);
+    final emptyPageNumbers = [
+      for (final page in pages)
+        if (page.text.trim().isEmpty) page.pageNumber,
+    ];
+    if (emptyPageNumbers.isEmpty) return (pages: pages, failed: false);
+
+    try {
+      final recognized = await _ocrService.extractText(
+        filePath: filePath,
+        pageNumbers: emptyPageNumbers,
+      );
+      return (
+        pages: [
+          for (final page in pages)
+            PdfExtractedPage(
+              pageNumber: page.pageNumber,
+              text: page.text.trim().isNotEmpty
+                  ? page.text
+                  : recognized[page.pageNumber] ?? '',
+            ),
+        ],
+        failed: false,
+      );
+    } catch (error) {
+      debugPrint('Scanned-page OCR failed for $filePath: $error');
+      return (pages: pages, failed: true);
+    }
+  }
+
+  String _completedIndexStatus(bool ocrFailed) => !_ocrService.isAvailable
+      ? 'indexed'
+      : ocrFailed
+      ? 'ocr_error'
+      : 'indexed_ocr';
 
   /// Reads, extracts and reports pages from one open document.
   ///
@@ -716,6 +851,7 @@ final class LocalPdfExtractionService implements PdfExtractionService {
     var databaseMillis = 0;
     var recycles = 0;
     var unsupported = false;
+    var ocrFailed = false;
 
     final outcome = Completer<String?>();
 
@@ -906,16 +1042,19 @@ final class LocalPdfExtractionService implements PdfExtractionService {
               if (batchFailures > 0) failedPages += batchFailures;
               pagesIndexed += pagesData.length;
 
+              final extractedPages = [
+                for (final p in pagesData)
+                  PdfExtractedPage(
+                    pageNumber: p['pageNumber'],
+                    text: p['text'],
+                  ),
+              ];
+              final ocrResult = await _ocrEmptyPages(file.path, extractedPages);
+              ocrFailed = ocrFailed || ocrResult.failed;
               final dbWatch = Stopwatch()..start();
               await _dao.saveExtractedBatch(
                 fileId,
-                [
-                  for (final p in pagesData)
-                    PdfExtractedPage(
-                      pageNumber: p['pageNumber'],
-                      text: p['text'],
-                    ),
-                ],
+                ocrResult.pages,
                 lastPageIndexed: batchEnd,
                 totalPages: pageCount,
               );
@@ -957,7 +1096,11 @@ final class LocalPdfExtractionService implements PdfExtractionService {
         terminal = true;
         final completedPages = pageCount == 0 ? totalPages : pageCount;
         final dbWatch = Stopwatch()..start();
-        await _dao.completeIndexing(fileId, completedPages);
+        await _dao.completeIndexing(
+          fileId,
+          completedPages,
+          status: _completedIndexStatus(ocrFailed),
+        );
         dbWatch.stop();
         databaseMillis += dbWatch.elapsedMilliseconds;
         lastIndexedPage = completedPages;
@@ -1006,7 +1149,7 @@ final class LocalPdfExtractionService implements PdfExtractionService {
     totalWatch.stop();
     final failure = outcome.isCompleted ? await outcome.future : null;
     return PdfIndexReport(
-      outcome: failure != null
+      outcome: failure != null || ocrFailed
           ? PdfIndexOutcome.failed
           : (unsupported
                 ? PdfIndexOutcome.unsupported

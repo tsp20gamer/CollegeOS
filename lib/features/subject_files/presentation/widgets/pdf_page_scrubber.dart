@@ -33,8 +33,9 @@ const double _bubbleHeight = 28;
 /// Syncfusion's viewer owns its own scrolling and exposes no pixel extent, so
 /// this rail is honest about what it can measure: it is a *page* rail. The
 /// thumb's travel maps to the document's pages, dragging it turns pages, and
-/// the bubble names the page under the finger. It is the whole right edge's
-/// scrolling affordance, so it stays visible instead of fading out.
+/// the bubble names the page under the finger, and a persistent page label
+/// stays visible at the bottom edge. It is the whole right edge's scrolling
+/// affordance, so it stays visible instead of fading out.
 class PdfPageScrubber extends StatefulWidget {
   const PdfPageScrubber({
     required this.pageCount,
@@ -134,6 +135,14 @@ class _PdfPageScrubberState extends State<PdfPageScrubber> {
                     clipBehavior: Clip.none,
                     children: [
                       Positioned(
+                        key: const Key('pdf_page_scrubber_page_label'),
+                        right: _railTouchWidth + AppSpacing.xxs,
+                        bottom: 0,
+                        child: IgnorePointer(
+                          child: _PageLabel(text: 'Page $page of $pageCount'),
+                        ),
+                      ),
+                      Positioned(
                         right: _centerOffset(_trackWidth),
                         top: 0,
                         bottom: 0,
@@ -187,7 +196,7 @@ class _PdfPageScrubberState extends State<PdfPageScrubber> {
                                 vertical: AppSpacing.xxxs,
                               ),
                               child: Text(
-                                '$page / $pageCount',
+                                'Page $page of $pageCount',
                                 style: Theme.of(context).textTheme.labelLarge
                                     ?.copyWith(color: colors.onInverseSurface),
                               ),
@@ -247,5 +256,34 @@ class _PdfPageScrubberState extends State<PdfPageScrubber> {
   void _select(int page) {
     if (page == widget.currentPage) return;
     widget.onPageSelected(page);
+  }
+}
+
+class _PageLabel extends StatelessWidget {
+  const _PageLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surfaceContainerHigh.withValues(alpha: .96),
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: colors.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
   }
 }

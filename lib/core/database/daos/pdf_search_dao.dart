@@ -1,4 +1,5 @@
 import 'package:college_os/core/database/app_database.dart';
+import 'package:college_os/features/notes/domain/pdf_search_result.dart';
 import 'package:drift/drift.dart';
 
 part 'pdf_search_dao.g.dart';
@@ -96,11 +97,46 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<void> completeIndexing(int fileId, int totalPages) => _writeMetadata(
+  Future<void> completeIndexing(
+    int fileId,
+    int totalPages, {
+    String status = 'indexed',
+  }) => _writeMetadata(
     fileId,
-    status: 'indexed',
+    status: status,
     pageCount: totalPages,
     lastIndexedPage: totalPages,
+  );
+
+  /// Pages without an FTS row, including pages from older text-only indexing
+  /// runs that had no OCR support.
+  Future<List<int>> pagesWithoutText(int fileId, int pageCount) async {
+    if (pageCount <= 0) return const [];
+    final rows = await customSelect(
+      '''
+      SELECT CAST(page_number AS INTEGER) AS page_number
+      FROM pdf_page_fts
+      WHERE file_id = ?
+      ''',
+      variables: [Variable.withString(fileId.toString())],
+      readsFrom: {pdfPageFts},
+    ).get();
+    final indexedPages = {for (final row in rows) row.read<int>('page_number')};
+    return [
+      for (var page = 1; page <= pageCount; page++)
+        if (!indexedPages.contains(page)) page,
+    ];
+  }
+
+  Future<void> markOcrError(
+    int fileId, {
+    required int pageCount,
+    required int lastIndexedPage,
+  }) => _writeMetadata(
+    fileId,
+    status: 'ocr_error',
+    pageCount: pageCount,
+    lastIndexedPage: lastIndexedPage,
   );
 
   Future<void> deleteFileIndex(int fileId) async {
@@ -138,7 +174,12 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
     pdfSearchMetadata,
   )..where((row) => row.fileId.equals(fileId))).getSingleOrNull();
 
-  Future<List<PdfSearchResultRow>> search(String query) async {
+  Future<List<PdfSearchResult>> search(
+    String query, {
+    int? subjectId,
+    int? fileId,
+    int limit = 200,
+  }) async {
     if (query.trim().isEmpty) return [];
 
     // Sanitize query to prevent FTS5 syntax errors
@@ -154,6 +195,22 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
         .join(' ');
 
     try {
+      final subjectFilter = subjectId == null
+          ? ''
+          : '''
+            AND EXISTS (
+              SELECT 1 FROM subject_files AS search_file
+              WHERE search_file.id = CAST(pdf_page_fts.file_id AS INTEGER)
+                AND search_file.subject_id = ?
+            )
+          ''';
+      final fileFilter = fileId == null ? '' : 'AND pdf_page_fts.file_id = ?';
+      final variables = <Variable<Object>>[
+        Variable.withString(ftsQuery),
+        if (subjectId != null) Variable.withInt(subjectId),
+        if (fileId != null) Variable.withString(fileId.toString()),
+        Variable.withInt(limit.clamp(1, 1000).toInt()),
+      ];
       final result = await customSelect(
         '''
         SELECT 
@@ -162,14 +219,17 @@ class PdfSearchDao extends DatabaseAccessor<AppDatabase>
           snippet(pdf_page_fts, 2, '<b>', '</b>', '...', 64) AS snippet
         FROM pdf_page_fts 
         WHERE pdf_page_fts MATCH ? 
+        $subjectFilter
+        $fileFilter
         ORDER BY rank
+        LIMIT ?
         ''',
-        variables: [Variable.withString(ftsQuery)],
-        readsFrom: {pdfPageFts},
+        variables: variables,
+        readsFrom: {pdfPageFts, attachedDatabase.subjectFiles},
       ).get();
 
       return result.map((row) {
-        return PdfSearchResultRow(
+        return PdfSearchResult(
           fileId: int.parse(row.read<String>('file_id')),
           pageNumber: int.parse(row.read<String>('page_number')),
           snippet: row.read<String>('snippet'),
@@ -204,16 +264,4 @@ class PdfExtractedPage {
 
   final int pageNumber;
   final String text;
-}
-
-class PdfSearchResultRow {
-  final int fileId;
-  final int pageNumber;
-  final String snippet;
-
-  PdfSearchResultRow({
-    required this.fileId,
-    required this.pageNumber,
-    required this.snippet,
-  });
 }

@@ -381,7 +381,13 @@ class _FakeStorage implements SubjectFileStorageService {
   Future<void> deleteFile(String relativeFilePath) async {}
 
   @override
-  Future<void> openOrShareFile(String relativeFilePath, String title) async {}
+  Future<void> openFile(
+    String relativeFilePath, {
+    required String mimeType,
+  }) async {}
+
+  @override
+  Future<void> shareFile(String relativeFilePath, String title) async {}
 
   @override
   Future<({String fileExtension, int fileSizeBytes, String relativeFilePath})>

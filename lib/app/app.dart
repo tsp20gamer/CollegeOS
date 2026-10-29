@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:college_os/features/attendance/application/attendance_providers.dart';
 import 'package:college_os/features/attendance/domain/attendance_engine_repository.dart';
+import 'package:college_os/features/timetable/application/timetable_providers.dart';
 import 'package:college_os/core/theme/spacing.dart';
 
 import 'package:college_os/core/routing/app_router.dart';
@@ -37,6 +38,8 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
   late final AutomaticBackupCoordinator _automaticBackups;
   StreamSubscription<IncomingBackupEvent>? _incomingBackupSubscription;
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
+  bool _notificationsInitialized = false;
+  bool _refreshingNotifications = false;
 
   @override
   void initState() {
@@ -88,6 +91,7 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
       await ref
           .read(notificationCoordinatorProvider)
           .initialize(_openNotification);
+      _notificationsInitialized = true;
       if (mounted) {
         await _syncAttendanceReminder(
           ref.read(pendingAttendanceReminderProvider),
@@ -126,6 +130,37 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       unawaited(_automaticBackups.checkpoint());
+    } else if (state == AppLifecycleState.resumed &&
+        _notificationsInitialized) {
+      unawaited(_refreshNotificationSchedules());
+    }
+  }
+
+  /// Rebuilds Android's disposable alarm projection whenever the app returns
+  /// to the foreground. Android and device vendors can drop or defer alarms
+  /// while the app is idle; persisted reminder intent remains authoritative.
+  Future<void> _refreshNotificationSchedules() async {
+    if (_refreshingNotifications || !mounted) return;
+    _refreshingNotifications = true;
+    try {
+      ref.invalidate(localMinuteProvider);
+      ref.invalidate(timetableEntriesProvider);
+      await Future.wait([
+        ref.read(localMinuteProvider.future),
+        ref.read(timetableEntriesProvider.future),
+      ]);
+      await ref.read(notificationCoordinatorProvider).reconcile();
+      await _syncAttendanceReminder(
+        ref.read(pendingAttendanceReminderProvider),
+      );
+      final classReminders = ref.read(pendingClassRemindersProvider);
+      if (classReminders != null) {
+        await _syncClassReminders(classReminders);
+      }
+    } catch (_) {
+      // The saved reminder intent is retried on the next foreground return.
+    } finally {
+      _refreshingNotifications = false;
     }
   }
 

@@ -491,6 +491,7 @@ class _AutomaticRecoverySection extends ConsumerWidget {
           data: (items) => _RecoveryBackupList(
             backups: items,
             enabled: !busy,
+            automaticBackupsEnabled: enabled,
             onRestore: onRestore,
           ),
         ),
@@ -521,11 +522,13 @@ class _RecoveryBackupList extends StatelessWidget {
   const _RecoveryBackupList({
     required this.backups,
     required this.enabled,
+    required this.automaticBackupsEnabled,
     required this.onRestore,
   });
 
   final List<RecoveryBackup> backups;
   final bool enabled;
+  final bool automaticBackupsEnabled;
   final ValueChanged<RecoveryBackup> onRestore;
 
   @override
@@ -541,9 +544,11 @@ class _RecoveryBackupList extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: AppSpacing.md),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'No local recovery backups yet. One will be created after your next meaningful change.',
+                  automaticBackupsEnabled
+                      ? 'No local recovery backups yet. One will be created after your next meaningful change.'
+                      : 'No local recovery backups yet. Automatic backups are off; turn them on above or export a backup to save a recovery copy.',
                 ),
               ),
             ],

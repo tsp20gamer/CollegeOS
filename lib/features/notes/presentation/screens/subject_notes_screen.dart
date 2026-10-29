@@ -265,9 +265,12 @@ class _SubjectNotesScreenState extends ConsumerState<SubjectNotesScreen> {
                     } else {
                       ref
                           .read(subjectFileCommandProvider.notifier)
-                          .openOrShareFile(file);
+                          .openFile(file);
                     }
                   },
+                  onShare: () => ref
+                      .read(subjectFileCommandProvider.notifier)
+                      .shareFile(file),
                   onDelete: () => _confirmDeleteFile(context, file),
                 ),
               ),
@@ -397,6 +400,7 @@ class _FileCard extends StatelessWidget {
     required this.subject,
     required this.accent,
     required this.onOpen,
+    required this.onShare,
     required this.onDelete,
   });
 
@@ -404,6 +408,7 @@ class _FileCard extends StatelessWidget {
   final Subject subject;
   final Color accent;
   final VoidCallback onOpen;
+  final VoidCallback onShare;
   final VoidCallback onDelete;
 
   @override
@@ -476,22 +481,22 @@ class _FileCard extends StatelessWidget {
                   ],
                 ),
               ),
+              IconButton(
+                tooltip: 'Open file',
+                onPressed: onOpen,
+                icon: const Icon(Icons.open_in_new_rounded),
+              ),
+              IconButton(
+                tooltip: 'Share file',
+                onPressed: onShare,
+                icon: const Icon(Icons.share_rounded),
+              ),
               PopupMenuButton<String>(
-                tooltip: 'File actions',
+                tooltip: 'More file actions',
                 onSelected: (val) {
-                  if (val == 'open') onOpen();
                   if (val == 'delete') onDelete();
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'open',
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.open_in_new_rounded),
-                      title: Text('Open / Share'),
-                    ),
-                  ),
                   const PopupMenuItem(
                     value: 'delete',
                     child: ListTile(

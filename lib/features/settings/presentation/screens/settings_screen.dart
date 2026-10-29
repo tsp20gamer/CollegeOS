@@ -523,6 +523,7 @@ class SettingsScreen extends ConsumerWidget {
             .value
             ?.notificationsEnabled;
         final operation = ref.watch(notificationPermissionControllerProvider);
+        final deliveryStatus = ref.watch(notificationDeliveryStatusProvider);
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -551,6 +552,76 @@ class SettingsScreen extends ConsumerWidget {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  Card(
+                    child: deliveryStatus.when(
+                      loading: () => const ListTile(
+                        key: Key('reminder_delivery_status_loading'),
+                        leading: SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        title: Text('Checking reminder status…'),
+                      ),
+                      error: (_, _) => const ListTile(
+                        key: Key('reminder_delivery_status_error'),
+                        leading: Icon(Icons.error_outline_rounded),
+                        title: Text('Could not check reminder status'),
+                        subtitle: Text(
+                          'Try again or send a test notification.',
+                        ),
+                      ),
+                      data: (status) {
+                        final blocked =
+                            !status.enabledInCollegeOs ||
+                            !status.enabledByAndroid;
+                        final message = !status.enabledInCollegeOs
+                            ? 'Paused in CollegeOS. Turn on notifications to schedule reminders.'
+                            : !status.enabledByAndroid
+                            ? 'Android is blocking CollegeOS notifications.'
+                            : status.scheduledReminderCount == 0
+                            ? 'No reminders are scheduled right now.'
+                            : '${status.scheduledReminderCount} reminders are scheduled on this device.';
+                        return ListTile(
+                          key: const Key('reminder_delivery_status'),
+                          leading: Icon(
+                            blocked
+                                ? Icons.notifications_off_outlined
+                                : status.scheduledReminderCount == 0
+                                ? Icons.notifications_none_rounded
+                                : Icons.notifications_active_outlined,
+                          ),
+                          title: const Text('Reminder delivery'),
+                          subtitle: Text(message),
+                        );
+                      },
+                    ),
+                  ),
+                  if (enabled == true) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    OutlinedButton.icon(
+                      key: const Key('repair_scheduled_reminders'),
+                      onPressed: operation.isLoading
+                          ? null
+                          : () async {
+                              final repaired = await ref
+                                  .read(
+                                    notificationPermissionControllerProvider
+                                        .notifier,
+                                  )
+                                  .repair();
+                              if (!sheetContext.mounted) return;
+                              _message(
+                                sheetContext,
+                                repaired
+                                    ? 'CollegeOS refreshed your scheduled reminders.'
+                                    : 'Could not refresh reminders. Check Android notification settings and try again.',
+                              );
+                            },
+                      icon: const Icon(Icons.sync_rounded),
+                      label: const Text('Repair scheduled reminders'),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   FilledButton.icon(
                     key: const Key('send_test_notification'),

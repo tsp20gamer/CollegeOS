@@ -148,11 +148,12 @@ is explicitly retained in `res/raw/keep.xml`, because the notification plugin
 resolves its name dynamically and the release resource shrinker cannot infer
 that reference from Dart code.
 
-The temporary diagnostics panel used during device verification has been
-removed. Settings keeps the notification check sheet with the test action and the
-Android notification-settings shortcut, and `AndroidNotificationPlatform` keeps
-the narrow native permission and reminder-channel query it needs to decide
-whether reminders can actually be delivered on this device.
+Settings keeps a notification check sheet with the Android permission/channel
+state, the count of scheduled CollegeOS reminders, a test action, a one-tap
+reconciliation action, and the Android notification-settings shortcut.
+`AndroidNotificationPlatform` owns the narrow native permission and
+reminder-channel query it needs to decide whether reminders can actually be
+delivered on this device.
 
 Riverpod code generation is intentionally omitted at first to reduce generators and dependencies. Drift remains the only required code generator. Reconsider only if hand-written provider maintenance becomes materially worse.
 
@@ -266,9 +267,10 @@ PDF search has indexed and space on the device — measured from one stream of t
 student's files narrowed to the listed subjects, so the totals and the list can
 never disagree. Each material chip counts what it holds. Each subject is one card
 with a monogram in that subject's own display colour, its code, room, note and
-file counts, and its files opening inside the card rather than in a second
-surface. A PDF keeps the cobalt tile; other formats stay neutral and are told
-apart by their glyph, so the library never invents a second accent.
+file counts. File rows open on tap and have separate Open and Share actions; PDFs
+open in the in-app reader and other formats use the device's file handler. A PDF
+keeps the cobalt tile; other formats stay neutral and are told apart by their
+glyph, so the library never invents a second accent.
 
 The Timetable day bar keeps one strip one surface step above the canvas and one
 cobalt circle on the selected day. The circle takes its diameter from the day
@@ -400,7 +402,7 @@ Legacy `attendance_sessions` and `daily_attendance_records` remain isolated for 
 - Task, exam, attendance and class reminder notification IDs occupy four disjoint deterministic ranges derived from the local record ID: tasks are positive, exams the same id negated, attendance is reserved as zero, and class reminders start at `classReminderNotificationIdBase`. No mapping table is needed and no two records can collide.
 - A class reminder is a lead time rather than an instant, so `ClassReminderPlan` projects exactly one alarm per class: its next eligible occurrence, computed from the same day model attendance uses. Holidays, college-closed days, cancelled classes, one-day exceptions, archived subjects and semester breaks are therefore skipped without a second calendar, and `0` reminds at the class start.
 - Creation/edit commands persist first, then schedule or cancel the matching projection. Completion and deletion always cancel it. Scheduling failure never rolls back or loses the task, exam or saved class itself.
-- App startup initializes timezone data and reconciles all future reminder intent, cancelling stale CollegeOS IDs. Reconciliation also covers app updates, restore, timezone changes observed on launch, and schedules lost by the OS.
+- App startup initializes timezone data and reconciles all future reminder intent, cancelling stale CollegeOS IDs. Reconciliation also runs whenever the app resumes, covering alarms dropped while idle as well as app updates, restore, timezone changes observed on launch, and schedules lost by the OS.
 - The class namespace is owned by its own serialized sync: the desired projection is recomputed from the stored timetable, the calendar and the clock, stale class alarms are cancelled, changed lead times are replaced and unchanged ones are left alone. Both the class-notifier switch and the global master gate that projection, so turning class reminders off empties the namespace and cancels every class alarm while tasks and exams keep working. `TimetableDao.setReminderForSemester` backs "Apply to all classes": it writes only the lead time, on rows that are still current or future, without versioning timetable history, because a lead time changes what Android announces rather than what a class record meant on a past date. Startup reconciliation deliberately skips class payloads so it can never wipe them before that sync runs, and the projection provider reports `null` ("leave the namespace alone") while its inputs are still loading instead of treating a slow read as "no reminders".
 - On Android 12 and newer, CollegeOS offers the system-managed precise-alarm access when notifications are enabled or the first reminder is created. Scheduling uses `exactAllowWhileIdle` when that access is available and safely falls back to `inexactAllowWhileIdle` otherwise. Runtime notification permission is still requested only in context. No permanent background service is used.
 - Payloads contain only a typed local route (`task:<id>`, `exam:<id>` or `classReminder:<id>`). Taps route to the relevant Tasks, Exams or Timetable screen, which remains recoverable if the record was removed.

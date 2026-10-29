@@ -1,5 +1,6 @@
 import 'package:college_os/core/database/daos/pdf_search_dao.dart';
 import 'package:college_os/features/notes/domain/pdf_extraction_service.dart';
+import 'package:college_os/features/notes/data/local_pdf_page_ocr_service.dart';
 import 'package:college_os/features/subject_files/domain/subject_file_storage_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
@@ -50,7 +51,11 @@ class PdfIndexingTaskHandler extends TaskHandler {
       final dao = PdfSearchDao(_database!);
       const storageService = LocalSubjectFileStorageService();
 
-      _extractionService = LocalPdfExtractionService(dao, storageService);
+      _extractionService = LocalPdfExtractionService(
+        dao,
+        storageService,
+        ocrService: const LocalPdfPageOcrService(),
+      );
 
       // We start indexing asynchronously but don't await it here, because onStart
       // should return to allow event loops.

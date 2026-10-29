@@ -129,25 +129,40 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final bubble = find.byKey(const Key('pdf_page_scrubber_bubble'));
+    final pageLabel = find.byKey(const Key('pdf_page_scrubber_page_label'));
+    expect(pageLabel, findsOneWidget);
+    expect(
+      find.descendant(of: pageLabel, matching: find.text('Page 1 of 8')),
+      findsOneWidget,
+    );
+
     final track = tester.getRect(rail);
     final gesture = await tester.startGesture(
       Offset(track.center.dx, track.top + 2),
     );
     await gesture.moveBy(const Offset(0, 20));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('pdf_page_scrubber_bubble')), findsOneWidget);
-    expect(find.text('1 / 8'), findsOneWidget);
+    expect(bubble, findsOneWidget);
+    expect(
+      find.descendant(of: bubble, matching: find.text('Page 1 of 8')),
+      findsOneWidget,
+    );
 
     await gesture.moveTo(Offset(track.center.dx, track.bottom - 2));
     await tester.pumpAndSettle();
-    expect(find.text('8 / 8'), findsOneWidget);
+    expect(
+      find.descendant(of: bubble, matching: find.text('Page 8 of 8')),
+      findsOneWidget,
+    );
 
     await gesture.up();
     await tester.pumpAndSettle();
 
     expect(selected.last, 8);
+    expect(pageLabel, findsOneWidget);
     expect(
-      find.byKey(const Key('pdf_page_scrubber_bubble')),
+      bubble,
       findsNothing,
       reason: 'the bubble is feedback while scrubbing, not permanent chrome',
     );

@@ -8,7 +8,9 @@ to reading a file directly, never a replacement for it.
 ```text
 PDF stored in a subject
    ↓
-text extraction (Syncfusion, in a background isolate)   ← Android: data-sync foreground service
+embedded text extraction (Syncfusion, background isolate)
+   ↓ pages with no text
+local page rendering + on-device OCR (Android, Latin and Devanagari)
    ↓
 pdf_page_fts (FTS5, porter unicode61) + pdf_search_metadata (status, page count, resume cursor)
    ↓
@@ -28,8 +30,12 @@ Schema versions 11–13 added the index and its resumable cursor:
 | `pdf_search_metadata` | One row per file: `status`, `page_count`, `last_indexed_page`, `indexed_at`. `file_id` cascades from `subject_files`. |
 | `pdf_page_fts` | FTS5 virtual table (`file_id`, `page_number` UNINDEXED, `page_text`), tokenized `porter unicode61`. |
 
-Pages with no extractable text are skipped, so image-only scans index nothing
-and are reported as `unsupported` rather than failed.
+Pages with embedded text are indexed directly. Only pages with no text layer
+are rendered and passed to the bundled on-device OCR models. Recognized text is
+stored in the same per-page FTS index. Library-wide search reconciles existing
+PDFs sequentially too, so an index built by an older text-only release is
+upgraded the first time the library is searched. A failed OCR pass remains
+retryable.
 
 ## Resumable extraction
 
@@ -50,10 +56,15 @@ drives the run; `PdfSearchDao` owns every write.
   that memory.
 - Outcomes are `indexed`, `skipped` (already complete), `unsupported` and
   `failed`; `failed` keeps the pages already stored.
+- OCR is performed on the foreground service isolate after each text-extraction
+  batch. Page images are capped at 2200 pixels on the longest side, processed
+  one at a time, and deleted immediately after recognition. `indexed_ocr` marks
+  an OCR-complete index; `ocr_error` keeps missing pages retryable.
 
 On Android the run is hosted by the data-sync foreground service
 (`flutter_foreground_task`, `FOREGROUND_SERVICE_DATA_SYNC`) so a long document
-survives the app leaving the foreground. One document is extracted at a time.
+survives the app leaving the foreground. PDFs in the search scope are
+processed one at a time.
 After a restart, `PdfIndexCommandController.indexMissingPdfs` restarts files
 that were never indexed and files left mid-run by an earlier session.
 
@@ -68,6 +79,9 @@ that were never indexed and files left mid-run by an earlier session.
   topics useful.
 - `snippet(pdf_page_fts, 2, '<b>', '</b>', '...', 64)` returns the matched text
   with markers around every hit, and `ORDER BY rank` puts the best pages first.
+- Each query returns at most 200 ranked pages so a broad term cannot flood the
+  results screen. Subject-scoped searches apply their subject filter in SQLite,
+  before results are returned.
 - An empty query never reaches SQL, and a failing query returns no results
   instead of an error screen.
 
@@ -78,19 +92,30 @@ that were never indexed and files left mid-run by an earlier session.
 | Notes destination → search entry | Whole library (`/notes/search`) |
 | Subject screen → search | One subject (`subjectId`) |
 
-Results are grouped by document and open the PDF viewer at the matching page.
+Results are grouped by document, show the matching page and excerpt under each
+file, and open the PDF viewer at the tapped page.
 The subject-scoped screen also watches the indexing status, shows per-file
-progress, and offers a retry for a file that failed; the unscoped screen does no
-indexing of its own, because every subject already reconciles its files on its
-own screen.
+page progress, and offers a retry when OCR or text extraction fails. The library-wide screen also
+reconciles its files so existing scans are indexed even when the student starts
+from the global search entry.
+
+The viewer's Find action searches both the PDF's selectable text and its
+file-scoped FTS pages. This lets the same search find OCR text on scanned pages;
+the match controls move between matching pages, while Syncfusion highlights
+selectable-text matches where available. Starting a Find in a PDF that has not
+yet been indexed starts its local index first. The page rail remains visible,
+supports tap-to-jump and drag-to-scrub, and shows the current page and total
+page count.
 
 ## Offline guarantee
 
 PDF search performs no network request and reads no environment or build-time
-key. `INTERNET` in the manifest exists only for the release check
-(`docs/RELEASE_CHECKLIST.md`). Nothing about a document, a query, or a result
-leaves the device, and no assembled context is persisted: the only stored text
-is the extracted page text in `pdf_page_fts`.
+key. Android bundles ML Kit's Latin and Devanagari recognition models, so the
+first OCR run works offline. The added models increase app size. `INTERNET` in
+the manifest exists only for the release check (`docs/RELEASE_CHECKLIST.md`).
+Nothing about a document, a query, or a result leaves the device, and no
+assembled context is persisted: the only stored text is the extracted page
+text in `pdf_page_fts`.
 
 ## Tests
 

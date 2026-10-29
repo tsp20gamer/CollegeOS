@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:college_os/core/theme/radius.dart';
 import 'package:college_os/core/theme/spacing.dart';
+import 'package:college_os/features/notes/domain/pdf_search_result.dart';
 
 import 'package:college_os/features/notes/application/pdf_search_providers.dart';
 import 'package:college_os/features/subject_files/application/subject_files_providers.dart';
@@ -58,11 +59,18 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    // Indexing is reconciled per subject. An unscoped search has no file list
-    // of its own, and every subject is already covered by its own screen.
+    // Reconcile files in the current search scope. A library-wide search also
+    // queues older PDFs so pre-existing scanned files gain OCR indexes.
     final subjectId = widget.subjectId;
     if (subjectId != null) {
       ref.listen(subjectFilesProvider(subjectId), (previous, next) {
+        final files = next.value;
+        if (files != null && files.isNotEmpty) {
+          ref.read(pdfIndexCommandProvider.notifier).indexMissingPdfs(files);
+        }
+      });
+    } else {
+      ref.listen(searchableFilesProvider(null), (previous, next) {
         final files = next.value;
         if (files != null && files.isNotEmpty) {
           ref.read(pdfIndexCommandProvider.notifier).indexMissingPdfs(files);
@@ -126,12 +134,13 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
                 decoration: InputDecoration(
                   hintText: 'Search for a topic, keyword...',
                   prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: _query.isNotEmpty
+                  suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear_rounded),
                           onPressed: () {
                             _searchController.clear();
-                            _onSearchChanged('');
+                            _debounceTimer?.cancel();
+                            setState(() => _query = '');
                           },
                         )
                       : null,
@@ -179,17 +188,32 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
     final metadata = metadataAsync.value ?? [];
     final files = filesAsync.value ?? [];
     final indexingFiles = <String>[];
+    final failedFiles = <({SubjectFile file, int pageCount, String message})>[];
     for (final file in files) {
       final meta = metadata.where((m) => m.fileId == file.id).firstOrNull;
       if (meta != null && meta.status.startsWith('indexing')) {
-        String statusText = 'Indexing PDF...';
-        if (meta.status.contains('(')) {
-          statusText = 'Indexing PDF... ${meta.status.split(' ').last} pages';
-        }
+        final progress = RegExp(r'\((\d+)\/(\d+)\)').firstMatch(meta.status);
+        final statusText = progress == null
+            ? 'Preparing searchable text…'
+            : 'Indexing • ${progress.group(1)} of ${progress.group(2)} pages';
         indexingFiles.add('${file.title}: $statusText');
+      } else if (meta?.status == 'ocr_error') {
+        failedFiles.add((
+          file: file,
+          pageCount: meta?.pageCount ?? 0,
+          message: 'OCR could not read some scanned pages.',
+        ));
+      } else if (meta?.status == 'error') {
+        failedFiles.add((
+          file: file,
+          pageCount: meta?.pageCount ?? 0,
+          message: 'Text extraction stopped before indexing completed.',
+        ));
       }
     }
-    if (indexingFiles.isEmpty) return const SizedBox.shrink();
+    if (indexingFiles.isEmpty && failedFiles.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -199,21 +223,96 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
       ),
       child: Row(
         children: [
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
+          if (indexingFiles.isNotEmpty)
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colors.onPrimaryContainer,
+              ),
+            )
+          else
+            Icon(
+              Icons.document_scanner_outlined,
+              size: 18,
               color: colors.onPrimaryContainer,
             ),
-          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Text(
-              indexingFiles.join('\n'),
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colors.onPrimaryContainer),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (indexingFiles.isNotEmpty)
+                  Text(
+                    indexingFiles.join('\n'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onPrimaryContainer,
+                    ),
+                  ),
+                for (final failure in failedFiles)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${failure.file.title}: ${failure.message}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: colors.onPrimaryContainer),
+                            ),
+                            if (failure.pageCount > 0)
+                              ref
+                                  .watch(
+                                    pdfPagesWithoutSearchTextProvider((
+                                      fileId: failure.file.id,
+                                      pageCount: failure.pageCount,
+                                    )),
+                                  )
+                                  .when(
+                                    loading: () => const SizedBox.shrink(),
+                                    error: (_, _) => const SizedBox.shrink(),
+                                    data: (pages) {
+                                      if (pages.isEmpty) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      final shownPages = pages
+                                          .take(8)
+                                          .join(', ');
+                                      final remaining = pages.length - 8;
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: AppSpacing.xxs,
+                                        ),
+                                        child: Text(
+                                          'No indexed text on pages $shownPages${remaining > 0 ? ' and $remaining more' : ''}. Blank pages may be included.',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall
+                                              ?.copyWith(
+                                                color:
+                                                    colors.onPrimaryContainer,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => ref
+                            .read(pdfIndexCommandProvider.notifier)
+                            .retryIndexing(
+                              failure.file.id,
+                              failure.file.relativeFilePath,
+                            ),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
         ],
@@ -222,7 +321,9 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
   }
 
   Widget _buildSearchResults() {
-    final searchAsync = ref.watch(pdfSearchProvider(_query));
+    final searchAsync = ref.watch(
+      pdfSearchProvider((query: _query, subjectId: widget.subjectId)),
+    );
     final filesAsync = ref.watch(searchableFilesProvider(widget.subjectId));
 
     return searchAsync.when(
@@ -241,75 +342,102 @@ class _PdfSearchScreenState extends ConsumerState<PdfSearchScreen> {
         final files = filesAsync.value ?? [];
         final Map<int, SubjectFile> fileMap = {for (final f in files) f.id: f};
 
-        // Filter results to only show files that belong to this subject
-        final subjectResults = results
-            .where((r) => fileMap.containsKey(r.fileId))
-            .toList();
+        final grouped = <int, List<PdfSearchResult>>{};
+        for (final result in results) {
+          if (fileMap.containsKey(result.fileId)) {
+            grouped.putIfAbsent(result.fileId, () => []).add(result);
+          }
+        }
 
-        if (subjectResults.isEmpty) {
+        if (grouped.isEmpty) {
           return const EmptyState(
             icon: Icons.search_off_rounded,
-            title: 'No results in this subject',
-            message: 'Matches were found in other subjects, but not here.',
+            title: 'No results found',
+            message:
+                'Try another keyword or check whether this PDF has finished indexing.',
           );
         }
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          itemCount: subjectResults.length,
+          itemCount: grouped.length,
           itemBuilder: (context, index) {
-            final result = subjectResults[index];
-            final file = fileMap[result.fileId]!;
+            final fileId = grouped.keys.elementAt(index);
+            final file = fileMap[fileId]!;
+            final matches = grouped[fileId]!;
 
             return Card(
               margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                onTap: () {
-                  PdfViewerScreen.open(
-                    context,
-                    file: file,
-                    initialPageNumber: result.pageNumber,
-                    initialSearchQuery: _query,
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.picture_as_pdf_rounded,
-                            size: 16,
-                            color: Colors.red.shade600,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.picture_as_pdf_rounded,
+                          size: 16,
+                          color: Colors.red.shade600,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            file.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Expanded(
-                            child: Text(
-                              file.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w600),
-                            ),
+                        ),
+                        Text(
+                          '${matches.length} ${matches.length == 1 ? 'page' : 'pages'}',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    for (final result in matches)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        onTap: () => PdfViewerScreen.open(
+                          context,
+                          file: file,
+                          initialPageNumber: result.pageNumber,
+                          initialSearchQuery: _query,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.xs,
                           ),
-                          Text(
-                            'Page ${result.pageNumber}',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 54,
+                                child: Text(
+                                  'p. ${result.pageNumber}',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                 ),
+                              ),
+                              Expanded(child: _HtmlText(html: result.snippet)),
+                              const Icon(Icons.chevron_right_rounded, size: 18),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      _HtmlText(html: result.snippet),
-                    ],
-                  ),
+                  ],
                 ),
               ),
             );

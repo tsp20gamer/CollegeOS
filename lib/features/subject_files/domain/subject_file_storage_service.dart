@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 
 abstract interface class SubjectFileStorageService {
@@ -24,7 +25,9 @@ abstract interface class SubjectFileStorageService {
 
   Future<void> deleteFile(String relativeFilePath);
 
-  Future<void> openOrShareFile(String relativeFilePath, String title);
+  Future<void> openFile(String relativeFilePath, {required String mimeType});
+
+  Future<void> shareFile(String relativeFilePath, String title);
 }
 
 final class LocalSubjectFileStorageService
@@ -126,7 +129,22 @@ final class LocalSubjectFileStorageService
   }
 
   @override
-  Future<void> openOrShareFile(String relativeFilePath, String title) async {
+  Future<void> openFile(
+    String relativeFilePath, {
+    required String mimeType,
+  }) async {
+    final file = await resolveFile(relativeFilePath);
+    if (!await file.exists()) {
+      throw StateError('The file no longer exists on this device.');
+    }
+    final result = await OpenFilex.open(file.path, type: mimeType);
+    if (result.type != ResultType.done) {
+      throw StateError('No compatible app could open this file.');
+    }
+  }
+
+  @override
+  Future<void> shareFile(String relativeFilePath, String title) async {
     final file = await resolveFile(relativeFilePath);
     if (!await file.exists()) {
       throw StateError('The file no longer exists on this device.');

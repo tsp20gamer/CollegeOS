@@ -1,6 +1,6 @@
 {
-  "latest_version": "1.14.0",
+  "latest_version": "1.15.0",
   "apk_url": "https://apicollegeos.steja3471.workers.dev/?download=1",
-  "changelog": "• Animated Lottie dock glyphs — each destination draws itself when chosen\n• Attendance ↔ Tasks glyphs swapped (clipboard for attendance, tick for tasks)\n• Evened dock labels and glyph sizes across all five destinations\n• Reduced-motion and asset-load fallback to Material icons\n• Animations bundled offline under assets/lottie/",
+  "changelog": "• Offline on-device OCR (Latin & Devanagari) for scanned PDFs\n• In-viewer Find across OCR-indexed pages & persistent page counter\n• Separate Open and Share actions for subject files\n• Foreground reminder schedule reconciliation & one-tap reminder repair\n• SQLite-scoped PDF search with clearer indexing progress and retry",
   "force_update": false
 }

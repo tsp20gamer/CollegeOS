@@ -54,7 +54,13 @@ final class FakeSubjectFileStorageService implements SubjectFileStorageService {
   }
 
   @override
-  Future<void> openOrShareFile(String relativeFilePath, String title) async {}
+  Future<void> openFile(
+    String relativeFilePath, {
+    required String mimeType,
+  }) async {}
+
+  @override
+  Future<void> shareFile(String relativeFilePath, String title) async {}
 }
 
 void main() {

@@ -1,5 +1,6 @@
 import 'package:college_os/core/database/database_providers.dart';
 import 'package:college_os/features/notes/domain/pdf_extraction_service.dart';
+import 'package:college_os/features/notes/domain/pdf_search_result.dart';
 import 'package:college_os/features/notes/domain/pdf_indexing_foreground_service.dart';
 import 'package:college_os/features/subject_files/domain/subject_file.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,10 +18,25 @@ final pdfExtractionServiceProvider = Provider<PdfExtractionService>((ref) {
   );
 });
 
+typedef PdfSearchRequest = ({String query, int? subjectId});
+typedef PdfMissingPageRequest = ({int fileId, int pageCount});
+
+final pdfPagesWithoutSearchTextProvider =
+    FutureProvider.family<List<int>, PdfMissingPageRequest>((ref, request) {
+      return ref
+          .watch(pdfSearchDaoProvider)
+          .pagesWithoutText(request.fileId, request.pageCount);
+    });
+
 final pdfSearchProvider =
-    FutureProvider.family<List<PdfSearchResultRow>, String>((ref, query) async {
-      if (query.trim().isEmpty) return [];
-      return ref.watch(pdfSearchDaoProvider).search(query);
+    FutureProvider.family<List<PdfSearchResult>, PdfSearchRequest>((
+      ref,
+      request,
+    ) async {
+      if (request.query.trim().isEmpty) return [];
+      return ref
+          .watch(pdfSearchDaoProvider)
+          .search(request.query, subjectId: request.subjectId);
     });
 
 final pdfIndexCommandProvider =
@@ -67,6 +83,12 @@ class PdfIndexCommandController extends AsyncNotifier<void> {
       final meta = metaMap[pdf.id];
       if (meta == null) {
         // Never indexed
+        await indexFile(pdf.id, pdf.relativeFilePath);
+      } else if (meta.status == 'indexed' ||
+          meta.status == 'ocr_error' ||
+          meta.status == 'error') {
+        // Add OCR to indexes built before scanned-page support, or retry a
+        // scanned page whose platform OCR failed previously.
         await indexFile(pdf.id, pdf.relativeFilePath);
       } else if (meta.status.startsWith('indexing') &&
           !_activeJobs.contains(pdf.id)) {

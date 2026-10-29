@@ -97,12 +97,22 @@ final class SubjectFileCommandController extends AsyncNotifier<void> {
     return !state.hasError;
   }
 
-  Future<bool> openOrShareFile(SubjectFile file) async {
+  Future<bool> openFile(SubjectFile file) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       await ref
           .read(subjectFileStorageServiceProvider)
-          .openOrShareFile(file.relativeFilePath, file.title);
+          .openFile(file.relativeFilePath, mimeType: file.mimeType);
+    });
+    return !state.hasError;
+  }
+
+  Future<bool> shareFile(SubjectFile file) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await ref
+          .read(subjectFileStorageServiceProvider)
+          .shareFile(file.relativeFilePath, file.title);
     });
     return !state.hasError;
   }
