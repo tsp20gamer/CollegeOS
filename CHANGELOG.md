@@ -1,5 +1,14 @@
 # CollegeOS changelog
 
+## 1.16.0+37 — 1 November 2026
+
+- Added **Feedback & ideas** (Settings → Tools & Data): send a bug report, an idea or anything else, with an optional 1–5 star rating, optional contact and up to 3 screenshots (picked with `image_picker`, compressed on the device). An "Included with your report" box shows the app version, device model and Android version that go with it, with a toggle to leave device info out. People can add their name or switch on **Send anonymously**, which clears and locks the name and contact fields so neither is sent (the server also discards them). Nothing else leaves the device: there is no login, only a random install id kept locally.
+- Added **My feedback**: every report sent from this install with its status (New, Seen, Planned, In progress, Done, Won't fix), the developer's reply, and whether it was sent named or anonymously.
+- Feedback written **offline** is kept in a local outbox and sent automatically when the app starts or comes back to the foreground; retries are de-duplicated, and reports the server rejects are marked failed instead of retried forever.
+- Fixed **scanned-PDF OCR failing in release builds** (the unpublished 1.15.1 fix): R8 removed the no-arg constructors of ML Kit's Firebase `ComponentRegistrar`s (`CommonComponentRegistrar`, `VisionCommonRegistrar`, `TextRegistrar`), so component discovery dropped them and the first recognition threw `NullPointerException ... getClass() on a null object reference`, leaving every scanned page `ocr_error`. `android/app/proguard-rules.pro` now keeps every `ComponentRegistrar` constructor and `getComponents()`, plus ML Kit, its GMS internals and the two Flutter plugins. Files left in `ocr_error` by 1.15.0 are retried automatically.
+- The PDF viewer's **Find** no longer waits for a whole background indexing/OCR run before showing matches; it starts or resumes indexing in the background and searches the pages indexed so far.
+- One unreadable scanned page no longer stops OCR for the rest of its batch; a batch where every page fails is still recorded as `ocr_error`.
+
 ## 1.15.0+36 — 29 October 2026
 
 - Added **on-device OCR for scanned PDFs**: pages with no embedded text layer are rendered locally (capped at 2200 px on the longest side and deleted immediately after recognition) and recognized offline on the foreground indexing service isolate using bundled ML Kit Latin and Devanagari models (`google_mlkit_text_recognition` and `pdfx`, with R8 keep/dontwarn rules in `android/app/proguard-rules.pro`). Completed runs record `indexed_ocr`, failed OCR passes record `ocr_error` while keeping missing pages retryable, and existing text-only indexes (`indexed`) are upgraded in place by rendering and OCR-ing only pages without an FTS row. Library-wide search (`/notes/search`) now reconciles PDFs sequentially too, waiting for each foreground indexing run to finish before starting the next.

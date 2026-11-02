@@ -4,7 +4,7 @@ CollegeOS is a private, Android-first, offline college productivity app built wi
 
 ## Status
 
-Current release: **v1.15.0** (`1.15.0+36`). The core v1 product and the post-v1 usability/insight milestone are complete. Milestone history lives in `docs/ROADMAP.md`; the release process lives in `docs/RELEASE_CHECKLIST.md`.
+Current release: **v1.16.0** (`1.16.0+37`). The core v1 product and the post-v1 usability/insight milestone are complete. Milestone history lives in `docs/ROADMAP.md`; the release process lives in `docs/RELEASE_CHECKLIST.md`.
 
 ## Tech stack
 
