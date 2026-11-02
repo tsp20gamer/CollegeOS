@@ -45,8 +45,7 @@ class MyFeedbackScreen extends ConsumerWidget {
                     EmptyState(
                       icon: Icons.forum_outlined,
                       title: 'No feedback yet',
-                      message:
-                          'Reports you send show up here with their status and any reply from the developer.',
+                      message: 'Reports you send show up here with their status and any reply from the developer.',
                       action: FilledButton(
                         onPressed: () => context.pop(),
                         child: const Text('Send feedback'),
@@ -109,9 +108,8 @@ class _Notice extends StatelessWidget {
         Expanded(
           child: Text(
             message,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: colors.onSurfaceVariant),
           ),
         ),
       ],
@@ -183,6 +181,11 @@ class _FeedbackCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(item.message, maxLines: 8, overflow: TextOverflow.ellipsis),
+          _Sender(
+            key: Key('feedback_sender_${item.id}'),
+            name: item.displayName,
+            anonymous: item.anonymous,
+          ),
           if (item.rating != null || item.attachments > 0) ...[
             const SizedBox(height: AppSpacing.xs),
             _Extras(rating: item.rating, screenshots: item.attachments),
@@ -259,6 +262,11 @@ class _QueuedCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(item.message, maxLines: 8, overflow: TextOverflow.ellipsis),
+          _Sender(
+            key: Key('queued_sender_${item.clientId}'),
+            name: item.name,
+            anonymous: item.anonymous,
+          ),
           if (item.rating != null || item.screenshots.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xs),
             _Extras(rating: item.rating, screenshots: item.screenshots.length),
@@ -287,6 +295,49 @@ class _QueuedCard extends StatelessWidget {
   }
 }
 
+/// "Sent as Asha" or "Anonymous"; nothing for reports sent without a name.
+class _Sender extends StatelessWidget {
+  const _Sender({super.key, required this.name, required this.anonymous});
+
+  final String? name;
+  final bool anonymous;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = anonymous
+        ? 'Anonymous'
+        : name == null
+        ? null
+        : 'Sent as $name';
+    if (label == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Row(
+        children: [
+          Icon(
+            anonymous
+                ? Icons.visibility_off_outlined
+                : Icons.person_outline_rounded,
+            size: 16,
+            color: muted,
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(color: muted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Extras extends StatelessWidget {
   const _Extras({required this.rating, required this.screenshots});
   final int? rating;
@@ -294,9 +345,8 @@ class _Extras extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context).textTheme.bodySmall?.copyWith(
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-    );
+    final muted = Theme.of(context).textTheme.bodySmall
+        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
     return Row(
       children: [
         if (rating case final stars?) ...[

@@ -163,6 +163,122 @@ void main() {
     expect(find.text('hello'), findsOneWidget);
     expect(store.queue, isEmpty);
   });
+
+  testWidgets(
+    'sending anonymously disables and clears name and contact, and sends neither',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      store.lastName = 'Asha';
+
+      await tester.pumpWidget(app());
+      await settle(tester);
+
+      TextField field(String key) =>
+          tester.widget<TextField>(find.byKey(Key(key)));
+      expect(
+        field('feedback_name').controller!.text,
+        'Asha',
+        reason: 'the last name is offered again',
+      );
+      expect(field('feedback_name').enabled, isTrue);
+      expect(find.byKey(const Key('feedback_anonymous_note')), findsNothing);
+      expect(
+        find.text(
+          'Device info is still included unless you turn it off below.',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.enterText(
+        find.byKey(const Key('feedback_contact')),
+        'asha@example.com',
+      );
+      await tester.enterText(
+        find.byKey(const Key('feedback_message')),
+        'Exam reminders fire twice',
+      );
+      await tester.tap(find.byKey(const Key('feedback_anonymous')));
+      await tester.pump();
+
+      expect(field('feedback_name').enabled, isFalse);
+      expect(field('feedback_contact').enabled, isFalse);
+      expect(field('feedback_name').controller!.text, isEmpty);
+      expect(field('feedback_contact').controller!.text, isEmpty);
+      expect(find.byKey(const Key('feedback_anonymous_note')), findsOneWidget);
+      expect(find.text("Your name and contact won't be sent."), findsOneWidget);
+      // Device details stay independent of the anonymous switch.
+      expect(find.text('Google Pixel 8'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('feedback_send')));
+      await settle(tester);
+
+      final sent = api.submitted.single;
+      expect(sent.anonymous, isTrue);
+      expect(sent.name, isNull);
+      expect(sent.contact, isNull);
+      expect(sent.deviceModel, 'Google Pixel 8');
+      expect(store.lastName, 'Asha', reason: 'anonymous never saves a name');
+    },
+  );
+
+  testWidgets('switching anonymous off brings the name back; a named report '
+      'remembers it and My feedback says who sent what', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    api.mine = [
+      FeedbackItem(
+        id: 'fb_named',
+        createdAt: DateTime.utc(2026, 11, 1, 9),
+        type: FeedbackType.idea,
+        message: 'Weekly view please',
+        status: FeedbackStatus.received,
+        displayName: 'Ravi',
+      ),
+      FeedbackItem(
+        id: 'fb_anon',
+        createdAt: DateTime.utc(2026, 11, 1, 8),
+        type: FeedbackType.bug,
+        message: 'Crash on rotate',
+        status: FeedbackStatus.seen,
+        anonymous: true,
+      ),
+    ];
+
+    await tester.pumpWidget(app());
+    await settle(tester);
+
+    await tester.enterText(find.byKey(const Key('feedback_name')), ' Ravi ');
+    await tester.tap(find.byKey(const Key('feedback_anonymous')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('feedback_anonymous')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('feedback_name')))
+          .controller!
+          .text,
+      'Ravi',
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('feedback_message')),
+      'Weekly view please',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('feedback_send')));
+    await settle(tester);
+
+    final sent = api.submitted.single;
+    expect(sent.anonymous, isFalse);
+    expect(sent.name, 'Ravi');
+    expect(store.lastName, 'Ravi');
+
+    await tester.tap(find.text('View my feedback'));
+    await settle(tester);
+    expect(find.text('Sent as Ravi'), findsOneWidget);
+    expect(find.text('Anonymous'), findsOneWidget);
+  });
 }
 
 class _FakeApi extends FeedbackApiClient {
@@ -208,6 +324,14 @@ class _MemoryStore extends FeedbackLocalStore {
 
   List<QueuedFeedback> queue = [];
   List<FeedbackItem> mine = [];
+  String? lastName;
+
+  @override
+  Future<String?> readLastName() async => lastName;
+
+  @override
+  Future<void> writeLastName(String? name) async =>
+      lastName = cleanFeedbackName(name);
 
   @override
   Future<FeedbackInstall> loadOrCreateInstall() async => const FeedbackInstall(

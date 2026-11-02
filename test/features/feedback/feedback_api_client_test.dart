@@ -79,9 +79,10 @@ void main() {
         );
 
         final body = latin1.decode(seen.bodyBytes);
-        String? field(String name) => RegExp(
-          'name="$name"\r\n\r\n([^\r]*)\r\n',
-        ).firstMatch(body)?.group(1);
+        String? field(String name) =>
+            RegExp('name="$name"\r\n\r\n([^\r]*)\r\n')
+                .firstMatch(body)
+                ?.group(1);
         expect(field('source'), 'app');
         expect(field('type'), 'bug');
         expect(field('message'), 'Timetable crashes when I rotate');
@@ -125,6 +126,51 @@ void main() {
       ]) {
         expect(body, isNot(contains('name="$name"')), reason: name);
       }
+    });
+
+    String? fieldOf(String body, String name) =>
+        RegExp('name="$name"\r\n\r\n([^\r]*)\r\n').firstMatch(body)?.group(1);
+
+    Future<String> bodyFor(QueuedFeedback feedback) async {
+      late http.Request seen;
+      final api = FeedbackApiClient(
+        client: MockClient((request) async {
+          seen = request;
+          return _json(201, {'ok': true, 'id': 'fb_1', 'token': 't'});
+        }),
+      );
+      await api.submit(install: _install, feedback: feedback);
+      return latin1.decode(seen.bodyBytes);
+    }
+
+    QueuedFeedback withSender({String? name, required bool anonymous}) =>
+        QueuedFeedback(
+          clientId: 'c-1',
+          createdAt: DateTime.utc(2026, 11, 1),
+          type: FeedbackType.idea,
+          message: 'Weekly view',
+          contact: 'me@example.com',
+          name: name,
+          anonymous: anonymous,
+          appVersion: '1.15.1+45',
+        );
+
+    test('a named report sends name, contact and anonymous=0', () async {
+      final body = await bodyFor(withSender(name: 'Asha', anonymous: false));
+      expect(fieldOf(body, 'name'), 'Asha');
+      expect(fieldOf(body, 'contact'), 'me@example.com');
+      expect(fieldOf(body, 'anonymous'), '0');
+    });
+
+    test('an anonymous report sends anonymous=1 and drops name and contact, '
+        'even if they were set', () async {
+      final body = await bodyFor(withSender(name: 'Asha', anonymous: true));
+      expect(fieldOf(body, 'anonymous'), '1');
+      expect(body, isNot(contains('name="name"')));
+      expect(body, isNot(contains('name="contact"')));
+      expect(body, isNot(contains('Asha')));
+      expect(body, isNot(contains('me@example.com')));
+      expect(fieldOf(body, 'message'), 'Weekly view');
     });
 
     test('reports a duplicate the service already had', () async {
@@ -173,9 +219,8 @@ void main() {
 
     test('415 and 413 are final', () async {
       expect(
-        (await failWith(
-          _json(415, {'ok': false, 'error': 'image_type'}),
-        )).retryable,
+        (await failWith(_json(415, {'ok': false, 'error': 'image_type'})))
+            .retryable,
         isFalse,
       );
       expect(
@@ -209,9 +254,8 @@ void main() {
     test('5xx and HTML error pages are retried later', () async {
       expect((await failWith(_json(500, {'ok': false}))).retryable, isTrue);
       expect(
-        (await failWith(
-          http.Response('<html>Bad gateway</html>', 502),
-        )).retryable,
+        (await failWith(http.Response('<html>Bad gateway</html>', 502)))
+            .retryable,
         isTrue,
       );
     });
@@ -330,6 +374,8 @@ void main() {
                 'admin_reply': 'Working on it!',
                 'replied_at': '2026-11-01T10:00:00Z',
                 'attachments': 2,
+                'display_name': 'Asha',
+                'anonymous': 0,
               },
               {
                 'id': 'fb_8',
@@ -339,6 +385,8 @@ void main() {
                 'status': 'wont_fix',
                 'admin_reply': null,
                 'attachments': [],
+                'display_name': null,
+                'anonymous': 1,
               },
             ],
           });
@@ -359,6 +407,35 @@ void main() {
       expect(items.first.type, FeedbackType.idea);
       expect(items.last.status.label, 'Not planned');
       expect(items.last.adminReply, isNull);
+      expect(items.first.displayName, 'Asha');
+      expect(items.first.anonymous, isFalse);
+      expect(items.last.displayName, isNull);
+      expect(items.last.anonymous, isTrue);
+    });
+
+    test('items from before names existed read as unnamed, not anonymous', () {
+      final item = FeedbackItem.fromJson({
+        'id': 1,
+        'created_at': '2026-11-01T09:00:00Z',
+        'type': 'bug',
+        'message': 'Old',
+        'status': 'new',
+      });
+      expect(item.displayName, isNull);
+      expect(item.anonymous, isFalse);
+      final cached = FeedbackItem.fromJson(
+        FeedbackItem.fromJson({
+          'id': 2,
+          'created_at': '2026-11-01T09:00:00Z',
+          'type': 'idea',
+          'message': 'New',
+          'status': 'new',
+          'display_name': 'Ravi',
+          'anonymous': false,
+        }).toJson(),
+      );
+      expect(cached.displayName, 'Ravi');
+      expect(cached.anonymous, isFalse);
     });
 
     test('a wrong token is reported as a final error', () async {

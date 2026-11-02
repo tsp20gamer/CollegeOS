@@ -42,10 +42,12 @@ class FeedbackLocalStore {
     if (await file.exists()) {
       try {
         final json = jsonDecode(await file.readAsString());
-        if (json case {
-          'install_id': final String id,
-          'install_token': final String token,
-        } when id.isNotEmpty && token.length >= 32) {
+        if (json
+            case {
+              'install_id': final String id,
+              'install_token': final String token,
+            }
+            when id.isNotEmpty && token.length >= 32) {
           return FeedbackInstall(installId: id, installToken: token);
         }
       } on FormatException {
@@ -89,6 +91,32 @@ class FeedbackLocalStore {
       file,
       jsonEncode([for (final item in queue) item.toJson()]),
     );
+  }
+
+  /// The name the student last sent a report with, offered next time.
+  Future<String?> readLastName() async {
+    final file = File(p.join((await _directory()).path, 'sender.json'));
+    if (!await file.exists()) return null;
+    try {
+      final json = jsonDecode(await file.readAsString());
+      return json is Map ? cleanFeedbackName(json['name'] as String?) : null;
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Remembers [name] for the next report; an empty name forgets it.
+  ///
+  /// Never called for anonymous reports, so sending one anonymously leaves
+  /// the remembered name as it was.
+  Future<void> writeLastName(String? name) async {
+    final file = File(p.join((await _directory()).path, 'sender.json'));
+    final cleaned = cleanFeedbackName(name);
+    if (cleaned == null) {
+      if (await file.exists()) await file.delete();
+      return;
+    }
+    await _writeAtomically(file, jsonEncode({'name': cleaned}));
   }
 
   /// The last list of reports read from the service, shown while offline.

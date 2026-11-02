@@ -35,9 +35,9 @@ class _Server {
   });
 
   static http.Response created(http.Request request, {bool duplicate = false}) {
-    final clientId = RegExp(
-      'name="client_id"\r\n\r\n([^\r]*)',
-    ).firstMatch(latin1.decode(request.bodyBytes))!.group(1);
+    final clientId = RegExp('name="client_id"\r\n\r\n([^\r]*)')
+        .firstMatch(latin1.decode(request.bodyBytes))!
+        .group(1);
     return http.Response(
       jsonEncode({
         'ok': true,
@@ -108,9 +108,8 @@ void main() {
     'enqueue saves the report and its screenshots, surviving a restart',
     () async {
       final server = _Server([]);
-      final item = await queueWith(
-        server,
-      ).enqueue(draft(screenshots: const [_jpeg, _jpeg]));
+      final item = await queueWith(server)
+          .enqueue(draft(screenshots: const [_jpeg, _jpeg]));
 
       expect(item.clientId, 'client-1');
       expect(item.message, 'Attendance shows 0%');
@@ -128,9 +127,8 @@ void main() {
   );
 
   test('the device toggle keeps model and Android version out', () async {
-    final item = await queueWith(
-      _Server([]),
-    ).enqueue(draft(includeDevice: false));
+    final item = await queueWith(_Server([]))
+        .enqueue(draft(includeDevice: false));
     expect(item.appVersion, '1.15.0+36');
     expect(item.deviceModel, isNull);
     expect(item.androidVersion, isNull);
@@ -139,12 +137,10 @@ void main() {
   test(
     'install identity is a UUID v4 plus secret, stable across restarts',
     () async {
-      final first = await FeedbackLocalStore(
-        () async => root,
-      ).loadOrCreateInstall();
-      final again = await FeedbackLocalStore(
-        () async => root,
-      ).loadOrCreateInstall();
+      final first = await FeedbackLocalStore(() async => root)
+          .loadOrCreateInstall();
+      final again = await FeedbackLocalStore(() async => root)
+          .loadOrCreateInstall();
       expect(
         first.installId,
         matches(
@@ -174,9 +170,8 @@ void main() {
       final body = latin1.decode(server.requests.single.bodyBytes);
       expect(body, contains('client-1'));
       expect(body, contains('name="screenshots"; filename="client-1_0.jpg"'));
-      final install = await FeedbackLocalStore(
-        () async => root,
-      ).loadOrCreateInstall();
+      final install = await FeedbackLocalStore(() async => root)
+          .loadOrCreateInstall();
       expect(
         server.requests.single.headers['X-Install-Token'],
         install.installToken,
@@ -317,9 +312,10 @@ void main() {
       final result = await queue.flush();
 
       expect(result.sent, 1);
-      String clientIdOf(http.Request request) => RegExp(
-        'name="client_id"\r\n\r\n([^\r]*)',
-      ).firstMatch(latin1.decode(request.bodyBytes))!.group(1)!;
+      String clientIdOf(http.Request request) =>
+          RegExp('name="client_id"\r\n\r\n([^\r]*)')
+              .firstMatch(latin1.decode(request.bodyBytes))!
+              .group(1)!;
       expect(server.requests.map(clientIdOf).toSet(), {'client-1'});
     },
   );
@@ -336,5 +332,113 @@ void main() {
     await Directory('${root.path}/feedback').create();
     await File('${root.path}/feedback/queue.json').writeAsString('{not json');
     expect(await queueWith(_Server([])).items(), isEmpty);
+  });
+
+  group('name and anonymous', () {
+    FeedbackDraft sender({
+      String? name,
+      String? contact,
+      bool anonymous = false,
+    }) => FeedbackDraft(
+      type: FeedbackType.idea,
+      message: 'Weekly view',
+      contact: contact,
+      name: name,
+      anonymous: anonymous,
+      device: _device,
+    );
+
+    test('a named report keeps its cleaned name across a restart', () async {
+      await queueWith(
+        _Server([]),
+      ).enqueue(sender(name: '  Asha\u0007  Rao ', contact: 'a@example.com'));
+      final reloaded = (await queueWith(_Server([])).items()).single;
+      expect(reloaded.name, 'Asha Rao');
+      expect(reloaded.contact, 'a@example.com');
+      expect(reloaded.anonymous, isFalse);
+    });
+
+    test('an anonymous report stores no name and no contact, and posts '
+        'anonymous=1 without them', () async {
+      final server = _Server([_Server.created]);
+      final queue = queueWith(server);
+      await queue.enqueue(
+        sender(name: 'Asha', contact: 'a@example.com', anonymous: true),
+      );
+
+      final saved = (await queueWith(_Server([])).items()).single;
+      expect(saved.anonymous, isTrue);
+      expect(saved.name, isNull);
+      expect(saved.contact, isNull);
+      final raw = await File('${root.path}/feedback/queue.json').readAsString();
+      expect(raw, isNot(contains('Asha')));
+      expect(raw, isNot(contains('a@example.com')));
+
+      expect((await queue.flush()).sent, 1);
+      final body = latin1.decode(server.requests.single.bodyBytes);
+      expect(
+        RegExp('name="anonymous"\r\n\r\n([^\r]*)').firstMatch(body)!.group(1),
+        '1',
+      );
+      expect(body, isNot(contains('name="name"')));
+      expect(body, isNot(contains('name="contact"')));
+    });
+
+    test('names are capped at 60 characters', () async {
+      await queueWith(_Server([])).enqueue(sender(name: 'x' * 90));
+      expect((await queueWith(_Server([])).items()).single.name, 'x' * 60);
+    });
+
+    test('reports saved by the earlier build, without the new keys, still '
+        'load and send as unnamed', () async {
+      await Directory('${root.path}/feedback').create();
+      await File('${root.path}/feedback/queue.json').writeAsString(
+        jsonEncode([
+          {
+            'client_id': 'legacy-1',
+            'created_at': '2026-11-01T09:00:00.000Z',
+            'type': 'bug',
+            'message': 'Old report',
+            'rating': null,
+            'contact': 'old@example.com',
+            'app_version': '1.15.1+44',
+            'device_model': null,
+            'android_version': null,
+            'screenshots': <String>[],
+            'state': 'pending',
+            'attempts': 1,
+            'last_error': null,
+            'next_attempt_at': null,
+          },
+        ]),
+      );
+      final server = _Server([_Server.created]);
+      final queue = queueWith(server);
+      final legacy = (await queue.items()).single;
+      expect(legacy.clientId, 'legacy-1');
+      expect(legacy.name, isNull);
+      expect(legacy.anonymous, isFalse);
+      expect(legacy.contact, 'old@example.com');
+
+      expect((await queue.flush()).sent, 1);
+      final body = latin1.decode(server.requests.single.bodyBytes);
+      expect(body, contains('old@example.com'));
+      expect(body, isNot(contains('name="name"')));
+    });
+
+    test(
+      'the last name is remembered, cleaned, and forgotten when emptied',
+      () async {
+        final store = FeedbackLocalStore(() async => root);
+        expect(await store.readLastName(), isNull);
+        await store.writeLastName('  Asha ');
+        expect(
+          await FeedbackLocalStore(() async => root).readLastName(),
+          'Asha',
+        );
+        await store.writeLastName('   ');
+        expect(await store.readLastName(), isNull);
+      },
+    );
   });
 }

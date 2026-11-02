@@ -131,8 +131,14 @@ class FeedbackApiClient {
         'client_id': feedback.clientId,
         'app_version': feedback.appVersion,
         if (feedback.rating case final rating?) 'rating': '$rating',
-        if (feedback.contact case final contact? when contact.isNotEmpty)
-          'contact': contact,
+        // Anonymous means no name and no contact leave the phone at all; the
+        // service drops them too, but they are never sent in the first place.
+        'anonymous': feedback.anonymous ? '1' : '0',
+        if (!feedback.anonymous) ...{
+          if (feedback.name case final name? when name.isNotEmpty) 'name': name,
+          if (feedback.contact case final contact? when contact.isNotEmpty)
+            'contact': contact,
+        },
         if (feedback.deviceModel case final model? when model.isNotEmpty)
           'device_model': model,
         if (feedback.androidVersion case final version? when version.isNotEmpty)
@@ -172,9 +178,8 @@ class FeedbackApiClient {
     final response = await _withFallback(
       (base) => http.Request(
         'GET',
-        Uri.parse(
-          '$base/api/v1/feedback/mine',
-        ).replace(queryParameters: {'install_id': install.installId}),
+        Uri.parse('$base/api/v1/feedback/mine')
+            .replace(queryParameters: {'install_id': install.installId}),
       )..headers.addAll(_headers(install)),
     );
     final body = _decode(response);

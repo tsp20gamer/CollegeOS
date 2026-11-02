@@ -6,6 +6,32 @@ const int feedbackMessageMaxLength = 3000;
 /// The longest optional contact the feedback service accepts.
 const int feedbackContactMaxLength = 200;
 
+/// The longest optional name the feedback service accepts.
+const int feedbackNameMaxLength = 60;
+
+/// Trims [value], drops control characters and caps it at
+/// [feedbackNameMaxLength]; null when nothing is left.
+String? cleanFeedbackName(String? value) {
+  if (value == null) return null;
+  final cleaned = value
+      .replaceAll(RegExp(r'[\u0000-\u001F\u007F-\u009F]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  if (cleaned.isEmpty) return null;
+  final runes = cleaned.runes.toList();
+  return runes.length <= feedbackNameMaxLength
+      ? cleaned
+      : String.fromCharCodes(runes.take(feedbackNameMaxLength)).trim();
+}
+
+/// Reads the service's anonymous flag, sent as 0/1, true/false or "1"/"0".
+bool _readFlag(Object? value) => switch (value) {
+  final bool flag => flag,
+  final num number => number != 0,
+  final String text => text == '1' || text.toLowerCase() == 'true',
+  _ => false,
+};
+
 /// How many screenshots one report may carry.
 const int feedbackMaxScreenshots = 3;
 
@@ -97,6 +123,8 @@ class QueuedFeedback {
     required this.appVersion,
     this.rating,
     this.contact,
+    this.name,
+    this.anonymous = false,
     this.deviceModel,
     this.androidVersion,
     this.screenshots = const [],
@@ -112,6 +140,13 @@ class QueuedFeedback {
   final String message;
   final int? rating;
   final String? contact;
+
+  /// The name the student chose to send with the report, if any.
+  final String? name;
+
+  /// When true the report carries no name and no contact, here or on the
+  /// service.
+  final bool anonymous;
   final String appVersion;
   final String? deviceModel;
   final String? androidVersion;
@@ -139,6 +174,8 @@ class QueuedFeedback {
     message: message,
     rating: rating,
     contact: contact,
+    name: name,
+    anonymous: anonymous,
     appVersion: appVersion,
     deviceModel: deviceModel,
     androidVersion: androidVersion,
@@ -158,6 +195,8 @@ class QueuedFeedback {
     'message': message,
     'rating': rating,
     'contact': contact,
+    'name': name,
+    'anonymous': anonymous,
     'app_version': appVersion,
     'device_model': deviceModel,
     'android_version': androidVersion,
@@ -175,6 +214,9 @@ class QueuedFeedback {
     message: json['message']! as String,
     rating: (json['rating'] as num?)?.toInt(),
     contact: json['contact'] as String?,
+    // Reports saved before names existed carry neither key.
+    name: json['name'] as String?,
+    anonymous: _readFlag(json['anonymous']),
     appVersion: json['app_version'] as String? ?? '',
     deviceModel: json['device_model'] as String?,
     androidVersion: json['android_version'] as String?,
@@ -208,6 +250,8 @@ class FeedbackItem {
     this.adminReply,
     this.repliedAt,
     this.attachments = 0,
+    this.displayName,
+    this.anonymous = false,
   });
 
   final String id;
@@ -220,6 +264,12 @@ class FeedbackItem {
   final String? adminReply;
   final DateTime? repliedAt;
   final int attachments;
+
+  /// The name the report was sent with; null when none was given.
+  final String? displayName;
+
+  /// True when the report was sent without a name or contact.
+  final bool anonymous;
 
   static FeedbackItem fromJson(Map<String, Object?> json) => FeedbackItem(
     id: '${json['id']}',
@@ -241,6 +291,11 @@ class FeedbackItem {
       final List<Object?> list => list.length,
       _ => 0,
     },
+    displayName: switch (json['display_name']) {
+      final String name when name.trim().isNotEmpty => name.trim(),
+      _ => null,
+    },
+    anonymous: _readFlag(json['anonymous']),
   );
 
   Map<String, Object?> toJson() => {
@@ -254,6 +309,8 @@ class FeedbackItem {
     'admin_reply': adminReply,
     'replied_at': repliedAt?.toUtc().toIso8601String(),
     'attachments': attachments,
+    'display_name': displayName,
+    'anonymous': anonymous ? 1 : 0,
   };
 
   static DateTime? _date(Object? value) =>

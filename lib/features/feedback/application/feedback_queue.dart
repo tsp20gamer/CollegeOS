@@ -17,6 +17,8 @@ class FeedbackDraft {
     this.includeDeviceInfo = true,
     this.rating,
     this.contact,
+    this.name,
+    this.anonymous = false,
     this.screenshots = const [],
   });
 
@@ -24,6 +26,12 @@ class FeedbackDraft {
   final String message;
   final int? rating;
   final String? contact;
+
+  /// Optional; ignored when [anonymous] is on.
+  final String? name;
+
+  /// Send with no name and no contact.
+  final bool anonymous;
   final FeedbackDeviceInfo device;
   final bool includeDeviceInfo;
 
@@ -114,13 +122,12 @@ class FeedbackQueue {
         final names = <String>[];
         for (final (index, shot) in draft.screenshots.indexed) {
           final name = '${id}_$index${_extension(shot.mimeType)}';
-          await File(
-            p.join(directory.path, name),
-          ).writeAsBytes(shot.bytes, flush: true);
+          await File(p.join(directory.path, name))
+              .writeAsBytes(shot.bytes, flush: true);
           names.add(name);
         }
 
-        final contact = draft.contact?.trim();
+        final contact = draft.anonymous ? null : draft.contact?.trim();
         final item = QueuedFeedback(
           clientId: id,
           createdAt: _clock().toUtc(),
@@ -128,6 +135,8 @@ class FeedbackQueue {
           message: draft.message.trim(),
           rating: draft.rating,
           contact: contact == null || contact.isEmpty ? null : contact,
+          name: draft.anonymous ? null : cleanFeedbackName(draft.name),
+          anonymous: draft.anonymous,
           appVersion: draft.device.appVersion,
           deviceModel: draft.includeDeviceInfo
               ? draft.device.deviceModel

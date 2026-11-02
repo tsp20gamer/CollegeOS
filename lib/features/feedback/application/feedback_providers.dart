@@ -176,6 +176,14 @@ final class FeedbackSubmitController extends Notifier<FeedbackFormState> {
     state = const FeedbackFormState(phase: FeedbackFormPhase.sending);
     final queue = ref.read(feedbackQueueProvider);
     try {
+      if (!draft.anonymous) {
+        // A convenience only; a failure here must not stop the report.
+        try {
+          await ref.read(feedbackLocalStoreProvider).writeLastName(draft.name);
+        } catch (error) {
+          debugPrint('[Feedback] could not remember the name: $error');
+        }
+      }
       final item = await queue.enqueue(draft);
       final result = await queue.sendNow(item.clientId);
       if (!ref.mounted) return result.outcome;

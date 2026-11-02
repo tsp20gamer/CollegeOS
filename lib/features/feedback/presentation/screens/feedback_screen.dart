@@ -55,9 +55,15 @@ class FeedbackScreen extends ConsumerStatefulWidget {
 class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
   final _message = TextEditingController();
   final _contact = TextEditingController();
+  final _name = TextEditingController();
   FeedbackType _type = FeedbackType.bug;
   int? _rating;
   bool _includeDevice = true;
+  bool _anonymous = false;
+
+  /// The name remembered from the last report, restored when the student
+  /// switches anonymous off again.
+  String? _rememberedName;
   bool _attaching = false;
   final List<FeedbackUpload> _screenshots = [];
 
@@ -69,6 +75,35 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) ref.read(feedbackQueueProvider).flush();
     });
+    _prefillName();
+  }
+
+  Future<void> _prefillName() async {
+    try {
+      final name = await ref.read(feedbackLocalStoreProvider).readLastName();
+      if (!mounted || name == null) return;
+      _rememberedName = name;
+      if (!_anonymous && _name.text.isEmpty) {
+        setState(() => _name.text = name);
+      }
+    } catch (_) {
+      // A remembered name is a convenience; the form works without it.
+    }
+  }
+
+  void _setAnonymous(bool value) {
+    setState(() {
+      _anonymous = value;
+      if (value) {
+        if (cleanFeedbackName(_name.text) case final name?) {
+          _rememberedName = name;
+        }
+        _name.clear();
+        _contact.clear();
+      } else if (_name.text.isEmpty && _rememberedName != null) {
+        _name.text = _rememberedName!;
+      }
+    });
   }
 
   void _changed() => setState(() {});
@@ -77,6 +112,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
   void dispose() {
     _message.dispose();
     _contact.dispose();
+    _name.dispose();
     super.dispose();
   }
 
@@ -113,14 +149,19 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
             type: _type,
             message: _message.text,
             rating: _rating,
-            contact: _contact.text,
+            contact: _anonymous ? null : _contact.text,
+            name: _anonymous ? null : _name.text,
+            anonymous: _anonymous,
             device: device,
             includeDeviceInfo: _includeDevice,
             screenshots: List.of(_screenshots),
           ),
         );
     if (!mounted) return;
-    if (outcome != FeedbackSendOutcome.rejected) _clear();
+    if (outcome != FeedbackSendOutcome.rejected) {
+      if (!_anonymous) _rememberedName = cleanFeedbackName(_name.text);
+      _clear();
+    }
   }
 
   void _clear() {
@@ -308,19 +349,69 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
         ),
         const SizedBox(height: AppSpacing.md),
         TextField(
+          key: const Key('feedback_name'),
+          controller: _name,
+          enabled: !sending && !_anonymous,
+          maxLength: feedbackNameMaxLength,
+          textCapitalization: TextCapitalization.words,
+          autofillHints: const [AutofillHints.name],
+          decoration: const InputDecoration(
+            labelText: 'Name (optional)',
+            counterText: '',
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        TextField(
           key: const Key('feedback_contact'),
           controller: _contact,
-          enabled: !sending,
+          enabled: !sending && !_anonymous,
           maxLength: feedbackContactMaxLength,
           keyboardType: TextInputType.emailAddress,
           decoration: const InputDecoration(
             labelText: 'Email or phone (optional)',
-            helperText:
-                'Only if you want a direct answer. Replies also show in My feedback.',
+            helperText: 'Only if you want a direct answer. Replies also show in My feedback.',
             helperMaxLines: 2,
             counterText: '',
           ),
         ),
+        SwitchListTile(
+          key: const Key('feedback_anonymous'),
+          contentPadding: EdgeInsets.zero,
+          secondary: Icon(
+            Icons.visibility_off_outlined,
+            color: _anonymous ? colors.primary : colors.onSurfaceVariant,
+          ),
+          title: const Text('Send anonymously'),
+          subtitle: const Text(
+            'Device info is still included unless you turn it off below.',
+          ),
+          value: _anonymous,
+          onChanged: sending ? null : _setAnonymous,
+        ),
+        if (_anonymous)
+          Semantics(
+            liveRegion: true,
+            child: Row(
+              key: const Key('feedback_anonymous_note'),
+              children: [
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: AppIconSize.xs,
+                  color: colors.primary,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    "Your name and contact won't be sent.",
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         const SizedBox(height: AppSpacing.md),
         _IncludedBox(
           device: info,
@@ -385,9 +476,8 @@ class _Label extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: Theme.of(
-      context,
-    ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+    style: Theme.of(context).textTheme.labelLarge
+        ?.copyWith(fontWeight: FontWeight.w700),
   );
 }
 
