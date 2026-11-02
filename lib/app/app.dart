@@ -12,6 +12,7 @@ import 'package:college_os/app/startup_splash.dart';
 import 'package:college_os/features/backup/application/backup_providers.dart';
 import 'package:college_os/features/backup/application/automatic_backup_coordinator.dart';
 import 'package:college_os/features/backup/application/incoming_backup_service.dart';
+import 'package:college_os/features/feedback/application/feedback_providers.dart';
 import 'package:college_os/core/services/notifications/notification_models.dart';
 import 'package:college_os/features/notifications/application/class_reminder_providers.dart';
 import 'package:college_os/features/notifications/application/notification_providers.dart';
@@ -54,6 +55,9 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
     unawaited(incomingBackups.initialize());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_initializeNotifications());
+      // Feedback written while offline goes out once the app is running. With
+      // nothing queued this reads one file and makes no request.
+      unawaited(ref.read(feedbackQueueProvider).flush());
     });
   }
 
@@ -130,9 +134,13 @@ class _CollegeOsAppState extends ConsumerState<CollegeOsApp>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       unawaited(_automaticBackups.checkpoint());
-    } else if (state == AppLifecycleState.resumed &&
-        _notificationsInitialized) {
-      unawaited(_refreshNotificationSchedules());
+    } else if (state == AppLifecycleState.resumed) {
+      if (_notificationsInitialized) {
+        unawaited(_refreshNotificationSchedules());
+      }
+      // Returning to the app is the usual moment a connection is back; the
+      // app holds no network-state permission to be told sooner.
+      unawaited(ref.read(feedbackQueueProvider).flush());
     }
   }
 

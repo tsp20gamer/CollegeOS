@@ -62,6 +62,10 @@ dependencies:
   lottie: ^3.6.1
   google_mlkit_text_recognition: 0.17.1
   pdfx: 2.11.0
+  image_picker: ^1.2.4
+  device_info_plus: ^12.4.0
+  image: ^4.9.1
+  http_parser: ^4.1.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

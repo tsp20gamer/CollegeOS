@@ -8,6 +8,8 @@ import 'package:college_os/features/backup/presentation/screens/data_backup_scre
 import 'package:college_os/features/calendar/presentation/screens/academic_calendar_screen.dart';
 import 'package:college_os/features/exams/presentation/screens/exams_marks_screen.dart';
 import 'package:college_os/features/home/presentation/screens/home_screen.dart';
+import 'package:college_os/features/feedback/presentation/screens/feedback_screen.dart';
+import 'package:college_os/features/feedback/presentation/screens/my_feedback_screen.dart';
 import 'package:college_os/features/help/presentation/screens/offline_help_screen.dart';
 import 'package:college_os/features/marks/presentation/screens/subject_performance_screen.dart';
 import 'package:college_os/features/notes/presentation/screens/notes_home_screen.dart';
@@ -270,6 +272,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'help',
             name: RouteNames.help,
             builder: (context, state) => const OfflineHelpScreen(),
+          ),
+          GoRoute(
+            path: 'feedback',
+            name: RouteNames.feedback,
+            builder: (context, state) => const FeedbackScreen(),
+            routes: [
+              GoRoute(
+                path: 'mine',
+                name: RouteNames.myFeedback,
+                builder: (context, state) => const MyFeedbackScreen(),
+              ),
+            ],
           ),
         ],
       ),

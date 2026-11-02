@@ -25,6 +25,8 @@ abstract final class RouteNames {
   static const academicCalendar = 'academic-calendar';
   static const reports = 'reports';
   static const help = 'help';
+  static const feedback = 'feedback';
+  static const myFeedback = 'my-feedback';
   static const subjectNotes = 'subject-notes';
 }
 
@@ -55,5 +57,7 @@ abstract final class RoutePaths {
   static const academicCalendar = '/settings/academic-calendar';
   static const reports = '/settings/reports';
   static const help = '/settings/help';
+  static const feedback = '/settings/feedback';
+  static const myFeedback = '/settings/feedback/mine';
   static const subjectNotes = '/notes/subject/:subjectId';
 }

@@ -240,6 +240,13 @@ class SettingsScreen extends ConsumerWidget {
                       subtitle: 'Offline guides for setup and daily use',
                       onTap: () => context.push(RoutePaths.help),
                     ),
+                    _SettingsTile(
+                      key: const Key('feedback_tile'),
+                      icon: Icons.rate_review_outlined,
+                      title: 'Feedback & ideas',
+                      subtitle: 'Report a bug or suggest an idea, privately',
+                      onTap: () => context.push(RoutePaths.feedback),
+                    ),
                     _AppInfoTile(
                       appVersion: appVersion,
                       onTap: () => _showAppInfo(context, appVersion.value),
