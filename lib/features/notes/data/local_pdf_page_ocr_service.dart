@@ -30,39 +30,53 @@ final class LocalPdfPageOcrService implements PdfPageOcrService {
       'collegeos_ocr_',
     );
     final texts = <int, String>{};
+    Object? firstError;
+    StackTrace? firstStackTrace;
 
     try {
       for (final pageNumber in pageNumbers) {
-        final page = await document.getPage(pageNumber);
+        // One unreadable page must not stop the rest of the batch (or block
+        // every later page on each retry): a page that throws is skipped and
+        // keeps no text. A batch where every page throws is reported as an
+        // OCR failure below, so a broken recognizer is never stored as done.
         try {
-          final scale = _scaleFor(page.width, page.height);
-          final image = await page.render(
-            width: page.width * scale,
-            height: page.height * scale,
-            format: pdfx.PdfPageImageFormat.jpeg,
-            backgroundColor: '#FFFFFF',
-            quality: 88,
-          );
-          if (image == null) continue;
+          final page = await document.getPage(pageNumber);
+          try {
+            final scale = _scaleFor(page.width, page.height);
+            final image = await page.render(
+              width: page.width * scale,
+              height: page.height * scale,
+              format: pdfx.PdfPageImageFormat.jpeg,
+              backgroundColor: '#FFFFFF',
+              quality: 88,
+            );
+            if (image == null) continue;
 
-          final imageFile = File(
-            '${temporaryDirectory.path}${Platform.pathSeparator}$pageNumber.jpg',
-          );
-          await imageFile.writeAsBytes(image.bytes, flush: true);
-          final input = InputImage.fromFilePath(imageFile.path);
-          final latinText = (await latin.processImage(input)).text;
-          final devanagariText = (await devanagari.processImage(input)).text;
-          final lines = <String>{
-            ...latinText.split(RegExp(r'\r?\n')).map((line) => line.trim()),
-            ...devanagariText
-                .split(RegExp(r'\r?\n'))
-                .map((line) => line.trim()),
-          }..removeWhere((line) => line.isEmpty);
-          texts[pageNumber] = lines.join('\n');
-          await imageFile.delete();
-        } finally {
-          await page.close();
+            final imageFile = File(
+              '${temporaryDirectory.path}${Platform.pathSeparator}$pageNumber.jpg',
+            );
+            await imageFile.writeAsBytes(image.bytes, flush: true);
+            final input = InputImage.fromFilePath(imageFile.path);
+            final latinText = (await latin.processImage(input)).text;
+            final devanagariText = (await devanagari.processImage(input)).text;
+            final lines = <String>{
+              ...latinText.split(RegExp(r'\r?\n')).map((line) => line.trim()),
+              ...devanagariText
+                  .split(RegExp(r'\r?\n'))
+                  .map((line) => line.trim()),
+            }..removeWhere((line) => line.isEmpty);
+            texts[pageNumber] = lines.join('\n');
+            await imageFile.delete();
+          } finally {
+            await page.close();
+          }
+        } catch (error, stackTrace) {
+          firstError ??= error;
+          firstStackTrace ??= stackTrace;
         }
+      }
+      if (texts.isEmpty && firstError != null) {
+        Error.throwWithStackTrace(firstError, firstStackTrace!);
       }
       return texts;
     } finally {

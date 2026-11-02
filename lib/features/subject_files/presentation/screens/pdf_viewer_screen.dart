@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:college_os/features/notes/application/pdf_search_providers.dart';
@@ -133,9 +134,14 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
           metadata.status == 'ocr_error' ||
           metadata.status == 'error' ||
           metadata.status.startsWith('indexing')) {
-        await ref
-            .read(pdfIndexCommandProvider.notifier)
-            .indexFile(widget.file.id, widget.file.relativeFilePath);
+        // Start (or resume) indexing in the background but do not wait for
+        // it: indexFile completes only when the whole run ends, and OCR of a
+        // scanned PDF takes minutes. Search the pages indexed so far now.
+        unawaited(
+          ref
+              .read(pdfIndexCommandProvider.notifier)
+              .indexFile(widget.file.id, widget.file.relativeFilePath),
+        );
       }
       final matches = await dao.search(
         normalizedQuery,
