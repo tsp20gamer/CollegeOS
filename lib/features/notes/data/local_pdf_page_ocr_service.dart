@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:college_os/features/subject_files/data/pdf_reader_activity.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:pdfx/pdfx.dart' as pdfx;
 
@@ -39,6 +40,9 @@ final class LocalPdfPageOcrService implements PdfPageOcrService {
         // every later page on each retry): a page that throws is skipped and
         // keeps no text. A batch where every page throws is reported as an
         // OCR failure below, so a broken recognizer is never stored as done.
+        // Let the reader have the renderer and memory while the student is
+        // scrolling a PDF; indexing resumes a few seconds after they stop.
+        await PdfReaderActivity.yieldWhileReading();
         try {
           final page = await document.getPage(pageNumber);
           try {

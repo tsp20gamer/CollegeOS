@@ -30,6 +30,7 @@
     <application
         android:allowBackup="false"
         android:fullBackupContent="false"
+        android:largeHeap="true"
         android:label="CollegeOS"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"

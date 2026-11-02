@@ -168,7 +168,7 @@ final class BackupController extends AsyncNotifier<void> {
         RegExp(r'^[0-9a-fA-F-]{36}_'),
         '',
       );
-      return ref
+      return await ref
           .read(backupServiceProvider)
           .inspect(bytes: bytes, sourceName: sourceName);
     } finally {

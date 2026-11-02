@@ -5,12 +5,35 @@ import 'package:college_os/features/notes/application/pdf_search_providers.dart'
 import 'package:college_os/features/notes/domain/pdf_search_result.dart';
 import 'package:college_os/features/subject_files/domain/subject_file.dart';
 import 'package:college_os/core/database/database_providers.dart';
+import 'package:college_os/features/subject_files/data/pdf_page_rasterizer.dart';
+import 'package:college_os/features/subject_files/presentation/widgets/large_pdf_reader.dart';
 import 'package:college_os/features/subject_files/presentation/widgets/pdf_page_scrubber.dart';
 import 'package:college_os/shared/widgets/error_state.dart';
 import 'package:college_os/shared/widgets/loading_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+
+/// Documents with at least this many pages open in [LargePdfReader].
+const int kLargePdfPageThreshold = 80;
+
+/// Documents at least this big open in [LargePdfReader].
+const int kLargePdfByteThreshold = 20 * 1024 * 1024;
+
+/// Whether a document should open in the lightweight [LargePdfReader] rather
+/// than Syncfusion's viewer.
+///
+/// Syncfusion's viewer parses the whole file on the UI isolate, copies the
+/// parsed document into a second isolate and extracts the text of every page
+/// there as soon as it opens, and extracts each page again on the UI isolate
+/// as it scrolls into view - keeping everything it parsed until the viewer
+/// closes. Measured on a 412 page / 91 MB lecture PDF that grows the heap by
+/// 3-5 MB per page (about 1.6 GB by page 350), which is what got the app
+/// killed while scrolling a big PDF. Small documents keep Syncfusion's viewer
+/// (text selection and in-page search highlights); long or heavy ones use the
+/// reader that only ever holds the pages on screen.
+bool shouldUseLargePdfReader({required int fileBytes, required int pageCount}) =>
+    pageCount >= kLargePdfPageThreshold || fileBytes >= kLargePdfByteThreshold;
 
 class PdfViewerScreen extends ConsumerStatefulWidget {
   const PdfViewerScreen({
@@ -71,6 +94,21 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
   int _pageCount = 0;
   int _currentPage = 1;
 
+  /// Set when the document opens in [LargePdfReader] instead of Syncfusion.
+  PdfPageRasterizer? _rasterizer;
+  List<Size>? _pageSizes;
+  final LargePdfReaderController _largeReaderController =
+      LargePdfReaderController();
+
+  bool get _useLargeReader => _rasterizer != null && _pageSizes != null;
+
+  /// Syncfusion's own highlight search; the large reader has none and relies
+  /// on the page index (which also covers OCR'd scanned pages).
+  bool get _textSearchBusy =>
+      !_useLargeReader && !_pdfTextSearchResult.isSearchCompleted;
+  bool get _textSearchHasResult =>
+      !_useLargeReader && _pdfTextSearchResult.hasResult;
+
   @override
   void initState() {
     super.initState();
@@ -88,10 +126,16 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
       final service = ref.read(subjectFileStorageServiceProvider);
       final file = await service.resolveFile(widget.file.relativeFilePath);
       if (await file.exists()) {
+        await _openLargeReaderIfNeeded(file);
+        if (!mounted) {
+          await _rasterizer?.close();
+          return;
+        }
         setState(() {
           _localFile = file;
           _isLoading = false;
         });
+        if (_useLargeReader) _startInitialSearch();
       } else {
         setState(() {
           _error = 'File not found on device.';
@@ -104,6 +148,52 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  /// Opens long or heavy documents in [LargePdfReader] (see
+  /// [shouldUseLargePdfReader]). Any failure here (a password protected file,
+  /// a renderer that cannot open it) leaves the document to Syncfusion's
+  /// viewer, which has its own handling for those.
+  Future<void> _openLargeReaderIfNeeded(File file) async {
+    PdfPageRasterizer? rasterizer;
+    try {
+      final bytes = await file.length();
+      rasterizer = await PdfxPageRasterizer.open(
+        file.path,
+      ).timeout(const Duration(seconds: 15));
+      if (!shouldUseLargePdfReader(
+        fileBytes: bytes,
+        pageCount: rasterizer.pageCount,
+      )) {
+        await rasterizer.close();
+        return;
+      }
+      final sizes = await rasterizer.pageSizes().timeout(
+        const Duration(seconds: 30),
+      );
+      if (sizes.isEmpty) {
+        await rasterizer.close();
+        return;
+      }
+      _rasterizer = rasterizer;
+      _pageSizes = sizes;
+      _pageCount = sizes.length;
+      _currentPage = (widget.initialPageNumber ?? 1).clamp(1, sizes.length);
+    } catch (_) {
+      try {
+        await rasterizer?.close();
+      } catch (_) {}
+      _rasterizer = null;
+      _pageSizes = null;
+    }
+  }
+
+  void _startInitialSearch() {
+    final query = widget.initialSearchQuery;
+    if (query == null || query.isEmpty) return;
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) _executeSearch(query);
+    });
   }
 
   Future<void> _executeSearch(String query) async {
@@ -119,7 +209,9 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
       _isIndexedSearchLoading = true;
       _indexedSearchResults = const [];
       _indexedSearchIndex = 0;
-      _pdfTextSearchResult = _pdfViewerController.searchText(normalizedQuery);
+      _pdfTextSearchResult = _useLargeReader
+          ? PdfTextSearchResult()
+          : _pdfViewerController.searchText(normalizedQuery);
       _pdfTextSearchResult.addListener(_onSearchProgress);
     });
 
@@ -173,6 +265,7 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
       setState(() {});
       return;
     }
+    if (_useLargeReader) return;
 
     if (direction < 0) {
       _pdfTextSearchResult.previousInstance();
@@ -211,7 +304,11 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
     final target = page.clamp(1, _pageCount == 0 ? page : _pageCount);
     if (target == _currentPage) return;
     setState(() => _currentPage = target);
-    _pdfViewerController.jumpToPage(target);
+    if (_useLargeReader) {
+      _largeReaderController.jumpToPage(target);
+    } else {
+      _pdfViewerController.jumpToPage(target);
+    }
   }
 
   @override
@@ -219,6 +316,12 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
     _pdfTextSearchResult.removeListener(_onSearchProgress);
     _pdfTextSearchResult.dispose();
     _pdfViewerController.dispose();
+    _largeReaderController.dispose();
+    final rasterizer = _rasterizer;
+    _rasterizer = null;
+    // The reader's widgets are gone by now; their queued renders were
+    // cancelled when the reader was disposed.
+    if (rasterizer != null) unawaited(rasterizer.close().catchError((_) {}));
     _searchController.dispose();
     super.dispose();
   }
@@ -292,8 +395,7 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
                 color: colors.surfaceContainerLow,
                 child: Row(
                   children: [
-                    if (_isIndexedSearchLoading ||
-                        !_pdfTextSearchResult.isSearchCompleted)
+                    if (_isIndexedSearchLoading || _textSearchBusy)
                       const SizedBox(
                         width: 16,
                         height: 16,
@@ -303,14 +405,14 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
                       Text(
                         _indexedSearchResults.isNotEmpty
                             ? 'Page ${_indexedSearchIndex + 1} of ${_indexedSearchResults.length} matching pages'
-                            : _pdfTextSearchResult.hasResult
+                            : _textSearchHasResult
                             ? '${_pdfTextSearchResult.currentInstanceIndex} of ${_pdfTextSearchResult.totalInstanceCount}'
                             : 'No matches found',
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                     const Spacer(),
                     if (_indexedSearchResults.isNotEmpty ||
-                        _pdfTextSearchResult.hasResult) ...[
+                        _textSearchHasResult) ...[
                       IconButton(
                         icon: const Icon(Icons.navigate_before_rounded),
                         onPressed: () => _navigateSearchResult(-1),
@@ -337,6 +439,35 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
       return ErrorState(
         title: 'Could not load PDF',
         message: _error ?? 'Unknown error',
+      );
+    }
+
+    final rasterizer = _rasterizer;
+    final pageSizes = _pageSizes;
+    if (rasterizer != null && pageSizes != null) {
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: LargePdfReader(
+              rasterizer: rasterizer,
+              pageSizes: pageSizes,
+              controller: _largeReaderController,
+              initialPageNumber: widget.initialPageNumber,
+              onPageChanged: (page) {
+                if (mounted && page != _currentPage) {
+                  setState(() => _currentPage = page);
+                }
+              },
+            ),
+          ),
+          Positioned.fill(
+            child: PdfPageScrubber(
+              pageCount: _pageCount,
+              currentPage: _currentPage,
+              onPageSelected: _goToPage,
+            ),
+          ),
+        ],
       );
     }
 
