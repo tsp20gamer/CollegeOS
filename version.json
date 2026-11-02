@@ -1,6 +1,6 @@
 {
-  "latest_version": "1.15.0",
+  "latest_version": "1.16.0",
   "apk_url": "https://apicollegeos.steja3471.workers.dev/?download=1",
-  "changelog": "• Offline on-device OCR (Latin & Devanagari) for scanned PDFs\n• In-viewer Find across OCR-indexed pages & persistent page counter\n• Separate Open and Share actions for subject files\n• Foreground reminder schedule reconciliation & one-tap reminder repair\n• SQLite-scoped PDF search with clearer indexing progress and retry",
+  "changelog": "• Feedback & ideas screen with offline outbox, screenshot attachments & anonymous mode\n• My feedback screen to track status and developer replies\n• Scanned-PDF OCR fix for release builds with automatic retry\n• Lightweight reader for large PDFs with smooth scrolling and memory budget\n• Reliable on-time offline reminder delivery with exact alarm scheduling",
   "force_update": false
 }
