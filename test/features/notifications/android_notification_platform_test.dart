@@ -18,6 +18,7 @@ void main() {
   var nativePermissionGranted = true;
   var nativeChannelEnabled = true;
   var exactAlarmAllowed = false;
+  var exactAlarmRejected = false;
 
   setUp(() {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
@@ -28,9 +29,18 @@ void main() {
     nativePermissionGranted = true;
     nativeChannelEnabled = true;
     exactAlarmAllowed = false;
+    exactAlarmRejected = false;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           calls.add(call);
+          if (call.method == 'zonedSchedule' && exactAlarmRejected) {
+            final arguments = call.arguments! as Map<dynamic, dynamic>;
+            final specifics =
+                arguments['platformSpecifics'] as Map<dynamic, dynamic>;
+            if (specifics['scheduleMode'] == 'exactAllowWhileIdle') {
+              throw PlatformException(code: 'exact_alarms_not_permitted');
+            }
+          }
           return switch (call.method) {
             'initialize' => true,
             'areNotificationsEnabled' => pluginNotificationsEnabled,
@@ -159,5 +169,29 @@ void main() {
     arguments = scheduled.arguments! as Map<dynamic, dynamic>;
     specifics = arguments['platformSpecifics'] as Map<dynamic, dynamic>;
     expect(specifics['scheduleMode'], 'exactAllowWhileIdle');
+  });
+
+  test('keeps the reminder when Android rejects the exact alarm', () async {
+    exactAlarmAllowed = true;
+    exactAlarmRejected = true;
+    final platform = AndroidNotificationPlatform();
+
+    await platform.schedule((
+      type: NotificationEntityType.exam,
+      entityId: 3,
+      title: 'Exam reminder',
+      body: 'Maths mid-sem',
+      scheduledAt: DateTime.now().add(const Duration(hours: 2)),
+    ));
+
+    final modes = calls
+        .where((call) => call.method == 'zonedSchedule')
+        .map(
+          (call) =>
+              ((call.arguments! as Map<dynamic, dynamic>)['platformSpecifics']
+                  as Map<dynamic, dynamic>)['scheduleMode'],
+        )
+        .toList();
+    expect(modes, ['exactAllowWhileIdle', 'inexactAllowWhileIdle']);
   });
 }

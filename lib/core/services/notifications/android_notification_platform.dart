@@ -136,19 +136,43 @@ final class AndroidNotificationPlatform implements NotificationPlatform {
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
+    // USE_EXACT_ALARM (Android 13+) and SCHEDULE_EXACT_ALARM (Android 12/12L)
+    // make this true on a normal install. An inexact alarm is only the last
+    // resort: Doze holds it until the phone next wakes, which offline can be
+    // hours, so a reminder would appear to need the internet.
     final exactAlarmAllowed =
-        await android?.canScheduleExactNotifications() == true;
-    await _plugin.zonedSchedule(
-      id: notificationId(notification.type, notification.entityId),
-      title: notification.title,
-      body: notification.body,
-      scheduledDate: tz.TZDateTime.from(notification.scheduledAt, tz.local),
-      notificationDetails: _details,
-      androidScheduleMode: exactAlarmAllowed
-          ? AndroidScheduleMode.exactAllowWhileIdle
-          : AndroidScheduleMode.inexactAllowWhileIdle,
-      payload: notificationPayload(notification.type, notification.entityId),
+        await android?.canScheduleExactNotifications() ?? true;
+    final scheduledDate = tz.TZDateTime.from(
+      notification.scheduledAt,
+      tz.local,
     );
+    final id = notificationId(notification.type, notification.entityId);
+    final payload = notificationPayload(
+      notification.type,
+      notification.entityId,
+    );
+    Future<void> scheduleWith(AndroidScheduleMode mode) =>
+        _plugin.zonedSchedule(
+          id: id,
+          title: notification.title,
+          body: notification.body,
+          scheduledDate: scheduledDate,
+          notificationDetails: _details,
+          androidScheduleMode: mode,
+          payload: payload,
+        );
+    if (!exactAlarmAllowed) {
+      await scheduleWith(AndroidScheduleMode.inexactAllowWhileIdle);
+      return;
+    }
+    try {
+      await scheduleWith(AndroidScheduleMode.exactAllowWhileIdle);
+    } on PlatformException {
+      // Exact access can be withdrawn between the check and the alarm (an OEM
+      // permission manager, a revoked special access); keep the reminder
+      // rather than lose it.
+      await scheduleWith(AndroidScheduleMode.inexactAllowWhileIdle);
+    }
   }
 
   @override
